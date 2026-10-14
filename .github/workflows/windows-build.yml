@@ -48,14 +48,13 @@ jobs:
       - name: Install frontend dependencies
         run: npm install
       - name: Build Windows installers
-        run: npm run tauri build
+        run: npm run tauri -- build --bundles nsis
       - name: Upload installers as workflow artifact
         uses: actions/upload-artifact@v4
         with:
           name: TGTV-Desktop-Windows-v0.1.0
           path: |
             src-tauri/target/release/bundle/nsis/*.exe
-            src-tauri/target/release/bundle/msi/*.msi
           if-no-files-found: error
       - name: Publish downloadable GitHub Release
         if: github.ref == 'refs/heads/main'
