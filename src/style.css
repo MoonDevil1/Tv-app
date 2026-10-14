@@ -32,3 +32,21 @@
 .picker-channel small{color:#9c95b1;font-size:9px}
 .picker-playing{position:absolute;right:8px;top:10px;color:#8ce7b6;font-size:8px;letter-spacing:.5px}
 .picker-empty{padding:15px 5px;text-align:center;color:#a49bb8;font-size:11px}
+
+/* In-app settings and release updater */
+.nav#settings-nav{margin-top:4px}
+.settings-backdrop{position:fixed;inset:0;z-index:20;display:grid;place-items:center;padding:20px;background:#05040bd9;backdrop-filter:blur(8px)}
+.settings-backdrop.hidden,.hidden{display:none!important}
+.settings-card{width:min(520px,100%);padding:22px;border:1px solid #40334f;border-radius:16px;background:linear-gradient(145deg,#1b1727,#100f18);box-shadow:0 24px 80px #0009}
+.settings-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:23px}
+.settings-head h2{font:600 24px 'Space Grotesk',sans-serif;margin:6px 0 0}
+.settings-close{width:34px;height:34px;border:1px solid #393047;border-radius:9px;background:#211b2d;color:#eee6ff;font-size:23px;cursor:pointer}
+.settings-row{display:flex;align-items:flex-start;justify-content:space-between;gap:14px}
+.settings-row b{font-size:14px}.settings-row p{margin:7px 0 0;color:#a49db5;font-size:11px;line-height:1.6}
+.version-pill{flex:0 0 auto;border:1px solid #51416a;border-radius:7px;padding:6px 8px;background:#2b2140;color:#d9c9ff;font-size:10px}
+.update-status{margin:18px 0;padding:12px;border:1px solid #302a3e;border-radius:9px;background:#13111d;color:#c5bdd8;font-size:11px;line-height:1.6;overflow-wrap:anywhere}
+.update-status.success{border-color:#28563f;color:#a4edc4}.update-status.error{border-color:#713747;color:#ffb5c1}
+.settings-actions{display:flex;gap:9px;flex-wrap:wrap}
+.primary-button{border:1px solid #9b7bea;border-radius:9px;padding:11px 14px;background:linear-gradient(135deg,#8b5cf6,#6d28d9);color:white;font-size:11px;font-weight:700;cursor:pointer}
+.primary-button:hover{filter:brightness(1.12)}.primary-button:disabled{opacity:.6;cursor:wait}
+.settings-footnote{margin:16px 0 0;color:#7f798f;font-size:10px;line-height:1.6}
