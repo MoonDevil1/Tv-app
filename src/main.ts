@@ -1,6 +1,8 @@
 import { invoke } from '@tauri-apps/api/core';
 import './style.css';
 
+const APP_VERSION = '0.2.2';
+
 type Channel = {
   id?: string | number; channelId?: string | number; channel_id?: string | number;
   name?: string; title?: string; category?: string; group?: string; genre?: string;
@@ -24,6 +26,7 @@ root.innerHTML = `
     <button class="nav active" id="all-channels">▦ <span>Live channels</span></button>
     <button class="nav" id="favorites-nav">★ <span>Favourites <em id="fav-count">0</em></span></button>
     <button class="nav" id="reload">↻ <span>Refresh directory</span></button>
+    <button class="nav" id="settings-nav">⚙ <span>Settings</span></button>
     <div class="side-bottom"><div class="live-dot"></div><div><b>LiveTGTV V1</b><small>Public directory</small></div></div>
   </aside>
   <main class="main">
@@ -42,6 +45,8 @@ root.innerHTML = `
   </main>
 </div>`;
 
+root.insertAdjacentHTML('beforeend', "<div id=\"settings-modal\" class=\"settings-backdrop hidden\" role=\"dialog\" aria-modal=\"true\" aria-labelledby=\"settings-title\">\n  <section class=\"settings-card\"><div class=\"settings-head\"><div><div class=\"eyebrow\">PREFERENCES</div><h2 id=\"settings-title\">Settings</h2></div><button id=\"close-settings\" class=\"settings-close\" aria-label=\"Close settings\">×</button></div>\n    <div class=\"settings-row\"><div><b>App updates</b><p>Check GitHub for the latest TGTV Desktop release and install it without opening a browser.</p></div><span id=\"current-version\" class=\"version-pill\">v0.2.2</span></div>\n    <div id=\"update-status\" class=\"update-status\" role=\"status\">You are using TGTV Desktop v0.2.2.</div>\n    <div class=\"settings-actions\"><button id=\"check-updates\" class=\"primary-button\">Check for updates</button><button id=\"install-update\" class=\"primary-button hidden\">Download and install update</button></div>\n    <p class=\"settings-footnote\">Updates are downloaded from this app’s official GitHub Releases. Save your work before installing.</p>\n  </section>\n</div>");
+
 const grid = document.querySelector<HTMLDivElement>('#grid')!;
 const search = document.querySelector<HTMLInputElement>('#search')!;
 const categories = document.querySelector<HTMLSelectElement>('#categories')!;
@@ -57,6 +62,12 @@ const changeChannelButton = document.querySelector<HTMLButtonElement>('#change-c
 const channelPicker = document.querySelector<HTMLDivElement>('#channel-picker')!;
 const pickerSearch = document.querySelector<HTMLInputElement>('#picker-search')!;
 const pickerList = document.querySelector<HTMLDivElement>('#picker-list')!;
+const settingsModal = document.querySelector<HTMLDivElement>('#settings-modal')!;
+const updateStatus = document.querySelector<HTMLDivElement>('#update-status')!;
+const checkUpdatesButton = document.querySelector<HTMLButtonElement>('#check-updates')!;
+const installUpdateButton = document.querySelector<HTMLButtonElement>('#install-update')!;
+type UpdateInfo = { version: string; download_url: string; file_name: string; notes: string };
+let availableUpdate: UpdateInfo | null = null;
 
 function loadFavorites(): string[] {
   try { const value = JSON.parse(localStorage.getItem(FAVORITES_KEY) || '[]'); return Array.isArray(value) ? value.map(String) : []; }
@@ -200,7 +211,29 @@ switchPlayer.addEventListener('click', () => {
 });
 document.querySelector('#retry')?.addEventListener('click', () => {
   const ch = state.channels.find(c => id(c) === state.selectedId);
-  if (ch) playChannel(ch, state.playerMode); else void loadChannels();
+  if (ch) playChannel(ch, state.playerMode); else document.querySelector('#settings-nav')?.addEventListener('click', () => { settingsModal.classList.remove('hidden'); document.querySelector('#settings-nav')?.classList.add('active'); });
+function closeSettings() { settingsModal.classList.add('hidden'); document.querySelector('#settings-nav')?.classList.remove('active'); }
+document.querySelector('#close-settings')?.addEventListener('click', closeSettings);
+settingsModal.addEventListener('click', event => { if (event.target === settingsModal) closeSettings(); });
+document.addEventListener('keydown', event => { if (event.key === 'Escape') closeSettings(); });
+checkUpdatesButton.addEventListener('click', async () => {
+  checkUpdatesButton.disabled = true; installUpdateButton.classList.add('hidden'); availableUpdate = null;
+  updateStatus.textContent = 'Checking the latest GitHub release…'; updateStatus.classList.remove('error', 'success');
+  try {
+    const update = await invoke<UpdateInfo | null>('check_for_updates');
+    if (!update || compareVersions(update.version, APP_VERSION) <= 0) { updateStatus.textContent = `You’re up to date — TGTV Desktop v${APP_VERSION}.`; updateStatus.classList.add('success'); }
+    else { availableUpdate = update; updateStatus.textContent = `Version ${update.version} is available. ${update.notes || 'Install it to get the latest improvements.'}`; installUpdateButton.classList.remove('hidden'); }
+  } catch (error) { updateStatus.textContent = `Could not check for updates: ${String(error)}`; updateStatus.classList.add('error'); }
+  finally { checkUpdatesButton.disabled = false; }
+});
+installUpdateButton.addEventListener('click', async () => {
+  if (!availableUpdate) return; installUpdateButton.disabled = true; installUpdateButton.textContent = 'Downloading…';
+  updateStatus.textContent = `Downloading TGTV Desktop v${availableUpdate.version}…`; updateStatus.classList.remove('error', 'success');
+  try { await invoke('download_and_install_update', { downloadUrl: availableUpdate.download_url, fileName: availableUpdate.file_name }); updateStatus.textContent = 'Installer launched. Follow the installer prompts to finish updating.'; updateStatus.classList.add('success'); }
+  catch (error) { updateStatus.textContent = `Update failed: ${String(error)}`; updateStatus.classList.add('error'); installUpdateButton.disabled = false; installUpdateButton.textContent = 'Retry update'; }
+});
+function compareVersions(a: string, b: string) { const pa = a.replace(/^v/i, '').split('.').map(n => Number.parseInt(n, 10) || 0); const pb = b.replace(/^v/i, '').split('.').map(n => Number.parseInt(n, 10) || 0); for (let i = 0; i < Math.max(pa.length, pb.length); i++) { if ((pa[i] || 0) !== (pb[i] || 0)) return (pa[i] || 0) - (pb[i] || 0); } return 0; }
+void loadChannels();
 });
 openSource.addEventListener('click', () => window.open(API_HOME, '_blank', 'noopener,noreferrer'));
 void loadChannels();
