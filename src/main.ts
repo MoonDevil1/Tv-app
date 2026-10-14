@@ -38,7 +38,7 @@ root.innerHTML = `
         <div class="note"><span>ⓘ</span><p>The official LiveTGTV V1 page handles playback. If one embed fails, use “Try Watch page” to switch its official player route. Availability and authorization are controlled by the source service.</p></div>
       </aside>
     </section>
-    <footer><span>TGTV Desktop <b>v0.2.0</b></span><span>Lightweight Windows app · LiveTGTV V1 only</span></footer>
+    <footer><span>TGTV Desktop <b>v0.2.1</b></span><span>Lightweight Windows app · LiveTGTV V1 only</span></footer>
   </main>
 </div>`;
 
