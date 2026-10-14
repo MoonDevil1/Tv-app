@@ -32,7 +32,7 @@ root.innerHTML = `
     <section class="content">
       <div class="directory"><div class="section-head"><div><div class="eyebrow">THE DIRECTORY</div><h2 id="directory-title">Channels</h2></div><span class="tiny-live"><i></i> LIVE DIRECTORY</span></div><div id="grid" class="grid"><div class="loading"><div class="spinner"></div>Loading channels from V1…</div></div></div>
       <aside class="player-panel"><div class="section-head player-title"><div><div class="eyebrow">NOW PLAYING</div><h2 id="playing-title">Choose a channel</h2></div><button id="player-favorite" class="favorite-player" title="Add current channel to favourites" aria-label="Toggle current channel favourite" disabled>☆</button></div>
-        <div class="video-wrap"><iframe id="player" title="LiveTGTV V1 player" allow="autoplay; fullscreen; encrypted-media; picture-in-picture" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe><div id="video-empty" class="video-empty"><div class="play-symbol">▶</div><b>Your screen, live.</b><p>Select a channel to start playback.</p></div></div>
+        <div class="video-wrap"><iframe id="player" title="LiveTGTV V1 player" allow="autoplay; fullscreen; encrypted-media; picture-in-picture" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe><button id="change-channel" class="change-channel" disabled>⇄ Change channel</button><div id="channel-picker" class="channel-picker hidden"><div class="picker-head"><b>Change channel</b><button id="close-channel-picker" title="Close channel list" aria-label="Close channel list">×</button></div><input id="picker-search" type="search" placeholder="Search channels…" autocomplete="off"><div id="picker-list" class="picker-list"></div></div><div id="video-empty" class="video-empty"><div class="play-symbol">▶</div><b>Your screen, live.</b><p>Select a channel to start playback.</p></div></div>
         <div id="player-status" class="status">Ready when you are.</div>
         <div class="player-actions"><button id="retry" class="secondary">↻ Reload player</button><button id="switch-player" class="secondary">⇄ Try Watch page</button><button id="open-source" class="secondary">↗ Open source page</button></div>
         <div class="note"><span>ⓘ</span><p>The official LiveTGTV V1 page handles playback. If one embed fails, use “Try Watch page” to switch its official player route. Availability and authorization are controlled by the source service.</p></div>
@@ -53,6 +53,10 @@ const playingTitle = document.querySelector<HTMLHeadingElement>('#playing-title'
 const openSource = document.querySelector<HTMLButtonElement>('#open-source')!;
 const playerFavorite = document.querySelector<HTMLButtonElement>('#player-favorite')!;
 const switchPlayer = document.querySelector<HTMLButtonElement>('#switch-player')!;
+const changeChannelButton = document.querySelector<HTMLButtonElement>('#change-channel')!;
+const channelPicker = document.querySelector<HTMLDivElement>('#channel-picker')!;
+const pickerSearch = document.querySelector<HTMLInputElement>('#picker-search')!;
+const pickerList = document.querySelector<HTMLDivElement>('#picker-list')!;
 
 function loadFavorites(): string[] {
   try { const value = JSON.parse(localStorage.getItem(FAVORITES_KEY) || '[]'); return Array.isArray(value) ? value.map(String) : []; }
@@ -79,6 +83,8 @@ function esc(s: string) { return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&
 function safeHttpUrl(raw: string) { try { const u = new URL(raw); return ['https:', 'http:'].includes(u.protocol) ? u.href : ''; } catch { return ''; } }
 function setStatus(message: string, error = false) { status.textContent = message; status.classList.toggle('error', error); }
 function updateFavoriteControls() {
+  changeChannelButton.disabled = state.channels.length === 0;
+  changeChannelButton.textContent = state.selectedId ? '⇄ Change channel' : '☷ Choose channel';
   document.querySelector<HTMLSpanElement>('#fav-count')!.textContent = String(state.favorites.size);
   const currentIsFav = state.favorites.has(state.selectedId);
   playerFavorite.textContent = currentIsFav ? '★' : '☆';
@@ -152,10 +158,20 @@ function toggleFavorite(channelId: string) {
 function playerUrl(channelId: string, mode: PlayerMode) {
   return `${API_HOME}${mode === 'embed' ? 'embed' : 'watch'}/${encodeURIComponent(channelId)}`;
 }
+function renderChannelPicker() {
+  const q = pickerSearch.value.trim().toLowerCase();
+  const list = state.channels.filter(c => `${name(c)} ${category(c)}`.toLowerCase().includes(q));
+  pickerList.innerHTML = list.length ? list.map(c => `<button class="picker-channel ${id(c) === state.selectedId ? 'current' : ''}" data-picker-id="${esc(id(c))}"><span class="picker-channel-name">${esc(name(c))}</span><small>${esc(category(c))}</small>${id(c) === state.selectedId ? '<span class="picker-playing">PLAYING</span>' : ''}</button>`).join('') : '<div class="picker-empty">No matching channels</div>';
+  pickerList.querySelectorAll<HTMLButtonElement>('.picker-channel').forEach(el => el.addEventListener('click', () => {
+    const ch = state.channels.find(c => id(c) === el.dataset.pickerId);
+    if (ch) { channelPicker.classList.add('hidden'); pickerSearch.value = ''; playChannel(ch, state.playerMode); }
+  }));
+}
 function playChannel(ch: Channel, mode: PlayerMode = 'embed') {
   const channelId = id(ch);
   if (!channelId) { setStatus('This channel has no ID in the V1 directory.', true); return; }
   state.selectedId = channelId; state.playerMode = mode;
+  channelPicker.classList.add('hidden');
   playingTitle.textContent = name(ch);
   const url = playerUrl(channelId, mode);
   player.src = url;
@@ -165,6 +181,13 @@ function playChannel(ch: Channel, mode: PlayerMode = 'embed') {
   openSource.onclick = () => window.open(url, '_blank', 'noopener,noreferrer');
   player.onload = () => setStatus(`The V1 ${mode} page loaded for ${name(ch)}. If video stays black or shows an error, try switching the player page or opening it in your browser.`);
 }
+changeChannelButton.addEventListener('click', () => {
+  const opening = channelPicker.classList.contains('hidden');
+  channelPicker.classList.toggle('hidden', !opening);
+  if (opening) { pickerSearch.value = ''; renderChannelPicker(); pickerSearch.focus(); }
+});
+document.querySelector('#close-channel-picker')?.addEventListener('click', () => channelPicker.classList.add('hidden'));
+pickerSearch.addEventListener('input', renderChannelPicker);
 search.addEventListener('input', () => { state.query = search.value; render(); });
 categories.addEventListener('change', () => { state.category = categories.value; render(); });
 document.querySelector('#reload')?.addEventListener('click', () => void loadChannels());
