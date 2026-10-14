@@ -41,7 +41,7 @@ root.innerHTML = `
         <div class="note"><span>ⓘ</span><p>The official LiveTGTV V1 page handles playback. If one embed fails, use “Try Watch page” to switch its official player route. Availability and authorization are controlled by the source service.</p></div>
       </aside>
     </section>
-    <footer><span>TGTV Desktop <b>v0.2.1</b></span><span>Lightweight Windows app · LiveTGTV V1 only</span></footer>
+    <footer><span>TGTV Desktop <b>v0.2.2</b></span><span>Lightweight Windows app · LiveTGTV V1 only</span></footer>
   </main>
 </div>`;
 
@@ -211,7 +211,10 @@ switchPlayer.addEventListener('click', () => {
 });
 document.querySelector('#retry')?.addEventListener('click', () => {
   const ch = state.channels.find(c => id(c) === state.selectedId);
-  if (ch) playChannel(ch, state.playerMode); else document.querySelector('#settings-nav')?.addEventListener('click', () => { settingsModal.classList.remove('hidden'); document.querySelector('#settings-nav')?.classList.add('active'); });
+  if (ch) playChannel(ch, state.playerMode); else void loadChannels();
+});
+openSource.addEventListener('click', () => window.open(API_HOME, '_blank', 'noopener,noreferrer'));
+document.querySelector('#settings-nav')?.addEventListener('click', () => { settingsModal.classList.remove('hidden'); document.querySelector('#settings-nav')?.classList.add('active'); });
 function closeSettings() { settingsModal.classList.add('hidden'); document.querySelector('#settings-nav')?.classList.remove('active'); }
 document.querySelector('#close-settings')?.addEventListener('click', closeSettings);
 settingsModal.addEventListener('click', event => { if (event.target === settingsModal) closeSettings(); });
@@ -234,6 +237,4 @@ installUpdateButton.addEventListener('click', async () => {
 });
 function compareVersions(a: string, b: string) { const pa = a.replace(/^v/i, '').split('.').map(n => Number.parseInt(n, 10) || 0); const pb = b.replace(/^v/i, '').split('.').map(n => Number.parseInt(n, 10) || 0); for (let i = 0; i < Math.max(pa.length, pb.length); i++) { if ((pa[i] || 0) !== (pb[i] || 0)) return (pa[i] || 0) - (pb[i] || 0); } return 0; }
 void loadChannels();
-});
-openSource.addEventListener('click', () => window.open(API_HOME, '_blank', 'noopener,noreferrer'));
-void loadChannels();
+
