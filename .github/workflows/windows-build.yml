@@ -52,15 +52,15 @@ jobs:
       - name: Upload installer as workflow artifact
         uses: actions/upload-artifact@v4
         with:
-          name: TGTV-Desktop-Windows-v0.2.0
+          name: TGTV-Desktop-Windows-v0.2.1
           path: src-tauri/target/release/bundle/nsis/*.exe
           if-no-files-found: error
       - name: Publish downloadable GitHub Release
         if: github.ref == 'refs/heads/main'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v0.2.0
-          name: TGTV Desktop v0.2.0
+          tag_name: v0.2.1
+          name: TGTV Desktop v0.2.1
           target_commitish: ${{ github.sha }}
           make_latest: true
           files: src-tauri/target/release/bundle/nsis/*.exe
