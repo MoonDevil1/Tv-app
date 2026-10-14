@@ -13,3 +13,22 @@
 .player-actions{flex-wrap:wrap}
 .player-actions .secondary{flex:1 1 auto}
 @media(max-width:1150px){.favorite-card{top:12px;right:12px}}
+
+
+/* In-player channel switcher */
+.change-channel{position:absolute;z-index:4;top:10px;left:10px;border:1px solid #625080;border-radius:8px;padding:8px 11px;background:#171322eF;color:#eee6ff;font-size:11px;font-weight:600;cursor:pointer;backdrop-filter:blur(8px);box-shadow:0 3px 14px #0007}
+.change-channel:hover{background:#35264c;border-color:#b49aff}
+.change-channel:disabled{opacity:.45;cursor:default}
+.channel-picker{position:absolute;z-index:5;top:52px;left:10px;bottom:10px;width:min(270px,calc(100% - 20px));display:flex;flex-direction:column;gap:8px;padding:11px;background:#100e19f5;border:1px solid #55446e;border-radius:10px;box-shadow:0 10px 35px #000a;backdrop-filter:blur(12px)}
+.channel-picker.hidden{display:none}
+.picker-head{display:flex;align-items:center;justify-content:space-between;color:#f0eaff;font-size:12px}
+.picker-head button{width:25px;height:25px;border:1px solid #40364f;border-radius:6px;background:#211b2d;color:#ddd2f5;font-size:18px;cursor:pointer}
+#picker-search{width:100%;height:34px;flex:0 0 auto;border:1px solid #393047;border-radius:7px;background:#191622;color:#eee8fa;padding:0 9px;outline:none;font-size:11px}
+#picker-search:focus{border-color:#a78bfa}
+.picker-list{overflow-y:auto;min-height:0;display:flex;flex-direction:column;gap:5px}
+.picker-channel{position:relative;display:flex;flex-direction:column;align-items:flex-start;gap:3px;width:100%;flex:0 0 auto;text-align:left;border:1px solid #302a3e;border-radius:7px;background:#191622;color:#eee8fa;padding:9px 10px;cursor:pointer}
+.picker-channel:hover,.picker-channel.current{border-color:#a78bfa;background:#282039}
+.picker-channel-name{font-size:11px;font-weight:600;padding-right:45px}
+.picker-channel small{color:#9c95b1;font-size:9px}
+.picker-playing{position:absolute;right:8px;top:10px;color:#8ce7b6;font-size:8px;letter-spacing:.5px}
+.picker-empty{padding:15px 5px;text-align:center;color:#a49bb8;font-size:11px}
