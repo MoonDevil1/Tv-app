@@ -47,14 +47,13 @@ jobs:
           $g.Dispose(); $bmp.Dispose(); $font.Dispose(); $sf.Dispose(); $brush.Dispose(); $white.Dispose(); $ms.Dispose(); $bw.Dispose(); $ico.Dispose()
       - name: Install frontend dependencies
         run: npm install
-      - name: Build Windows installers
+      - name: Build Windows installer
         run: npm run tauri -- build --bundles nsis
-      - name: Upload installers as workflow artifact
+      - name: Upload installer as workflow artifact
         uses: actions/upload-artifact@v4
         with:
           name: TGTV-Desktop-Windows-v0.1.0
-          path: |
-            src-tauri/target/release/bundle/nsis/*.exe
+          path: src-tauri/target/release/bundle/nsis/*.exe
           if-no-files-found: error
       - name: Publish downloadable GitHub Release
         if: github.ref == 'refs/heads/main'
@@ -64,7 +63,5 @@ jobs:
           name: TGTV Desktop v0.1.0
           target_commitish: ${{ github.sha }}
           make_latest: true
-          files: |
-            src-tauri/target/release/bundle/nsis/*.exe
-            src-tauri/target/release/bundle/msi/*.msi
+          files: src-tauri/target/release/bundle/nsis/*.exe
           fail_on_unmatched_files: true
