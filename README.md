@@ -2,13 +2,19 @@
 
 A lightweight Windows desktop app for **LiveTGTV V1** built with Tauri 2, Rust, TypeScript and Vite. It uses the official V1 embed page for playback so the service's own player handles its stream formats and playback requirements. This project does not use LiveTGTV V2.
 
+## ⬇️ Download for Windows
+
+**[Download TGTV Desktop v0.1.0 (Windows installer ZIP)](https://github.com/MoonDevil1/Tv-app/actions/runs/38584568754/artifacts/11904587867)**
+
+This downloads a ZIP containing the Windows `.exe` installer. Open the link, download the artifact, extract the ZIP, and run the installer. GitHub may ask you to sign in. This is a temporary Actions artifact because the public Release upload is currently failing.
+
 ## Features
 
 - Loads the public V1 channel directory from `/api/public/channels`
 - Search by channel name and filter by category
 - Channel logos, dark desktop UI and refresh controls
 - Opens the official player at `/embed/{id}` inside the app
-- Windows installer workflow for NSIS `.exe` and MSI `.msi`
+- Windows installer built as an NSIS `.exe`
 - Uses native WebView2 through Tauri instead of bundling Chromium/Electron
 
 ## Build on Windows 10/11
@@ -26,13 +32,13 @@ npm install
 npm run tauri dev
 ```
 
-Build installers:
+Build the installer:
 
 ```powershell
-npm run tauri build
+npm run tauri -- build --bundles nsis
 ```
 
-Artifacts are created in `src-tauri/target/release/bundle/`.
+Artifacts are created in `src-tauri/target/release/bundle/nsis/`.
 
 ## Build through GitHub Actions
 
@@ -40,8 +46,6 @@ Artifacts are created in `src-tauri/target/release/bundle/`.
 2. Select **Build TGTV Desktop for Windows**.
 3. Click **Run workflow**.
 4. When the run finishes, download the `TGTV-Desktop-Windows-v0.1.0` artifact from the workflow run.
-
-The workflow can also run when a `v*` tag is pushed. This repository's source was added, but a successful Windows build and real-device playback still need to be verified by the Actions run.
 
 ## Playback notes
 
