@@ -17,6 +17,34 @@ jobs:
           node-version: 22
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
+      - name: Create Windows app icon
+        shell: pwsh
+        run: |
+          Add-Type -AssemblyName System.Drawing
+          New-Item -ItemType Directory -Force -Path src-tauri/icons | Out-Null
+          $bmp = New-Object System.Drawing.Bitmap 256, 256
+          $g = [System.Drawing.Graphics]::FromImage($bmp)
+          $g.SmoothingMode = [System.Drawing.Drawing2D.SmoothingMode]::AntiAlias
+          $g.Clear([System.Drawing.Color]::FromArgb(20, 14, 38))
+          $brush = New-Object System.Drawing.SolidBrush ([System.Drawing.Color]::FromArgb(145, 75, 255))
+          $g.FillEllipse($brush, 18, 18, 220, 220)
+          $font = New-Object System.Drawing.Font("Arial", 62, [System.Drawing.FontStyle]::Bold, [System.Drawing.GraphicsUnit]::Pixel)
+          $sf = New-Object System.Drawing.StringFormat
+          $sf.Alignment = [System.Drawing.StringAlignment]::Center
+          $sf.LineAlignment = [System.Drawing.StringAlignment]::Center
+          $white = New-Object System.Drawing.SolidBrush ([System.Drawing.Color]::White)
+          $g.DrawString("TV", $font, $white, (New-Object System.Drawing.RectangleF(0, 0, 256, 256)), $sf)
+          $ms = New-Object System.IO.MemoryStream
+          $bmp.Save($ms, [System.Drawing.Imaging.ImageFormat]::Png)
+          $png = $ms.ToArray()
+          $ico = New-Object System.IO.MemoryStream
+          $bw = New-Object System.IO.BinaryWriter($ico)
+          $bw.Write([UInt16]0); $bw.Write([UInt16]1); $bw.Write([UInt16]1)
+          $bw.Write([byte]0); $bw.Write([byte]0); $bw.Write([byte]0); $bw.Write([byte]0)
+          $bw.Write([UInt16]1); $bw.Write([UInt16]32); $bw.Write([UInt32]$png.Length); $bw.Write([UInt32]22)
+          $bw.Write($png)
+          [System.IO.File]::WriteAllBytes("src-tauri/icons/icon.ico", $ico.ToArray())
+          $g.Dispose(); $bmp.Dispose(); $font.Dispose(); $sf.Dispose(); $brush.Dispose(); $white.Dispose(); $ms.Dispose(); $bw.Dispose(); $ico.Dispose()
       - name: Install frontend dependencies
         run: npm install
       - name: Build Windows installers
