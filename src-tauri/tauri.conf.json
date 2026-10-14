@@ -1,0 +1,26 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "TGTV Desktop",
+  "version": "0.1.0",
+  "identifier": "app.livetgtv.desktop",
+  "build": {
+    "beforeDevCommand": "npm run dev",
+    "devUrl": "http://127.0.0.1:1420",
+    "beforeBuildCommand": "npm run build",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [
+      { "title": "TGTV Desktop", "width": 1280, "height": 800, "minWidth": 900, "minHeight": 600, "center": true }
+    ],
+    "security": {
+      "csp": "default-src 'self' asset: http://asset.localhost; img-src 'self' asset: http://asset.localhost https: data:; frame-src https://livetgtv.lovable.app; connect-src ipc: http://ipc.localhost https: http:; script-src 'self'; style-src 'self' 'unsafe-inline'"
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["nsis", "msi"],
+    "shortDescription": "Live TV desktop client for LiveTGTV V1",
+    "category": "Video"
+  }
+}
