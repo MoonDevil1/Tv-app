@@ -4,9 +4,11 @@ A lightweight Windows desktop app for **LiveTGTV V1** built with Tauri 2, Rust, 
 
 ## ⬇️ Download for Windows
 
-**[Download TGTV Desktop v0.1.0 (Windows installer ZIP)](https://github.com/MoonDevil1/Tv-app/actions/runs/38584568754/artifacts/11904587867)**
+**[Download TGTV Desktop v0.2.1 (Windows installer)](https://github.com/MoonDevil1/Tv-app/releases/download/v0.2.1/TGTV.Desktop_0.2.1_x64-setup.exe)**
 
-This downloads a ZIP containing the Windows `.exe` installer. Open the link, download the artifact, extract the ZIP, and run the installer. GitHub may ask you to sign in. This is a temporary Actions artifact because the public Release upload is currently failing.
+[View all releases and download the latest published version](https://github.com/MoonDevil1/Tv-app/releases)
+
+The direct download above is the latest published installer currently available. A newer v0.2.2 build is being retried; use the Releases page to check for it once it has been successfully published.
 
 ## Features
 
@@ -45,7 +47,9 @@ Artifacts are created in `src-tauri/target/release/bundle/nsis/`.
 1. Open the repository's **Actions** tab.
 2. Select **Build TGTV Desktop for Windows**.
 3. Click **Run workflow**.
-4. When the run finishes, download the `TGTV-Desktop-Windows-v0.1.0` artifact from the workflow run.
+4. When the run finishes, download the Windows installer artifact from that workflow run.
+
+[Open GitHub Actions](https://github.com/MoonDevil1/Tv-app/actions)
 
 ## Playback notes
 
