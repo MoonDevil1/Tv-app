@@ -1,24 +1,33 @@
 # LiveTGTV Player
 
-A Windows desktop live-TV player powered by the live playlist at `https://livetgtv.lovable.app/api/public/playlist.m3u`.
+A lightweight, responsive live-TV player for Windows desktop, mobile browsers, and tablets, powered by the LiveTGTV M3U playlist.
 
 ## Features
-- Refreshable M3U playlist with automatic 15-minute refresh
-- Channel search and dynamic group/category filters
-- Favourite channels and named favourite playlists
-- In-player channel switching and touch-swipe next/previous
-- Shaka Player playback for supported HLS/DASH streams
-- Available variant quality and audio-language selection
-- Passes playlist-provided HTTP request headers to media requests
-- Uses playlist-provided DRM license metadata when present; does not bypass DRM or obtain keys
+- Live playlist refresh every 15 minutes, plus manual refresh
+- Search, dynamic categories, and channel sorting
+- Persistent favourites, named favourite lists, and recently watched channels
+- In-player channel switching, swipe left/right, and keyboard shortcuts
+- Shaka playback for supported HLS/DASH streams
+- Manual/automatic quality, audio language, subtitles, fullscreen, and picture-in-picture controls when supported
+- Playlist-provided HTTP headers and DRM license metadata (no DRM bypass)
+- Installable PWA shell for compatible mobile/tablet/desktop browsers
+- Responsive phone, tablet, and desktop layouts
+- Low-memory playback profile: 8-second forward buffer, 12-second buffer behind, reduced prefetching, and conservative initial bitrate
+- Cached channel guide for reopening the app when the playlist endpoint is temporarily unavailable
 
-## Run on Windows
-Install Node.js 20+, then run:
+## Windows desktop
+Install Node.js 20+, then:
 ```bash
 npm install
 npm run dev
-```
-For a production web build: `npm run build`. Windows installers are configured through `npm run dist`.
+``
+Create Windows NSIS and portable builds:
+```bash
+npm run dist
+``
 
-## Playback notes
-Only streams that the source makes available to your device/account and that Shaka/Electron support can play. DRM systems may require a valid license server, browser/device CDM support, and provider authorization. Some playlist channels may not work in a desktop browser engine; a populated channel guide is not proof that every stream is playable.
+## Mobile and tablet
+Build the static web app with `npm run build`, host the `dist` folder over HTTPS, then open it in Chrome/Edge and choose **Install app** or **Add to Home screen**. This is a responsive installable web app; a native Android APK is not included in this branch.
+
+## Playback limitations
+The channel list is not proof that every stream is playable. Streams may be offline, geo-restricted, blocked by CORS, require valid authentication, or use DRM unsupported by the current browser/device. Playback requires provider authorization and supported device DRM/CDM. The app does not bypass access controls. On mobile web, the playlist endpoint must allow browser CORS requests.
