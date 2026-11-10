@@ -11,7 +11,7 @@ export function parsePlaylist(source:string):Channel[]{
    meta={name:display||attrs['tvg-name']||'Unknown channel',logo:attrs['tvg-logo']||'',group:attrs['group-title']||'Other'};
    headers={};licenseUrl=undefined;licenseType=undefined;drmSystem=undefined;continue;
   }
-  if(line.startsWith('#EXTVLCOPT:http-')){const m=line.match(/^#EXTVLCOPT:http-(.+?)=(.*)$/i);if(m)headers[m[1].toLowerCase().replace(/-([a-z])/g,(_,c)=>c.toUpperCase())]=decode(m[2]);continue;}
+  if(line.startsWith('#EXTVLCOPT:http-')){const m=line.match(/^#EXTVLCOPT:http-(.+?)=(.*)$/i);if(m){const key=m[1].toLowerCase();const names:Record<string,string>={'user-agent':'User-Agent','referer':'Referer','referrer':'Referer','origin':'Origin','cookie':'Cookie','authorization':'Authorization'};headers[names[key]||key.replace(/(^|-)([a-z])/g,(_,a,b)=>b.toUpperCase())]=decode(m[2]);}continue;}
   if(line.startsWith('#EXTHTTP:')){try{const h=JSON.parse(line.slice(9));if(h&&typeof h==='object')headers={...headers,...h};}catch{}continue;}
   if(line.startsWith('#KODIPROP:')){const v=line.slice(10),i=v.indexOf('=');if(i>0){const k=v.slice(0,i),val=decode(v.slice(i+1));if(k==='inputstream.adaptive.license_key')licenseUrl=val;if(k==='inputstream.adaptive.license_type')licenseType=val;if(k==='inputstream.adaptive.manifest_type')drmSystem=val;}continue;}
   if(line.startsWith('#'))continue;
