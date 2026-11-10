@@ -6,7 +6,7 @@
   "display": "standalone",
   "background_color": "#080b12",
   "theme_color": "#080b12",
-  "description": "Lightweight live television player",
+  "description": "Lightweight LiveTGTV live channel player",
   "icons": [
     {
       "src": "./tv-icon.svg",
