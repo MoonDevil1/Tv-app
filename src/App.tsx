@@ -1,11 +1,11 @@
 import {useEffect,useMemo,useRef,useState} from 'react';
 import {Play,Pause,Search,Heart,Star,Volume2,Maximize,ChevronLeft,ChevronRight,Radio,RefreshCw,Settings,Tv,Menu,X,AudioLines,Signal,MonitorPlay,Plus,ListVideo} from 'lucide-react';
-import {PLAYLIST_URL,parsePlaylist} from './playlist'; import {playChannel} from './player'; import type {Channel} from './types';
+import {parsePlaylist} from './playlist'; import {playChannel} from './player'; import type {Channel} from './types';
 const saved=<T,>(key:string,fallback:T):T=>{try{return JSON.parse(localStorage.getItem(key)||'null')??fallback}catch{return fallback}};
 export default function App(){
  const [channels,setChannels]=useState<Channel[]>([]),[active,setActive]=useState<Channel|null>(null),[query,setQuery]=useState(''),[category,setCategory]=useState('All Channels'),[favorites,setFavorites]=useState<string[]>(()=>saved('favorites',[])),[lists,setLists]=useState<Record<string,string[]>>(()=>saved('favoriteLists',{'My Favorites':[]})),[selectedList,setSelectedList]=useState('All Channels'),[loading,setLoading]=useState(false),[error,setError]=useState(''),[playing,setPlaying]=useState(false),[showChannels,setShowChannels]=useState(false),[showSettings,setShowSettings]=useState(false),[quality,setQuality]=useState('Auto'),[muted,setMuted]=useState(false);
  const video=useRef<HTMLVideoElement>(null),player=useRef<any>(null),touch=useRef<number|null>(null);
- const load=async()=>{setLoading(true);setError('');try{const r=await fetch(PLAYLIST_URL,{cache:'no-store'});if(!r.ok)throw Error('Playlist request failed ('+r.status+').');const data=parsePlaylist(await r.text());if(!data.length)throw Error('No channels were found in the playlist.');setChannels(data);if(active){const fresh=data.find(c=>c.url===active.url);if(fresh)setActive(fresh);}}catch(e:any){setError(e.message||'Could not load playlist.');}finally{setLoading(false)}};
+ const load=async()=>{setLoading(true);setError('');try{const text=await window.tvApp.loadPlaylist();const data=parsePlaylist(text);if(!data.length)throw Error('No channels were found in the playlist.');setChannels(data);if(active){const fresh=data.find(c=>c.url===active.url);if(fresh)setActive(fresh);}}catch(e:any){setError(e.message||'Could not load playlist.');}finally{setLoading(false)}};
  useEffect(()=>{load();const t=setInterval(load,15*60*1000);return()=>clearInterval(t)},[]);
  useEffect(()=>{localStorage.setItem('favorites',JSON.stringify(favorites))},[favorites]);useEffect(()=>{localStorage.setItem('favoriteLists',JSON.stringify(lists))},[lists]);
  const groups=useMemo(()=>['All Channels',...Array.from(new Set(channels.map(c=>c.group||'Other'))).sort()], [channels]);
