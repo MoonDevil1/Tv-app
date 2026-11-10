@@ -3,9 +3,9 @@
   "version": "1.0.0",
   "private": true,
   "description": "LiveTGTV desktop player",
-  "main": "dist-electron/main.js",
+  "main": "electron/main.cjs",
   "scripts": {
-    "dev": "vite",
+    "dev": "concurrently -k \"vite --host 127.0.0.1\" \"wait-on http://127.0.0.1:5173 && electron .\"",
     "build": "tsc -b && vite build",
     "electron": "electron .",
     "desktop": "npm run build && electron .",
@@ -32,8 +32,19 @@
   "build": {
     "appId": "com.moondevil1.livetgtv",
     "productName": "LiveTGTV Player",
-    "directories": { "output": "release" },
-    "files": ["dist/**/*", "dist-electron/**/*", "package.json"],
-    "win": { "target": ["nsis", "portable"] }
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "electron/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        "nsis",
+        "portable"
+      ]
+    }
   }
 }
