@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 420" role="img" aria-labelledby="title">
+<title id="title">LiveTGTV</title>
+<defs>
+  <linearGradient id="neon" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#00e5d4"/><stop offset=".52" stop-color="#168cff"/><stop offset="1" stop-color="#e000ff"/></linearGradient>
+  <linearGradient id="word" x1="0" y1="0" x2="1" y2="0"><stop stop-color="#00e5d4"/><stop offset=".55" stop-color="#397bff"/><stop offset="1" stop-color="#ed16d8"/></linearGradient>
+</defs>
+<rect width="900" height="420" rx="46" fill="#080b16"/>
+<g fill="none" stroke="url(#neon)" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M350 70 300 22M470 70 520 22" stroke-width="15"/>
+  <rect x="230" y="70" width="360" height="235" rx="42" stroke-width="18"/>
+  <path d="M650 125q75 65 0 130M690 95q110 95 0 190" stroke-width="14"/>
+</g>
+<path d="M365 135v105l92-52.5z" fill="url(#neon)"/>
+<text x="450" y="380" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-size="82" font-weight="800" fill="#fff">Live<tspan fill="url(#word)">TGTV</tspan></text>
+</svg>

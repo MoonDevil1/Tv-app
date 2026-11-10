@@ -1,0 +1,1 @@
+export type Channel={id:string;name:string;logo:string;group:string;url:string;headers:Record<string,string>;licenseUrl?:string;licenseType?:string;drmSystem?:string;};
