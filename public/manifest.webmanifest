@@ -2,9 +2,17 @@
   "name": "LiveTGTV Player",
   "short_name": "LiveTGTV",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
   "background_color": "#080b12",
   "theme_color": "#080b12",
   "description": "Lightweight live television player",
-  "icons": []
+  "icons": [
+    {
+      "src": "/tv-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
 }
