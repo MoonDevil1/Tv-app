@@ -15,3 +15,10 @@ jobs:
       - run: npm install
       - run: npm run build
       - run: npm run dist
+      - name: Upload Windows installers
+        uses: actions/upload-artifact@v4
+        with:
+          name: LiveTGTV-Windows-Installer
+          path: release/*.exe
+          if-no-files-found: error
+          retention-days: 14
