@@ -8,9 +8,9 @@ ipcMain.handle('playlist:load', async () => {
 });
 function createWindow() {
   const win = new BrowserWindow({
-    width: 1440, height: 920, minWidth: 1050, minHeight: 700,
+    width: 1180, height: 800, minWidth: 720, minHeight: 560,
     backgroundColor: '#080b12', title: 'LiveTGTV Player', autoHideMenuBar: true,
-    webPreferences: { preload: path.join(__dirname, 'preload.cjs'), contextIsolation: true, nodeIntegration: false, sandbox: true }
+    webPreferences: { preload: path.join(__dirname, 'preload.cjs'), contextIsolation: true, nodeIntegration: false, sandbox: true, backgroundThrottling: true, spellcheck: false }
   });
   if (!app.isPackaged) win.loadURL('http://127.0.0.1:5173');
   else win.loadFile(path.join(__dirname, '..', 'dist', 'index.html'));
