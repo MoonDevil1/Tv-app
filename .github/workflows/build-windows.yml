@@ -19,10 +19,19 @@ jobs:
         run: npm install
       - name: Build Windows installers
         run: npm run tauri -- build
-      - name: Upload installers
+      - name: Package portable executable
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path portable | Out-Null
+          Copy-Item src-tauri/target/release/tg-iptv.exe portable/
+          Copy-Item README.md portable/
+          Compress-Archive -Path portable/* -DestinationPath TG-IPTV-Portable.zip -Force
+      - name: Upload installers and portable build
         uses: actions/upload-artifact@v4
         with:
           name: TG-IPTV-Windows
           path: |
             src-tauri/target/release/bundle/nsis/*.exe
             src-tauri/target/release/bundle/msi/*.msi
+            src-tauri/target/release/tg-iptv.exe
+            TG-IPTV-Portable.zip
