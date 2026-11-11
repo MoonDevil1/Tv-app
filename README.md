@@ -23,10 +23,8 @@ Install Rust stable, Node.js 22 and Microsoft WebView2 Runtime. From the reposit
 
 ```powershell
 npm install
-cargo install tauri-cli --version "^2" --locked
-cd src-tauri
-cargo tauri dev
-cargo tauri build
+npm run tauri -- dev
+npm run tauri -- build
 ```
 
 The NSIS and MSI installers are generated under `src-tauri/target/release/bundle/`. GitHub Actions also builds both Windows installer formats and uploads them as a workflow artifact.
