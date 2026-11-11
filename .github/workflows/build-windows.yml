@@ -17,11 +17,8 @@ jobs:
           node-version: 22
       - name: Install frontend dependencies
         run: npm install
-      - name: Install Tauri CLI
-        run: cargo install tauri-cli --version "^2" --locked
       - name: Build Windows installers
-        run: cargo tauri build
-        working-directory: src-tauri
+        run: npm run tauri -- build
       - name: Upload installers
         uses: actions/upload-artifact@v4
         with:
