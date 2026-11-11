@@ -1,0 +1,29 @@
+name: Build TG IPTV for Windows
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['index.html','src/**','src-tauri/**','.github/workflows/build-windows.yml']
+permissions:
+  contents: write
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install Tauri CLI
+        run: cargo install tauri-cli --version "^2" --locked
+      - name: Build Windows installers
+        run: cargo tauri build
+        working-directory: src-tauri
+      - name: Upload installers
+        uses: actions/upload-artifact@v4
+        with:
+          name: TG-IPTV-Windows
+          path: |
+            src-tauri/target/release/bundle/nsis/*.exe
+            src-tauri/target/release/bundle/msi/*.msi
