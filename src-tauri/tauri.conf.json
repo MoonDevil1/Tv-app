@@ -1,0 +1,9 @@
+{
+  "$schema":"https://schema.tauri.app/config/2",
+  "productName":"TG IPTV",
+  "version":"1.0.0",
+  "identifier":"com.moondevil.tgiptv",
+  "build":{"frontendDist":"../","devUrl":"http://localhost:1420"},
+  "app":{"windows":[{"title":"TG IPTV","width":1280,"height":800,"minWidth":900,"minHeight":600,"center":true,"resizable":true}],"security":{"csp":"default-src 'self' https: data: blob:; media-src 'self' https: blob: data:; img-src 'self' https: data: blob:; script-src 'self' https://cdnjs.cloudflare.com 'unsafe-eval'; style-src 'self' 'unsafe-inline'; connect-src ipc: http://ipc.localhost https: http: ws: wss:"}},
+  "bundle":{"active":true,"targets":["nsis","msi"],"icon":[]}
+}
