@@ -31,6 +31,8 @@
       "nsis",
       "msi"
     ],
-    "icon": []
+    "icon": [
+      "icons/icon.ico"
+    ]
   }
 }
