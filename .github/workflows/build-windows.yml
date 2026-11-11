@@ -3,7 +3,7 @@ on:
   workflow_dispatch:
   push:
     branches: [main]
-    paths: ['index.html','src/**','src-tauri/**','.github/workflows/build-windows.yml']
+    paths: ['index.html','src/**','src-tauri/**','assets/**','package.json','vite.config.js','.github/workflows/build-windows.yml']
 permissions:
   contents: write
 jobs:
