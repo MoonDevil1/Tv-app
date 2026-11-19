@@ -24,6 +24,20 @@ export class PlaylistManager {
       fetchedAt: Date.now(), refreshIntervalMs: options.refreshIntervalMs };
   }
 
+  async loadFile(file: File, options: AddPlaylistOptions = {}): Promise<Playlist> {
+    const playlist = await this.load(await file.text(), { ...options, name: options.name ?? file.name });
+    return { ...playlist, source: file.name };
+  }
+
+  async refreshChannel(playlist: Playlist, channelId: string): Promise<Playlist["channels"][number] | null> {
+    if (!/^https?:\\/\\//i.test(playlist.source)) return null;
+    const refreshed = await this.load(playlist.source, {
+      ...this.fetchOptions.get(playlist.id), id: playlist.id, name: playlist.name,
+      refreshIntervalMs: playlist.refreshIntervalMs
+    });
+    return refreshed.channels.find(channel => channel.id === channelId) ?? null;
+  }
+
   startAutoRefresh(playlist: Playlist, onUpdate: (next: Playlist) => void, onError?: (error: Error) => void): void {
     const oldTimer = this.timers.get(playlist.id);
     if (oldTimer) clearInterval(oldTimer);
