@@ -1,36 +1,42 @@
-# TG IPTV — Windows Desktop
+# TG IPTV — Cinema Edition
 
-![Original TG IPTV APK logo](assets/tg-logo.svg)
+A cross-platform desktop IPTV player built with Electron, React 19, TypeScript and a dedicated streaming engine.
 
-A lightweight Windows desktop IPTV player recreated from the supplied TG-IPTV Android APK using **Tauri 2, Rust, Vite, vanilla JavaScript and Shaka Player**. It avoids Electron.
+## Development
 
-## Included features
-- Import M3U, M3U8 and supported JSON channel playlists from URLs or local files
-- Manage multiple playlists, refresh remote sources, delete sources and export M3U
-- Browse Live TV, channel groups/categories, search, favorites and recently watched history
-- Player with HLS/DASH playback, adaptive quality and manual quality selection
-- Audio-language and subtitle track selection, fullscreen, picture-in-picture, previous/next and autoplay
-- Audio gain boost up to 200% where WebAudio/CORS permissions allow it
-- Buffer-ahead tuning, live buffer diagnostics and copyable stream information
-- Stream Config for manual channels, logos, categories, request headers and DRM parameters
-- DRM Lab for authorized Widevine, PlayReady and ClearKey configuration
-- Google Drive URL/file-ID helper for public or authorized compatible media
-- Persistent preferences and JSON app-data backup/restore
-- Original app logo extracted from the APK and included in the desktop interface
+- Node.js 22+
+- npm 10+
 
-## Build on Windows
-Install Rust stable, Node.js 22 and Microsoft WebView2 Runtime. From the repository root:
-
-```powershell
+```bash
 npm install
-npm run tauri -- dev
-npm run tauri -- build
+npm run dev
+npm run typecheck
+npm run build
 ```
 
-The NSIS and MSI installers are generated under `src-tauri/target/release/bundle/`. GitHub Actions also builds both Windows installer formats and uploads them as a workflow artifact.
+## Desktop packaging
 
-## Playback compatibility
-DRM playback requires a supported WebView2 Content Decryption Module (CDM), a valid license server, any required authorization headers, and rights to play the content. This player does not bypass DRM. ClearKey works only when the stream and runtime permit it. Browser security restricts some request headers (including User-Agent, Origin and Referer), and Google Drive does not provide a universal direct media URL for every file. Stream compatibility depends on the source, CORS configuration, codecs and license provider.
+```bash
+npm run dist:win
+npm run dist:mac
+npm run dist:linux
+```
 
-## APK reference
-The Android APK was inspected for its playlist, channel, favorites, history, player, audio/subtitle, quality, buffering, Stream Config, DRM Lab and Google Drive surfaces. This is a native desktop reimplementation, not an APK-to-EXE conversion; Android-only services and behavior must be adapted to Windows.
+Installers are written to `release/`.
+
+## Architecture
+
+- Electron main process owns the desktop window and scoped stream request-header policy.
+- The isolated preload exposes a narrow, typed IPC surface.
+- React renderer owns navigation and the streaming UI.
+- Playlist parsing, token refresh, DRM conversion, playback and EPG are isolated under `src/core`.
+
+## Security and playback
+
+The application keeps Chromium web security enabled and does not disable CORS globally or bypass DRM. Custom request headers are scoped to the explicitly selected stream host. DRM playback requires a compatible runtime, valid license/key material and authorization from the content provider.
+
+## Playlist compatibility
+
+The planned playlist engine supports M3U/M3U8, JSON channel collections and TG TV-compatible channel APIs, including metadata, request headers, token refresh and authorized ClearKey playback. See the project phases and implementation status in the repository.
+
+TG IPTV is a player only. Users must supply playlists and streams they are authorized to access.
