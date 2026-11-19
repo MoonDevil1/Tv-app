@@ -56,8 +56,17 @@ test("parses JSON playlist envelopes, IPTV aliases, headers and relative stream 
   assert.equal(channels[0].url, "https://provider.example/live.m3u8");
   assert.equal(channels[0].manifestType, "hls");
   assert.equal(channels[0].headers.Authorization, "Bearer x");
+  assert.equal(channels[0].drm, undefined);
   assert.equal(channels[1].manifestType, "dash");
   assert.equal(channels[1].drm?.clearKeys?.ABEiM0RVZneImaq7zN3u_w, "ABEiM0RVZneImaq7zN3u_w");
+});
+
+test("accepts JWK arrays nested inside JSON DRM objects", () => {
+  const channels = parseJsonPlaylist({ channels: [{
+    name: "JWK", url: "https://cdn.example/jwk.mpd",
+    drm: { scheme: "clearkey", keys: [{ kty: "oct", kid: "ABEiM0RVZneImaq7zN3u_w", k: "ABEiM0RVZneImaq7zN3u_w" }] }
+  }] });
+  assert.equal(Object.keys(channels[0].drm?.clearKeys ?? {}).length, 1);
 });
 
 test("auto-detects JSON and rejects unsupported or malformed input", () => {
