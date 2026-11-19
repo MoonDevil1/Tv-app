@@ -18,7 +18,7 @@ function publish(state: UpdateState): void {
   }
 }
 
-function errorMessage(error: unknown): string {
+function canAutoUpdate(): boolean {\n  return app.isPackaged && !process.env.PORTABLE_EXECUTABLE_DIR;\n}\n\nfunction errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
@@ -56,7 +56,7 @@ export function registerAutoUpdates(): void {
   ipcMain.handle("app:update-state", () => latestState);
   ipcMain.handle("app:update-check", async () => {
     if (!app.isPackaged) {
-      publish({ status: "unsupported", message: "Updates are available in an installed desktop build." });
+      publish({ status: "unsupported", message: process.env.PORTABLE_EXECUTABLE_DIR ? "Automatic updates are unavailable in the portable Windows build. Use the installer build." : "Updates are available in an installed desktop build." });
       return { accepted: false };
     }
     try {
@@ -69,7 +69,7 @@ export function registerAutoUpdates(): void {
     }
   });
   ipcMain.handle("app:update-download", async () => {
-    if (!app.isPackaged) return { accepted: false };
+    if (!canAutoUpdate()) return { accepted: false };
     try {
       await autoUpdater.downloadUpdate();
       return { accepted: true };
@@ -79,12 +79,12 @@ export function registerAutoUpdates(): void {
     }
   });
   ipcMain.handle("app:update-install", () => {
-    if (!app.isPackaged || latestState.status !== "downloaded") return { accepted: false };
+    if (!canAutoUpdate() || latestState.status !== "downloaded") return { accepted: false };
     autoUpdater.quitAndInstall();
     return { accepted: true };
   });
 
-  if (app.isPackaged) {
+  if (canAutoUpdate()) {
     setTimeout(() => {
       if (app.isReady()) void autoUpdater.checkForUpdates().catch(error => {
         publish({ status: "error", message: errorMessage(error) });
