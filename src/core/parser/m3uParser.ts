@@ -132,7 +132,7 @@ export function parseJsonPlaylist(input: unknown, baseUrl?: string): Channel[] {
   if (!root || typeof root !== "object") throw new TypeError("JSON playlist must be an object or array.");
   const list = [root.channels, root.streams, root.items, root.data, root.results, root.playlist].find(Array.isArray) as unknown[] | undefined;
   if (!list) throw new TypeError("JSON playlist must contain channels, streams, items, or data.");
-  return list.flatMap((item, index) => {
+  const channels = list.flatMap((item, index) => {
     if (!item || typeof item !== "object") return [];
     const row = item as Record<string, unknown>;
     const rawUrl = String(row.url ?? row.streamUrl ?? row.stream_url ?? row.link ?? row.src ?? row.file ?? "");
@@ -167,6 +167,8 @@ export function parseJsonPlaylist(input: unknown, baseUrl?: string): Channel[] {
       catchupSource: String(row.catchupSource ?? row.catchup_source ?? "") || undefined, rawAttributes: rawAttrs
     } satisfies Channel];
   });
+  if (!channels.length) throw new TypeError("JSON playlist contains no valid HTTP(S) channel entries.");
+  return channels;
 }
 
 export function parsePlaylist(source: string, baseUrl?: string): Channel[] {
