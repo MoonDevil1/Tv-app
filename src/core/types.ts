@@ -1,9 +1,15 @@
 export type StreamHeaders = Record<string, string>;
-export type DrmConfig = { scheme: "clearkey"; licenseUrl?: string; clearKeys?: Record<string, string> };
+export type DrmConfig = {
+  scheme: "clearkey" | "widevine";
+  licenseUrl?: string;
+  clearKeys?: Record<string, string>;
+  licenseHeaders?: StreamHeaders;
+  rawLicenseKey?: string;
+};
 export interface Channel {
   id: string; name: string; url: string; logo?: string; group: string; tvgId?: string;
   tvgName?: string; channelNumber?: number; duration?: number; headers: StreamHeaders;
-  drm?: DrmConfig; manifestType?: "hls" | "dash" | "unknown";
+  drm?: DrmConfig; manifestType?: "hls" | "dash" | "unknown" | "progressive";
   catchup?: string; catchupDays?: number; catchupSource?: string; rawAttributes: Record<string, string>;
 }
 export interface Playlist {
@@ -11,7 +17,7 @@ export interface Playlist {
   epgUrls: string[]; fetchedAt: number; refreshIntervalMs?: number;
 }
 export interface PlaylistFetchOptions { headers?: StreamHeaders; signal?: AbortSignal; }
-export type JsonPlaylist = { channels?: unknown[]; streams?: unknown[]; items?: unknown[]; epg?: string | string[]; name?: string };
+export type JsonPlaylist = { channels?: unknown[]; streams?: unknown[]; items?: unknown[]; data?: unknown[]; epg?: string | string[]; name?: string };
 
 declare global {
   interface Window {
