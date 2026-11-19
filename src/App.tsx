@@ -1,10 +1,11 @@
-import { ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
+import { ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { Activity, AudioLines, Check, ChevronDown, CircleHelp, Command, Compass, FileUp, Heart, History, LayoutGrid, ListVideo, LoaderCircle, Plus, Radio, RefreshCw, Search, Settings2, Signal, Sparkles, Trash2, Tv2, Wifi, X, Clock3, PlayCircle } from "lucide-react";
 import type { Channel, Playlist } from "./core/types";
 import { PlaylistManager } from "./core/parser/playlistManager";
 import { parseXmltv, currentAndNext } from "./core/epg/xmltv";
 import { useAppStore } from "./core/store/appStore";
+import { Player } from "./components/Player";
 
 const LIVE_TGTV_URL = "https://livetgtv.lovable.app/api/public/playlist.m3u";
 const REFRESH_OPTIONS = [{ label: "Manual", value: 0 }, { label: "1 minute", value: 60000 }, { label: "5 minutes", value: 300000 }, { label: "15 minutes", value: 900000 }, { label: "1 hour", value: 3600000 }];
@@ -33,6 +34,8 @@ export default function App() {
   const [showAdd, setShowAdd] = useState(false), [sourceUrl, setSourceUrl] = useState(LIVE_TGTV_URL), [playlistName, setPlaylistName] = useState("LiveTGTV"), [refreshInterval, setRefreshInterval] = useState(300000);
   const [busy, setBusy] = useState(false), [epgBusy, setEpgBusy] = useState(false), [error, setError] = useState(""), [notice, setNotice] = useState(""), [scrollTop, setScrollTop] = useState(0), [columns, setColumns] = useState(4);
   const fileInput = useRef<HTMLInputElement>(null);
+  const playlistsRef = useRef(playlists);
+  playlistsRef.current = playlists;
 
   useEffect(() => {
     let cancelled = false;
@@ -118,6 +121,18 @@ export default function App() {
     finally { setEpgBusy(false); }
   }
   function selectChannel(playlistId: string, channel: Channel) { setSelectedChannel({ playlistId, channel }); recordWatch(playlistId, channel); }
+  const recoverChannel = useCallback(async (channel: Channel) => {
+    const owner = playlistsRef.current.find(item => item.channels.some(candidate => candidate.id === channel.id));
+    if (!owner) return null;
+    try {
+      const refreshed = await manager.refresh(owner.id);
+      replacePlaylist(refreshed);
+      return refreshed.channels.find(candidate => candidate.id === channel.id) ?? null;
+    } catch { return null; }
+  }, [manager, replacePlaylist]);
+  const playerChannels = selectedChannel
+    ? playlists.find(item => item.id === selectedChannel.playlistId)?.channels ?? []
+    : [];
 
   const rowHeight = 106, startRow = Math.max(0, Math.floor(scrollTop / rowHeight) - 1), visibleRows = 6;
   const totalRows = Math.ceil(visibleChannels.length / columns);
@@ -161,6 +176,7 @@ export default function App() {
         <footer className="page-footer"><span>TG IPTV <i>·</i> Built for the big screen</span><span><kbd>?</kbd> Keyboard shortcuts <i>·</i> Version 2.0.0</span></footer>
       </section>
     </main>
+    {selectedChannel && <Player channel={selectedChannel.channel} channels={playerChannels} onClose={() => setSelectedChannel(null)} onChangeChannel={next => { setSelectedChannel({ playlistId: selectedChannel.playlistId, channel: next }); recordWatch(selectedChannel.playlistId, next); }} onRecover={recoverChannel} />}
     <input ref={fileInput} type="file" accept=".m3u,.m3u8,.txt,.json,application/json,audio/x-mpegurl,application/vnd.apple.mpegurl" hidden onChange={onFileChange} />
     <AnimatePresence>{showAdd && <motion.div className="modal-backdrop" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onMouseDown={e => { if (e.target === e.currentTarget && !busy) setShowAdd(false); }}>
       <motion.div className="add-modal" initial={reduceMotion ? false : { opacity: 0, y: 18, scale: .98 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 10, scale: .98 }} transition={{ type: "spring", stiffness: 320, damping: 30 }}>
