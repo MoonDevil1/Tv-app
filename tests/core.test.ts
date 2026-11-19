@@ -118,5 +118,5 @@ test("PlaylistManager loads, stores and refreshes a remote playlist", async () =
 
 test("rejects malformed ClearKey values and ignores unsafe stream schemes", () => {
   assert.throws(() => parseClearKeys("not-a-key"));
-  assert.equal(parseJsonPlaylist({ channels: [{ name: "bad", url: "file:///etc/passwd" }] }).length, 0);
+  assert.throws(() => parseJsonPlaylist({ channels: [{ name: "bad", url: "file:///etc/passwd" }] }), /no valid HTTP/);
 });
