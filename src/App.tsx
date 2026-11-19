@@ -32,7 +32,8 @@ export default function App() {
   const [active, setActive] = useState("Discover"), [query, setQuery] = useState(""), [selectedPlaylistId, setSelectedPlaylistId] = useState(""), [selectedGroup, setSelectedGroup] = useState("All");
   const [selectedChannel, setSelectedChannel] = useState<{ playlistId: string; channel: Channel } | null>(null);
   const [showAdd, setShowAdd] = useState(false), [sourceUrl, setSourceUrl] = useState(LIVE_TGTV_URL), [playlistName, setPlaylistName] = useState("LiveTGTV"), [refreshInterval, setRefreshInterval] = useState(300000);
-  const [busy, setBusy] = useState(false), [epgBusy, setEpgBusy] = useState(false), [error, setError] = useState(""), [notice, setNotice] = useState(""), [scrollTop, setScrollTop] = useState(0), [columns, setColumns] = useState(4);\n  const [updateState, setUpdateState] = useState<DesktopUpdateState>({ status: "idle", message: "Checking update status…" });
+  const [busy, setBusy] = useState(false), [epgBusy, setEpgBusy] = useState(false), [error, setError] = useState(""), [notice, setNotice] = useState(""), [scrollTop, setScrollTop] = useState(0), [columns, setColumns] = useState(4);
+  const [updateState, setUpdateState] = useState<DesktopUpdateState>({ status: "idle", message: "Checking update status…" });
   const fileInput = useRef<HTMLInputElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
   const playlistsRef = useRef(playlists);
