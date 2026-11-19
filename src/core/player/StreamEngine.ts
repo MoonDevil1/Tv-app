@@ -26,7 +26,7 @@ export class StreamEngine {
     this.options.onState?.("loading");
     try {
       if (channel.manifestType === "dash" || /\.mpd(?:$|[?#])/i.test(channel.url)) await this.playDash(video, channel, generation);
-      else if (channel.manifestType === "progressive" || /\\.(?:mp4|m4v|webm|ogg)(?:$|[?#])/i.test(channel.url)) await this.playProgressive(video, channel);
+      else if (channel.manifestType === "progressive" || /\.(?:mp4|m4v|webm|ogg)(?:$|[?#])/i.test(channel.url)) await this.playProgressive(video, channel);
       else await this.playHls(video, channel, generation);
       if (generation !== this.generation) return;
       await video.play();
