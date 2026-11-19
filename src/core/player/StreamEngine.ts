@@ -19,6 +19,7 @@ export class StreamEngine {
     await this.stop();
     const generation = ++this.generation;
     this.video = video;
+    await window.tvApp?.setStreamRequestContext({ originUrl: channel.url, headers: channel.headers });
     this.options.onState?.("loading");
     try {
       if (channel.manifestType === "dash" || /\.mpd(?:$|[?#])/i.test(channel.url)) await this.playDash(video, channel, generation);
@@ -93,6 +94,7 @@ export class StreamEngine {
 
   async stop(): Promise<void> {
     this.generation++;
+    await window.tvApp?.setStreamRequestContext(null);
     this.hls?.destroy(); this.hls = null;
     if (this.shakaPlayer) { await this.shakaPlayer.destroy(); this.shakaPlayer = null; }
     if (this.video) { this.video.pause(); this.video.removeAttribute("src"); this.video.load(); this.video = null; }
