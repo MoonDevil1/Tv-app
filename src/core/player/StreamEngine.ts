@@ -51,11 +51,14 @@ export class StreamEngine {
     return true;
   }
   private async playDash(video: HTMLVideoElement, channel: Channel, generation: number): Promise<void> {
+    shaka.polyfill.installAll();
     const player = new shaka.Player();
     this.shakaPlayer = player;
     await player.attach(video);
     if (channel.drm?.scheme === "clearkey" && channel.drm.clearKeys) {
       player.configure({ drm: { clearKeys: channel.drm.clearKeys } });
+    } else if (channel.drm?.scheme === "clearkey" && channel.drm.licenseUrl) {
+      player.configure({ drm: { servers: { "org.w3.clearkey": channel.drm.licenseUrl } } });
     } else if (channel.drm?.scheme === "widevine" && channel.drm.licenseUrl) {
       player.configure({ drm: { servers: { "com.widevine.alpha": channel.drm.licenseUrl } } });
     }
