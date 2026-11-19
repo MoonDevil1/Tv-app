@@ -76,3 +76,16 @@ test("loads a local playlist and preserves EPG and category metadata", async () 
   assert.deepEqual(playlist.epgUrls, ["https://epg.example/guide.xml"]);
   manager.dispose();
 });
+
+test("supports JSON data envelopes, IPTV field names and JWK ClearKey", () => {
+  const channels = parseJsonPlaylist({ data: [{
+    "tvg-id": "json.1", "tvg-name": "JSON DRM", "tvg-logo": "https://img.test/logo.png",
+    "group-title": "Premium", url: "https://cdn.test/live.mpd",
+    drm: { scheme: "clearkey", clearKeys: { "AAEC": "AQID" } },
+    request_headers: { Referer: "https://provider.test/" }
+  }] });
+  assert.equal(channels[0].tvgId, "json.1");
+  assert.equal(channels[0].group, "Premium");
+  assert.equal(channels[0].drm?.clearKeys?.AAEC, "AQID");
+  assert.equal(channels[0].headers.Referer, "https://provider.test/");
+});
