@@ -18,7 +18,11 @@ function publish(state: UpdateState): void {
   }
 }
 
-function canAutoUpdate(): boolean {\n  return app.isPackaged && !process.env.PORTABLE_EXECUTABLE_DIR;\n}\n\nfunction errorMessage(error: unknown): string {
+function canAutoUpdate(): boolean {
+  return app.isPackaged && !process.env.PORTABLE_EXECUTABLE_DIR;
+}
+
+function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
