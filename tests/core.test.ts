@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { parseM3U, parseJsonPlaylist, parsePlaylist } from "../src/core/parser/m3uParser";
 import { hexToBase64Url, parseClearKeys } from "../src/core/parser/clearKeyUtils";
+import { PlaylistManager } from "../src/core/parser/playlistManager";
 
 const sample = `#EXTM3U url-tvg="https://epg.example/guide.xml"
 #EXTINF:-1 tvg-id="news.1" tvg-name="News HD" tvg-logo="https://img.example/news.png" group-title="News",News HD
@@ -49,4 +50,29 @@ test("detects M3U and JSON and rejects unsupported documents", () => {
   assert.equal(parsePlaylist(sample).length, 2);
   assert.equal(parsePlaylist(JSON.stringify([{ name: "one", url: "https://x.test/a.m3u8" }])).length, 1);
   assert.throws(() => parsePlaylist("<html>not a playlist</html>"), /Unsupported playlist/);
+});
+
+test("parses escaped Kodi keys and escaped CDN underscores", () => {
+  const escaped = `#EXTM3U
+#EXTINF:-1 tvg-name="Escaped",Escaped
+#KODIPROP:inputstream.adaptive.manifest\\_type=mpd
+#KODIPROP:inputstream.adaptive.license\\_type=clearkey
+#KODIPROP:inputstream.adaptive.license\\_key=00112233445566778899aabbccddeeff:ffeeddccbbaa99887766554433221100
+#EXTHTTP:{"cookie":"\\_\\_hdnea\\_\\_=token"}
+https://cdn.example/channel\\_one/index.mpd
+`;
+  const [channel] = parseM3U(escaped);
+  assert.equal(channel.manifestType, "dash");
+  assert.equal(channel.url, "https://cdn.example/channel_one/index.mpd");
+  assert.equal(Object.keys(channel.drm?.clearKeys ?? {}).length, 1);
+  assert.equal(channel.headers.cookie, "__hdnea__=token");
+});
+
+test("loads a local playlist and preserves EPG and category metadata", async () => {
+  const manager = new PlaylistManager();
+  const playlist = await manager.load(sample, { name: "Fixture" });
+  assert.equal(playlist.name, "Fixture");
+  assert.deepEqual(playlist.groups, ["News", "Audio"]);
+  assert.deepEqual(playlist.epgUrls, ["https://epg.example/guide.xml"]);
+  manager.dispose();
 });
