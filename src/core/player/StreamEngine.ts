@@ -7,6 +7,9 @@ export interface StreamEngineOptions {
   onState?: (state: PlaybackState, error?: Error) => void;
   onRecover?: (channel: Channel) => Promise<Channel | null>;
 }
+const FORBIDDEN_BROWSER_HEADERS = /^(?:accept-encoding|connection|content-length|cookie|host|origin|referer|te|trailer|transfer-encoding|upgrade|user-agent|proxy-|sec-)/i;
+function isBrowserForbiddenHeader(name: string): boolean { return FORBIDDEN_BROWSER_HEADERS.test(name); }
+
 export class StreamEngine {
   private hls: Hls | null = null;
   private shakaPlayer: shaka.Player | null = null;
@@ -61,10 +64,17 @@ export class StreamEngine {
       if (generation !== this.generation) return;
       for (const uri of request.uris) {
         try {
-          if (new URL(uri).hostname.toLowerCase() !== host) continue;
-          for (const [name, value] of Object.entries(channel.headers)) request.headers[name] = value;
-          if (type === shaka.net.NetworkingEngine.RequestType.LICENSE && channel.drm?.licenseHeaders) {
-            for (const [name, value] of Object.entries(channel.drm.licenseHeaders)) request.headers[name] = value;
+          const requestHost = new URL(uri).hostname.toLowerCase();
+          if (requestHost === host) {
+            for (const [name, value] of Object.entries(channel.headers)) {
+              if (!isBrowserForbiddenHeader(name)) request.headers[name] = value;
+            }
+          }
+          const licenseHost = channel.drm?.licenseUrl ? new URL(channel.drm.licenseUrl).hostname.toLowerCase() : "";
+          if (type === shaka.net.NetworkingEngine.RequestType.LICENSE && requestHost === licenseHost && channel.drm?.licenseHeaders) {
+            for (const [name, value] of Object.entries(channel.drm.licenseHeaders)) {
+              if (!isBrowserForbiddenHeader(name)) request.headers[name] = value;
+            }
           }
         } catch { /* malformed or non-HTTP request URI */ }
       }
@@ -86,7 +96,7 @@ export class StreamEngine {
         try {
           if (new URL(url).hostname.toLowerCase() !== host) return;
           for (const [name, value] of Object.entries(channel.headers)) {
-            if (!["host", "content-length", "connection", "upgrade", "proxy-authorization"].includes(name.toLowerCase())) xhr.setRequestHeader(name, value);
+            if (!isBrowserForbiddenHeader(name)) xhr.setRequestHeader(name, value);
           }
         } catch { /* malformed request URL */ }
       } });
