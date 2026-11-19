@@ -142,9 +142,13 @@ export function parseJsonPlaylist(input: unknown, baseUrl?: string): Channel[] {
     const drmInput = row.drm && typeof row.drm === "object" ? row.drm as Record<string, unknown> : {};
     const license = row.licenseKey ?? row.license_key ?? row.drmLicense ?? row.drm_license ?? drmInput.clearKeys ?? drmInput.keys;
     const licenseUrl = String(row.licenseUrl ?? row.license_url ?? drmInput.licenseUrl ?? drmInput.license_url ?? "");
-    const scheme = String(row.drmScheme ?? row.drm_scheme ?? drmInput.scheme ?? drmInput.type ?? "clearkey");
-    let drm = createClearKeyDrm(scheme, typeof license === "string" ? license : undefined);
-    if (!drm && license && typeof license === "object") drm = { scheme: "clearkey", clearKeys: parseClearKeys(license as Record<string, string>) };
+    const scheme = String(row.drmScheme ?? row.drm_scheme ?? drmInput.scheme ?? drmInput.type ?? (licenseUrl ? "clearkey" : ""));
+    let drm = typeof license === "string" ? createClearKeyDrm(scheme || "clearkey", license) : scheme ? createClearKeyDrm(scheme, undefined) : undefined;
+    if (license && typeof license === "object") {
+      const keyObject = license as Record<string, unknown>;
+      const normalized = Array.isArray(keyObject.keys) ? parseClearKeys(JSON.stringify(keyObject)) : parseClearKeys(license as Record<string, string>);
+      drm = { scheme: "clearkey", clearKeys: normalized };
+    }
     if (licenseUrl) drm = { scheme: scheme.toLowerCase().includes("widevine") ? "widevine" : "clearkey", licenseUrl, clearKeys: drm?.clearKeys };
     const type = String(row.manifestType ?? row.manifest_type ?? row.type ?? row.protocol ?? "");
     const rawAttrs = row.attributes && typeof row.attributes === "object" ? row.attributes as Record<string, string> : {};
