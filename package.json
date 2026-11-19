@@ -19,7 +19,8 @@
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "shaka-player": "^4.12.8",
-    "zustand": "^5.0.3"
+    "zustand": "^5.0.3",
+    "framer-motion": "^12.0.0"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.0.0",
@@ -37,10 +38,28 @@
   "build": {
     "appId": "com.moondevil.tgiptv",
     "productName": "TG IPTV",
-    "directories": { "output": "release" },
-    "files": ["out/**/*", "package.json"],
-    "win": { "target": ["nsis", "portable"] },
-    "mac": { "target": ["dmg"] },
-    "linux": { "target": ["AppImage"] }
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "out/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        "nsis",
+        "portable"
+      ]
+    },
+    "mac": {
+      "target": [
+        "dmg"
+      ]
+    },
+    "linux": {
+      "target": [
+        "AppImage"
+      ]
+    }
   }
 }
