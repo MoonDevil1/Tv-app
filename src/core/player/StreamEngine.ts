@@ -26,6 +26,7 @@ export class StreamEngine {
     this.options.onState?.("loading");
     try {
       if (channel.manifestType === "dash" || /\.mpd(?:$|[?#])/i.test(channel.url)) await this.playDash(video, channel, generation);
+      else if (channel.manifestType === "progressive" || /\\.(?:mp4|m4v|webm|ogg)(?:$|[?#])/i.test(channel.url)) await this.playProgressive(video, channel);
       else await this.playHls(video, channel, generation);
       if (generation !== this.generation) return;
       await video.play();
@@ -143,7 +144,7 @@ export class StreamEngine {
 
   getQualityOptions(): Array<{ id: number; label: string }> {
     if (this.hls) return this.hls.levels.map((level, id) => ({ id, label: level.height ? `${level.height}p` : `${Math.round(level.bitrate / 1000)} kbps` }));
-    return (this.shakaPlayer?.getVariantTracks() ?? []).filter((track, index, all) => all.findIndex(item => item.height === track.height && item.bandwidth === track.bandwidth) === index).map((track, id) => ({ id: track.id, label: track.height ? `${track.height}p` : `${Math.round(track.bandwidth / 1000)} kbps` }));
+    return (this.shakaPlayer?.getVariantTracks() ?? []).filter((track, index, all) => all.findIndex(item => item.height === track.height && item.bandwidth === track.bandwidth) === index).map(track => ({ id: track.id, label: track.height ? `${track.height}p` : `${Math.round(track.bandwidth / 1000)} kbps` }));
   }
 
   setQuality(id: number): void {
@@ -160,8 +161,8 @@ export class StreamEngine {
     const tracks = this.shakaPlayer?.getVariantTracks() ?? [];
     const unique = new Map<string, { id: number; label: string }>();
     tracks.forEach(track => {
-      const key = track.language || track.audioId || String(track.id);
-      if (!unique.has(key)) unique.set(key, { id: track.id, label: track.language || `Audio ${unique.size + 1}` });
+      const key = String(track.language || track.audioId || track.id);
+      if (!unique.has(key)) unique.set(key, { id: track.id, label: String(track.language || `Audio ${unique.size + 1}`) });
     });
     return [...unique.values()];
   }
@@ -170,7 +171,7 @@ export class StreamEngine {
     if (this.hls) this.hls.audioTrack = id;
     else {
       const track = this.shakaPlayer?.getVariantTracks().find(item => item.id === id);
-      if (track?.language) this.shakaPlayer?.selectAudioLanguage(track.language);
+      if (track?.language) this.shakaPlayer?.selectAudioLanguage(String(track.language));
     }
   }
 
