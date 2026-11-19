@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { AudioLines, Check, ChevronDown, ChevronLeft, ChevronRight, Expand, Maximize, Minimize, MonitorPlay, Pause, PictureInPicture2, Play, Radio, Settings2, Volume2, VolumeX, X, Subtitles } from "lucide-react";
+import { AudioLines, Check, ChevronLeft, ChevronRight, Expand, Maximize, Minimize, MonitorPlay, Pause, PictureInPicture2, Play, Radio, Settings2, Volume2, VolumeX, X, Subtitles } from "lucide-react";
 import type { Channel } from "../core/types";
 import { StreamEngine, type PlaybackState } from "../core/player/StreamEngine";
 
