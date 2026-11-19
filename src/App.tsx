@@ -1,7 +1,7 @@
 import { ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { Activity, AudioLines, Check, ChevronDown, CircleHelp, Command, Compass, FileUp, Heart, History, LayoutGrid, ListVideo, LoaderCircle, Plus, Radio, RefreshCw, Search, Settings2, Signal, Sparkles, Trash2, Tv2, Wifi, X, Clock3, PlayCircle, Download, CheckCircle2, AlertCircle, RotateCw } from "lucide-react";
-import type { Channel, Playlist } from "./core/types";
+import type { Channel, Playlist, DesktopUpdateState } from "./core/types";
 import { PlaylistManager } from "./core/parser/playlistManager";
 import { parseXmltv, currentAndNext } from "./core/epg/xmltv";
 import { useAppStore } from "./core/store/appStore";
