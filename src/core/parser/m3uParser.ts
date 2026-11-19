@@ -72,7 +72,7 @@ export function parseM3U(source: string): Channel[] {
     } else if (line.startsWith("#KODIPROP:")) {
       const prop = line.slice(10), index = prop.indexOf("=");
       if (index > 0) {
-        const key = prop.slice(0,index).trim().toLowerCase(), value = unescapeValue(prop.slice(index+1).trim());
+        const key = unescapeValue(prop.slice(0,index).trim()).toLowerCase(), value = unescapeValue(prop.slice(index+1).trim());
         if (key.endsWith("license_type")) licenseType = value;
         else if (key.endsWith("license_key")) licenseKey = value;
         else if (key.endsWith("manifest_type")) manifestType = value;
