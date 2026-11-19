@@ -1,0 +1,210 @@
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
+import { AudioLines, Check, ChevronDown, ChevronLeft, ChevronRight, Expand, Maximize, Minimize, MonitorPlay, Pause, PictureInPicture2, Play, Radio, Settings2, Volume2, VolumeX, X, Subtitles } from "lucide-react";
+import type { Channel } from "../core/types";
+import { StreamEngine, type PlaybackState } from "../core/player/StreamEngine";
+
+type Props = {
+  channel: Channel;
+  channels: Channel[];
+  onClose: () => void;
+  onChangeChannel: (channel: Channel) => void;
+  onRecover: (channel: Channel) => Promise<Channel | null>;
+};
+type Option = { id: number; label: string };
+
+export function Player({ channel, channels, onClose, onChangeChannel, onRecover }: Props) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const engineRef = useRef<StreamEngine | null>(null);
+  const hideRef = useRef<number | undefined>(undefined);
+  const [state, setState] = useState<PlaybackState>("loading");
+  const [error, setError] = useState("");
+  const [playing, setPlaying] = useState(false);
+  const [muted, setMuted] = useState(false);
+  const [volume, setVolume] = useState(0.85);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const [live, setLive] = useState(true);
+  const [hud, setHud] = useState(true);
+  const [mini, setMini] = useState(false);
+  const [fit, setFit] = useState<"contain" | "cover" | "fill">("contain");
+  const [menu, setMenu] = useState<"quality" | "audio" | "subtitles" | "zap" | null>(null);
+  const [quality, setQuality] = useState<Option[]>([]);
+  const [audio, setAudio] = useState<Option[]>([]);
+  const [subtitles, setSubtitles] = useState<Option[]>([]);
+  const [selectedQuality, setSelectedQuality] = useState(-1);
+  const [selectedAudio, setSelectedAudio] = useState(-1);
+  const [selectedSubtitle, setSelectedSubtitle] = useState(-1);
+  const [ambient, setAmbient] = useState(true);
+
+  const engine = useMemo(() => new StreamEngine({
+    onState: (next, err) => { setState(next); if (err) setError(err.message); },
+    onRecover
+  }), [onRecover]);
+
+  useEffect(() => {
+    engineRef.current = engine;
+    const video = videoRef.current;
+    if (!video) return;
+    setError(""); setState("loading"); setPlaying(false);
+    void engine.play(video, channel).then(() => {
+      setQuality(engine.getQualityOptions());
+      setAudio(engine.getAudioOptions());
+      setSubtitles(engine.getSubtitleOptions());
+      setLive(!/\.mp4(?:$|[?#])|\.mkv(?:$|[?#])/i.test(channel.url));
+    }).catch(err => setError(err instanceof Error ? err.message : String(err)));
+    return () => { void engine.destroy(); engineRef.current = null; };
+  }, [engine, channel.id, channel.url]);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+    const update = () => {
+      setCurrentTime(video.currentTime || 0);
+      setDuration(Number.isFinite(video.duration) ? video.duration : 0);
+      setPlaying(!video.paused);
+    };
+    video.addEventListener("timeupdate", update);
+    video.addEventListener("durationchange", update);
+    video.addEventListener("play", update);
+    video.addEventListener("pause", update);
+    video.addEventListener("volumechange", () => { setMuted(video.muted); setVolume(video.volume); });
+    return () => {
+      video.removeEventListener("timeupdate", update);
+      video.removeEventListener("durationchange", update);
+      video.removeEventListener("play", update);
+      video.removeEventListener("pause", update);
+    };
+  }, []);
+
+  const refreshTracks = useCallback(() => {
+    const active = engineRef.current;
+    if (!active) return;
+    setQuality(active.getQualityOptions());
+    setAudio(active.getAudioOptions());
+    setSubtitles(active.getSubtitleOptions());
+  }, []);
+
+  const showHud = useCallback(() => {
+    setHud(true);
+    if (hideRef.current) window.clearTimeout(hideRef.current);
+    hideRef.current = window.setTimeout(() => setHud(false), 3800);
+  }, []);
+
+  const changeChannel = useCallback((step: number) => {
+    const index = channels.findIndex(item => item.id === channel.id);
+    const next = channels[index + step];
+    if (next) { setMenu(null); onChangeChannel(next); }
+  }, [channels, channel.id, onChangeChannel]);
+
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) return;
+      if (event.key === "Escape") { if (menu) setMenu(null); else if (mini) setMini(false); else onClose(); return; }
+      if (event.key === "ArrowRight") { event.preventDefault(); if (videoRef.current && !live) videoRef.current.currentTime += 10; else changeChannel(1); }
+      if (event.key === "ArrowLeft") { event.preventDefault(); if (videoRef.current && !live) videoRef.current.currentTime -= 10; else changeChannel(-1); }
+      if (event.key === "ArrowUp") { event.preventDefault(); changeChannel(-1); }
+      if (event.key === "ArrowDown") { event.preventDefault(); changeChannel(1); }
+      if (event.key === " " || event.key.toLowerCase() === "k") { event.preventDefault(); void togglePlay(); }
+      if (event.key.toLowerCase() === "m") { if (videoRef.current) videoRef.current.muted = !videoRef.current.muted; }
+      if (event.key.toLowerCase() === "f") void toggleFullscreen();
+      if (event.key.toLowerCase() === "i") void togglePip();
+      showHud();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [changeChannel, live, menu, mini, onClose, showHud]);
+
+  useEffect(() => () => { if (hideRef.current) window.clearTimeout(hideRef.current); }, []);
+
+  async function togglePlay() {
+    const video = videoRef.current;
+    if (!video) return;
+    if (video.paused) { try { await video.play(); } catch (e) { setError(e instanceof Error ? e.message : "Playback could not start."); } }
+    else video.pause();
+  }
+  async function toggleFullscreen() {
+    const target = document.querySelector(".player-stage") as HTMLElement | null;
+    if (!target) return;
+    if (document.fullscreenElement) await document.exitFullscreen();
+    else await target.requestFullscreen();
+  }
+  async function togglePip() {
+    const video = videoRef.current;
+    if (!video || !("pictureInPictureEnabled" in document)) return;
+    try { if (document.pictureInPictureElement) await document.exitPictureInPicture(); else await video.requestPictureInPicture(); }
+    catch (e) { setError(e instanceof Error ? e.message : "Picture-in-picture is unavailable."); }
+  }
+  function setVolumeValue(value: number) {
+    if (!videoRef.current) return;
+    videoRef.current.volume = value;
+    videoRef.current.muted = value === 0;
+    setVolume(value); setMuted(value === 0);
+  }
+  function selectQuality(option: Option) {
+    engineRef.current?.setQuality(option.id); setSelectedQuality(option.id); setMenu(null);
+  }
+  function selectAudio(option: Option) {
+    engineRef.current?.selectAudio(option.id); setSelectedAudio(option.id); setMenu(null);
+  }
+  function selectSubtitle(option: Option | null) {
+    engineRef.current?.selectSubtitle(option?.id ?? -1); setSelectedSubtitle(option?.id ?? -1); setMenu(null);
+  }
+
+  const currentIndex = channels.findIndex(item => item.id === channel.id);
+  const previous = currentIndex > 0;
+  const next = currentIndex >= 0 && currentIndex < channels.length - 1;
+  const format = (seconds: number) => {
+    if (!Number.isFinite(seconds)) return "00:00";
+    return new Date(Math.max(0, seconds) * 1000).toISOString().slice(11, 19).replace(/^00:/, "");
+  };
+
+  return <div className={mini ? "player-overlay mini-mode" : "player-overlay"} onMouseMove={showHud} onMouseEnter={showHud}>
+    <div className="player-stage">
+      {ambient && <div className="player-ambient" style={{ backgroundImage: channel.logo ? `linear-gradient(90deg,#080c13ee,#080c1388),url("${channel.logo}")` : undefined }} />}
+      <video ref={videoRef} className="player-video" style={{ objectFit: fit }} playsInline autoPlay />
+      {state === "loading" && <div className="player-center-state"><div className="player-spinner" /><span>Connecting to {channel.name}…</span></div>}
+      {error && <div className="player-error"><b>Playback problem</b><span>{error}</span><button onClick={() => { setError(""); void engineRef.current?.play(videoRef.current!, channel).catch(e => setError(e.message)); }}>Retry stream</button></div>}
+      <AnimatePresence>
+        {hud && <motion.div className="player-hud" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: .18 }}>
+          <div className="player-topbar">
+            <button className="hud-icon" onClick={onClose} aria-label="Close player"><X /></button>
+            <div className="player-title"><b>{channel.name}</b><span>{channel.group} · {channel.manifestType?.toUpperCase() ?? "LIVE"}</span></div>
+            <span className="player-live-pill"><i /> {live ? "LIVE" : "ON DEMAND"}</span>
+            <button className="hud-icon" onClick={() => setAmbient(v => !v)} title="Ambient backdrop"><Expand /></button>
+            <button className="hud-icon" onClick={() => setMini(v => !v)} title="Mini player"><Minimize /></button>
+          </div>
+          <div className="player-bottom">
+            {!live && <div className="player-progress"><span>{format(currentTime)}</span><input aria-label="Seek" type="range" min="0" max={duration || 0} step=".1" value={Math.min(currentTime, duration || 0)} onChange={e => { if (videoRef.current) videoRef.current.currentTime = Number(e.target.value); }} /><span>{format(duration)}</span></div>}
+            <div className="player-controls">
+              <button className="hud-icon" onClick={() => changeChannel(-1)} disabled={!previous} title="Previous channel"><ChevronLeft /></button>
+              <button className="play-toggle" onClick={() => void togglePlay()} aria-label={playing ? "Pause" : "Play"}>{playing ? <Pause fill="currentColor" /> : <Play fill="currentColor" />}</button>
+              <button className="hud-icon" onClick={() => changeChannel(1)} disabled={!next} title="Next channel"><ChevronRight /></button>
+              <div className="volume-control"><button className="hud-icon" onClick={() => { if (videoRef.current) videoRef.current.muted = !videoRef.current.muted; }} aria-label="Mute">{muted ? <VolumeX /> : <Volume2 />}</button><input aria-label="Volume" type="range" min="0" max="1" step=".01" value={muted ? 0 : volume} onChange={e => setVolumeValue(Number(e.target.value))} /></div>
+              {live && <span className="live-now">● LIVE</span>}
+              <div className="control-spacer" />
+              <button className="hud-icon" onClick={() => setFit(v => v === "contain" ? "cover" : v === "cover" ? "fill" : "contain")} title={`Fit: ${fit}`}><MonitorPlay /></button>
+              <button className="hud-icon" onClick={() => { refreshTracks(); setMenu(menu === "quality" ? null : "quality"); }} title="Quality"><Settings2 /></button>
+              <button className="hud-icon" onClick={() => { refreshTracks(); setMenu(menu === "audio" ? null : "audio"); }} title="Audio"><AudioLines /></button>
+              <button className="hud-icon" onClick={() => { refreshTracks(); setMenu(menu === "subtitles" ? null : "subtitles"); }} title="Subtitles"><Subtitles /></button>
+              <button className="hud-icon" onClick={() => setMenu(menu === "zap" ? null : "zap")} title="Channel list"><Radio /></button>
+              <button className="hud-icon" onClick={() => void togglePip()} title="Picture in picture"><PictureInPicture2 /></button>
+              <button className="hud-icon" onClick={() => void toggleFullscreen()} title="Fullscreen"><Maximize /></button>
+            </div>
+          </div>
+        </motion.div>}
+      </AnimatePresence>
+      <AnimatePresence>
+        {menu && <motion.div className={menu === "zap" ? "player-menu zap-menu" : "player-menu"} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 8 }}>
+          <div className="player-menu-head"><b>{menu === "quality" ? "Stream quality" : menu === "audio" ? "Audio track" : menu === "subtitles" ? "Subtitles" : "Channel guide"}</b><button onClick={() => setMenu(null)}><X size={15} /></button></div>
+          {menu === "quality" && <><button className="player-option" onClick={() => { engineRef.current?.setQuality(-1); setSelectedQuality(-1); setMenu(null); }}>Auto {selectedQuality === -1 && <Check size={14} />}</button>{quality.map(option => <button className="player-option" key={option.id} onClick={() => selectQuality(option)}>{option.label}{selectedQuality === option.id && <Check size={14} />}</button>)}</>}
+          {menu === "audio" && (audio.length ? audio.map(option => <button className="player-option" key={option.id} onClick={() => selectAudio(option)}>{option.label}{selectedAudio === option.id && <Check size={14} />}</button>) : <p className="player-empty-option">No alternate audio tracks detected.</p>)}
+          {menu === "subtitles" && <><button className="player-option" onClick={() => selectSubtitle(null)}>Off {selectedSubtitle === -1 && <Check size={14} />}</button>{subtitles.map(option => <button className="player-option" key={option.id} onClick={() => selectSubtitle(option)}>{option.label}{selectedSubtitle === option.id && <Check size={14} />}</button>)}{!subtitles.length && <p className="player-empty-option">No embedded subtitle tracks detected.</p>}</>}
+          {menu === "zap" && <div className="zap-list">{channels.map((item, index) => <button className={item.id === channel.id ? "zap-item active" : "zap-item"} key={item.id} onClick={() => { onChangeChannel(item); setMenu(null); }}><span>{String(index + 1).padStart(2, "0")}</span>{item.logo && <img src={item.logo} alt="" />}<b>{item.name}</b>{item.id === channel.id && <i />}</button>)}</div>}
+        </motion.div>}
+      </AnimatePresence>
+      {!hud && <button className="player-reveal" onClick={showHud} aria-label="Show player controls">Show controls</button>}
+      <div className="player-shortcut-hint">Space Play/Pause · ↑↓ Channel · ←→ Seek/Zap · M Mute · F Fullscreen · I PiP · Esc Close</div>
+    </div>
+  </div>;
+}
