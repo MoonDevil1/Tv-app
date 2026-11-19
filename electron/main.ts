@@ -1,6 +1,7 @@
 import { app, BrowserWindow, ipcMain, session } from "electron";
 import { join } from "node:path";
 import { registerHeaderProxy, setActiveStreamContext, type StreamRequestContext } from "./net/headerProxy";
+import { registerAutoUpdates } from "./updater";
 
 let mainWindow: BrowserWindow | null = null;
 
@@ -38,6 +39,7 @@ function createWindow(): void {
 
 app.whenReady().then(() => {
   registerHeaderProxy(session.defaultSession);
+  registerAutoUpdates();
   ipcMain.handle("stream:set-request-context", (_event, context: StreamRequestContext | null) => {
     setActiveStreamContext(context);
     return { active: context !== null };
