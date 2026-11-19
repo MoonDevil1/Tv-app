@@ -12,3 +12,12 @@ export interface Playlist {
 }
 export interface PlaylistFetchOptions { headers?: StreamHeaders; signal?: AbortSignal; }
 export type JsonPlaylist = { channels?: unknown[]; streams?: unknown[]; items?: unknown[]; epg?: string | string[]; name?: string };
+
+declare global {
+  interface Window {
+    tvApp?: {
+      platform(): Promise<string>;
+      setStreamRequestContext(context: { originUrl: string; headers: Record<string, string> } | null): Promise<{ active: boolean }>;
+    };
+  }
+}
