@@ -39,6 +39,16 @@ export default function App() {
   playlistsRef.current = playlists;
 
   useEffect(() => {
+    const api = window.tvApp;
+    if (!api) return;
+    let active = true;
+    const unsubscribe = api.onUpdateState(state => { if (active) setUpdateState(state); });
+    void api.getUpdateState().then(state => { if (active) setUpdateState(state); });
+    void api.checkForUpdates();
+    return () => { active = false; unsubscribe(); };
+  }, []);
+
+  useEffect(() => {
     const onShortcut = (event: KeyboardEvent) => {
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") { event.preventDefault(); searchRef.current?.focus(); }
       if (event.key === "/" && !(event.target instanceof HTMLInputElement) && !(event.target instanceof HTMLTextAreaElement)) { event.preventDefault(); searchRef.current?.focus(); }
