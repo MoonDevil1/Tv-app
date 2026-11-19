@@ -9,131 +9,164 @@ function attributes(source: string): Record<string, string> {
   for (const match of source.matchAll(ATTR)) result[match[1].toLowerCase()] = unescapeValue(match[2] ?? match[3] ?? match[4] ?? "");
   return result;
 }
+function splitExtInf(line: string): { duration: number; attrs: Record<string, string>; name: string } {
+  let quoted = false, comma = -1;
+  for (let i = 8; i < line.length; i++) {
+    if (line[i] === '"' && line[i - 1] !== "\\") quoted = !quoted;
+    if (line[i] === "," && !quoted) { comma = i; break; }
+  }
+  const meta = comma < 0 ? line.slice(8) : line.slice(8, comma);
+  const attrs = attributes(meta);
+  const duration = Number.parseFloat(meta.trim().split(/\s/, 1)[0]);
+  return { duration: Number.isFinite(duration) ? duration : -1, attrs, name: unescapeValue(comma < 0 ? attrs["tvg-name"] ?? "Unnamed channel" : line.slice(comma + 1).trim()) };
+}
 function safeHeaders(value: unknown): StreamHeaders {
   if (!value || typeof value !== "object" || Array.isArray(value)) return {};
   const headers: StreamHeaders = {};
   for (const [name, raw] of Object.entries(value as Record<string, unknown>)) {
-    const v = String(raw);
-    if (name && !/[\r\n:]/.test(name) && !/[\r\n]/.test(v)) headers[name] = v;
+    const value = String(raw);
+    if (name && !/[\r\n:]/.test(name) && !/[\r\n]/.test(value)) headers[name] = value;
   }
   return headers;
 }
-function splitStream(raw: string): { url: string; headers: StreamHeaders; drmScheme?: string; drmLicense?: string } {
-  const [urlPart, query = ""] = raw.split("|", 2);
-  const params = new URLSearchParams(query.replace(/&amp;/g, "&"));
+function parseExtHttp(value: string): StreamHeaders {
+  try { return safeHeaders(JSON.parse(unescapeValue(value))); }
+  catch {
+    const separator = value.indexOf("=");
+    return separator > 0 ? { [value.slice(0, separator).trim()]: unescapeValue(value.slice(separator + 1).trim()) } : {};
+  }
+}
+function streamLine(raw: string): { url: string; headers: StreamHeaders; drmType?: string; drmLicense?: string } {
+  const separator = raw.indexOf("|");
+  if (separator < 0) return { url: unescapeValue(raw.trim()), headers: {} };
+  const url = unescapeValue(raw.slice(0, separator).trim());
   const headers: StreamHeaders = {};
-  let drmScheme: string | undefined, drmLicense: string | undefined;
-  for (const [key, value] of params) {
-    if (/^drmscheme$/i.test(key)) drmScheme = value;
+  let drmType: string | undefined, drmLicense: string | undefined;
+  for (const [key, value] of new URLSearchParams(raw.slice(separator + 1).replace(/&amp;/g, "&"))) {
+    if (/^drmscheme$/i.test(key)) drmType = value;
     else if (/^drmlicense$/i.test(key)) drmLicense = value;
     else headers[key] = value;
   }
-  return { url: unescapeValue(urlPart.trim()), headers, drmScheme, drmLicense };
+  return { url, headers, drmType, drmLicense };
 }
 function inferType(url: string, manifest?: string): Channel["manifestType"] {
   if (/mpd/i.test(manifest ?? "") || /\.mpd(?:$|[?#])/i.test(url)) return "dash";
   if (/\.m3u8?(?:$|[?#])/i.test(url)) return "hls";
+  if (/\.(mp4|mkv|webm|ts|m4v)(?:$|[?#])/i.test(url)) return "progressive";
   return "unknown";
 }
+function resolveUrl(url: string, baseUrl?: string): string {
+  const resolved = baseUrl ? new URL(url, baseUrl) : new URL(url);
+  if (!["http:", "https:"].includes(resolved.protocol)) throw new TypeError("Only HTTP(S) stream URLs are supported.");
+  return resolved.toString();
+}
 
-export function parseM3U(source: string): Channel[] {
+export function parseM3U(source: string, baseUrl?: string): Channel[] {
   const lines = source.replace(/^\uFEFF/, "").replace(/\r/g, "").split("\n");
   const channels: Channel[] = [];
   let pending: Partial<Channel> | null = null;
   let pendingHeaders: StreamHeaders = {};
   let licenseType: string | undefined, licenseKey: string | undefined, manifestType: string | undefined;
+  let currentGroup = "";
   const reset = () => { pending = null; pendingHeaders = {}; licenseType = undefined; licenseKey = undefined; manifestType = undefined; };
   for (const rawLine of lines) {
     const line = rawLine.trim();
     if (!line) continue;
     if (line.startsWith("#EXTINF:")) {
       reset();
-      const comma = line.indexOf(",");
-      const meta = comma >= 0 ? line.slice(8, comma) : line.slice(8);
-      const name = comma >= 0 ? line.slice(comma + 1).trim() : (attributes(meta)["tvg-name"] ?? "Unnamed channel");
-      const attrs = attributes(meta);
-      const duration = Number.parseFloat(meta.split(/\s/, 1)[0]);
+      const parsed = splitExtInf(line);
+      const attrs = parsed.attrs;
       pending = {
-        id: attrs["tvg-id"] || attrs["tvg-name"] || name,
-        name: attrs["tvg-name"] || name, tvgName: attrs["tvg-name"], tvgId: attrs["tvg-id"],
-        logo: attrs["tvg-logo"] || attrs["logo"], group: attrs["group-title"] || "Uncategorized",
-        channelNumber: Number(attrs["tvg-chno"]) || undefined,
-        duration: Number.isFinite(duration) ? duration : -1,
-        catchup: attrs.catchup, catchupDays: Number(attrs["catchup-days"]) || undefined,
-        catchupSource: attrs["catchup-source"], rawAttributes: attrs, headers: {}
+        id: attrs["tvg-id"] || attrs["tvg-name"] || parsed.name,
+        name: parsed.name || attrs["tvg-name"] || "Unnamed channel",
+        tvgName: attrs["tvg-name"], tvgId: attrs["tvg-id"], logo: attrs["tvg-logo"] || attrs.logo,
+        group: attrs["group-title"] || currentGroup || "Uncategorized",
+        channelNumber: Number(attrs["tvg-chno"] ?? attrs["ch-number"]) || undefined,
+        duration: parsed.duration, catchup: attrs.catchup,
+        catchupDays: Number(attrs["catchup-days"]) || undefined, catchupSource: attrs["catchup-source"],
+        rawAttributes: attrs, headers: {}
       };
-    } else if (line.startsWith("#EXTVLCOPT:")) {
+    } else if (line.startsWith("#EXTGRP:")) {
+      currentGroup = unescapeValue(line.slice(8).trim());
+    } else if (line.startsWith("#EXTVLCOPT:") && pending) {
       const option = line.slice(11), index = option.indexOf("=");
-      if (index > 0) { const key = option.slice(0, index).replace(/^http-/i, "").toLowerCase(); pendingHeaders[key === "user-agent" ? "User-Agent" : key === "referrer" ? "Referer" : key] = option.slice(index + 1).trim(); }
-    } else if (line.startsWith("#EXTHTTP:")) {
-      const value = unescapeValue(line.slice(9).trim());
-      try { pendingHeaders = { ...pendingHeaders, ...safeHeaders(JSON.parse(value)) }; }
-      catch { const index = value.indexOf("="); if (index > 0) pendingHeaders[value.slice(0,index)] = value.slice(index+1); }
-    } else if (line.startsWith("#KODIPROP:")) {
+      if (index > 0) {
+        const key = option.slice(0, index).trim().toLowerCase();
+        const value = unescapeValue(option.slice(index + 1).trim());
+        const header = key === "http-user-agent" ? "User-Agent" : key === "http-referrer" ? "Referer" :
+          key === "http-cookie" ? "Cookie" : key === "http-origin" ? "Origin" : key.replace(/^http-/, "");
+        pendingHeaders[header] = value;
+      }
+    } else if (line.startsWith("#EXTHTTP:") && pending) {
+      Object.assign(pendingHeaders, parseExtHttp(line.slice(9).trim()));
+    } else if (line.startsWith("#KODIPROP:") && pending) {
       const prop = line.slice(10), index = prop.indexOf("=");
       if (index > 0) {
-        const key = unescapeValue(prop.slice(0,index).trim()).toLowerCase(), value = unescapeValue(prop.slice(index+1).trim());
+        const key = unescapeValue(prop.slice(0, index).trim()).toLowerCase();
+        const value = unescapeValue(prop.slice(index + 1).trim());
         if (key.endsWith("license_type")) licenseType = value;
         else if (key.endsWith("license_key")) licenseKey = value;
         else if (key.endsWith("manifest_type")) manifestType = value;
-        else if (key.endsWith("stream_headers")) Object.assign(pendingHeaders, safeHeaders(Object.fromEntries(new URLSearchParams(value))));
+        else if (key.endsWith("license_key") && value.startsWith("{")) licenseKey = value;
       }
     } else if (!line.startsWith("#") && pending) {
-      const stream = splitStream(line);
-      const url = stream.url;
       try {
-        const parsed = new URL(url);
-        if (parsed.protocol !== "http:" && parsed.protocol !== "https:") { reset(); continue; }
-      } catch { reset(); continue; }
-      const drm = createClearKeyDrm(stream.drmScheme ?? licenseType, stream.drmLicense ?? licenseKey);
-      if (drm?.clearKeys) drm.clearKeys = { ...drm.clearKeys };
-      channels.push({ ...(pending as Channel), url, headers: { ...pendingHeaders, ...stream.headers }, drm, manifestType: inferType(url, manifestType) });
+        const stream = streamLine(line);
+        const url = resolveUrl(stream.url, baseUrl);
+        const drm = createClearKeyDrm(stream.drmType ?? licenseType, stream.drmLicense ?? licenseKey);
+        const channel = {
+          ...(pending as Channel), url, headers: { ...pendingHeaders, ...stream.headers },
+          drm, manifestType: inferType(url, manifestType)
+        };
+        if (drm?.scheme === "clearkey" && drm.clearKeys) drm.clearKeys = { ...drm.clearKeys };
+        channels.push(channel);
+      } catch { /* invalid/non-HTTP stream entries are ignored */ }
       reset();
     }
   }
   return channels;
 }
 
-export function parseJsonPlaylist(input: unknown): Channel[] {
+export function parseJsonPlaylist(input: unknown, baseUrl?: string): Channel[] {
   const root = (Array.isArray(input) ? { channels: input } : input) as Record<string, unknown> | null;
   if (!root || typeof root !== "object") throw new TypeError("JSON playlist must be an object or array.");
-  const list = [root.channels, root.streams, root.items, root.data].find(Array.isArray) as unknown[] | undefined;
-  if (!list) throw new TypeError("JSON playlist must contain channels, streams, or items.");
+  const list = [root.channels, root.streams, root.items, root.data, root.results, root.playlist].find(Array.isArray) as unknown[] | undefined;
+  if (!list) throw new TypeError("JSON playlist must contain channels, streams, items, or data.");
   return list.flatMap((item, index) => {
     if (!item || typeof item !== "object") return [];
     const row = item as Record<string, unknown>;
-    const url = String(row.url ?? row.streamUrl ?? row.stream_url ?? row.link ?? "");
-    try { const parsed = new URL(url); if (!["http:","https:"].includes(parsed.protocol)) return []; } catch { return []; }
-    const name = String(row.name ?? row.title ?? row.tvgName ?? `Channel ${index + 1}`);
+    const rawUrl = String(row.url ?? row.streamUrl ?? row.stream_url ?? row.link ?? row.src ?? row.file ?? "");
+    let url: string;
+    try { url = resolveUrl(rawUrl, baseUrl); } catch { return []; }
+    const name = String(row.name ?? row.title ?? row.channel ?? row.tvgName ?? row.tvg_name ?? `Channel ${index + 1}`);
     const drmInput = row.drm && typeof row.drm === "object" ? row.drm as Record<string, unknown> : {};
-    const scheme = String(drmInput.scheme ?? drmInput.type ?? row.drmScheme ?? row.drm_scheme ?? "clearkey");
-    const licenseUrl = String(drmInput.licenseUrl ?? drmInput.license_url ?? row.licenseUrl ?? row.license_url ?? "");
-    const drmRaw = drmInput.clearKeys ?? drmInput.keys ?? row.drmLicense ?? row.drm_license ?? row.licenseKey ?? row.license_key;
-    let drm = createClearKeyDrm(scheme, typeof drmRaw === "string" ? drmRaw : undefined);
-    if (!drm && drmRaw && typeof drmRaw === "object") {
-      const keyObject = drmRaw as Record<string, unknown>;
-      drm = { scheme: "clearkey", clearKeys: parseClearKeys(Array.isArray(keyObject.keys) ? JSON.stringify(keyObject) : drmRaw as Record<string, string>) };
-    }
-    if (licenseUrl) drm = { scheme: "clearkey", licenseUrl, clearKeys: drm?.clearKeys };
+    const license = row.licenseKey ?? row.license_key ?? row.drmLicense ?? row.drm_license ?? drmInput.clearKeys ?? drmInput.keys;
+    const licenseUrl = String(row.licenseUrl ?? row.license_url ?? drmInput.licenseUrl ?? drmInput.license_url ?? "");
+    const scheme = String(row.drmScheme ?? row.drm_scheme ?? drmInput.scheme ?? drmInput.type ?? "clearkey");
+    let drm = createClearKeyDrm(scheme, typeof license === "string" ? license : undefined);
+    if (!drm && license && typeof license === "object") drm = { scheme: "clearkey", clearKeys: parseClearKeys(license as Record<string, string>) };
+    if (licenseUrl) drm = { scheme: scheme.toLowerCase().includes("widevine") ? "widevine" : "clearkey", licenseUrl, clearKeys: drm?.clearKeys };
+    const type = String(row.manifestType ?? row.manifest_type ?? row.type ?? row.protocol ?? "");
+    const rawAttrs = row.attributes && typeof row.attributes === "object" ? row.attributes as Record<string, string> : {};
     return [{
       id: String(row.id ?? row.tvgId ?? row.tvg_id ?? row["tvg-id"] ?? name), name, url,
-      logo: String(row.logo ?? row.tvgLogo ?? row.tvg_logo ?? row["tvg-logo"] ?? "") || undefined,
-      group: String(row.group ?? row.groupTitle ?? row.group_title ?? row["group-title"] ?? "Uncategorized"),
+      logo: String(row.logo ?? row.tvgLogo ?? row.tvg_logo ?? row["tvg-logo"] ?? row.icon ?? "") || undefined,
+      group: String(row.group ?? row.category ?? row.groupTitle ?? row.group_title ?? row["group-title"] ?? "Uncategorized"),
       tvgId: String(row.tvgId ?? row.tvg_id ?? row["tvg-id"] ?? "") || undefined,
       tvgName: String(row.tvgName ?? row.tvg_name ?? row["tvg-name"] ?? "") || undefined,
-      headers: safeHeaders(row.headers ?? row.requestHeaders ?? row.request_headers ?? row.http_headers), drm,
-      manifestType: inferType(url, String(row.manifestType ?? "")),
-      catchup: String(row.catchup ?? "") || undefined,
+      channelNumber: Number(row.channelNumber ?? row.tvg_chno ?? row["tvg-chno"]) || undefined,
+      duration: Number(row.duration ?? -1), headers: safeHeaders(row.headers ?? row.requestHeaders ?? row.request_headers ?? row.http_headers),
+      drm, manifestType: inferType(url, type), catchup: String(row.catchup ?? "") || undefined,
       catchupDays: Number(row.catchupDays ?? row.catchup_days) || undefined,
-      rawAttributes: (row.attributes && typeof row.attributes === "object" ? row.attributes : {}) as Record<string,string>
+      catchupSource: String(row.catchupSource ?? row.catchup_source ?? "") || undefined, rawAttributes: rawAttrs
     } satisfies Channel];
   });
 }
 
-export function parsePlaylist(source: string): Channel[] {
-  const trimmed = source.trim();
+export function parsePlaylist(source: string, baseUrl?: string): Channel[] {
+  const trimmed = source.trim().replace(/^\uFEFF/, "");
   if (!trimmed) return [];
-  if (trimmed.startsWith("{") || trimmed.startsWith("[")) return parseJsonPlaylist(JSON.parse(trimmed));
+  if (trimmed.startsWith("{") || trimmed.startsWith("[")) return parseJsonPlaylist(JSON.parse(trimmed), baseUrl);
   if (!/^#EXTM3U\b/i.test(trimmed)) throw new TypeError("Unsupported playlist: expected #EXTM3U or JSON.");
-  return parseM3U(trimmed);
+  return parseM3U(trimmed, baseUrl);
 }
