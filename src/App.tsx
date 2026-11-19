@@ -34,8 +34,18 @@ export default function App() {
   const [showAdd, setShowAdd] = useState(false), [sourceUrl, setSourceUrl] = useState(LIVE_TGTV_URL), [playlistName, setPlaylistName] = useState("LiveTGTV"), [refreshInterval, setRefreshInterval] = useState(300000);
   const [busy, setBusy] = useState(false), [epgBusy, setEpgBusy] = useState(false), [error, setError] = useState(""), [notice, setNotice] = useState(""), [scrollTop, setScrollTop] = useState(0), [columns, setColumns] = useState(4);
   const fileInput = useRef<HTMLInputElement>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
   const playlistsRef = useRef(playlists);
   playlistsRef.current = playlists;
+
+  useEffect(() => {
+    const onShortcut = (event: KeyboardEvent) => {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") { event.preventDefault(); searchRef.current?.focus(); }
+      if (event.key === "/" && !(event.target instanceof HTMLInputElement) && !(event.target instanceof HTMLTextAreaElement)) { event.preventDefault(); searchRef.current?.focus(); }
+    };
+    window.addEventListener("keydown", onShortcut);
+    return () => window.removeEventListener("keydown", onShortcut);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -148,7 +158,7 @@ export default function App() {
       <div className="sidebar-bottom"><div className="connection"><span className="status-dot" /><div><b>{statChannels ? `${statChannels.toLocaleString()} channels ready` : "Player ready"}</b><small>{playlists.length ? "Library is on this device" : "Waiting for a playlist"}</small></div></div><button className="help-link" onClick={() => setNotice("Keyboard shortcuts arrive with the player in Phase 4.")}><CircleHelp size={17} /> Help & shortcuts</button><div className="profile"><div className="avatar">N</div><div><b>Local profile</b><small>On this device</small></div><Settings2 size={16} /></div></div>
     </aside>
     <main className="main-area">
-      <header className="topbar"><div className="breadcrumbs"><span>YOUR LIBRARY</span><span className="crumb-slash">/</span><b>{active}</b></div><div className="topbar-actions"><label className="search-box"><Search size={17} /><input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search channels, groups…" /><kbd><Command size={11} /> K</kbd></label><button className="icon-button" aria-label="Refresh playlist" onClick={() => selectedPlaylist && void refreshPlaylist(selectedPlaylist)} disabled={!selectedPlaylist}><Activity size={18} /></button><button className="add-button" onClick={() => setShowAdd(true)}><Plus size={17} /> Add playlist</button></div></header>
+      <header className="topbar"><div className="breadcrumbs"><span>YOUR LIBRARY</span><span className="crumb-slash">/</span><b>{active}</b></div><div className="topbar-actions"><label className="search-box"><Search size={17} /><input ref={searchRef} value={query} onChange={e => setQuery(e.target.value)} placeholder="Search channels, groups…" /><kbd><Command size={11} /> K</kbd></label><button className="icon-button" aria-label="Refresh playlist" onClick={() => selectedPlaylist && void refreshPlaylist(selectedPlaylist)} disabled={!selectedPlaylist}><Activity size={18} /></button><button className="add-button" onClick={() => setShowAdd(true)}><Plus size={17} /> Add playlist</button></div></header>
       <section className="page-content">
         <AnimatePresence mode="wait">
           {isGridView && <motion.div key="channels" className="library-view" initial={reduceMotion ? false : { opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -5 }}>
