@@ -59,7 +59,7 @@ export function registerAutoUpdates(): void {
 
   ipcMain.handle("app:update-state", () => latestState);
   ipcMain.handle("app:update-check", async () => {
-    if (!app.isPackaged) {
+    if (!canAutoUpdate()) {
       publish({ status: "unsupported", message: process.env.PORTABLE_EXECUTABLE_DIR ? "Automatic updates are unavailable in the portable Windows build. Use the installer build." : "Updates are available in an installed desktop build." });
       return { accepted: false };
     }
@@ -95,6 +95,6 @@ export function registerAutoUpdates(): void {
       });
     }, 12000);
   } else {
-    publish({ status: "unsupported", message: "Updates are available in an installed desktop build." });
+    publish({ status: "unsupported", message: process.env.PORTABLE_EXECUTABLE_DIR ? "Automatic updates are unavailable in the portable Windows build. Use the installer build." : "Updates are available in an installed desktop build." });
   }
 }
