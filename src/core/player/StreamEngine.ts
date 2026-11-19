@@ -92,6 +92,15 @@ export class StreamEngine {
     await player.load(channel.url);
   }
 
+  private async playProgressive(video: HTMLVideoElement, channel: Channel): Promise<void> {
+    video.src = channel.url;
+    await new Promise<void>((resolve, reject) => {
+      const timeout = window.setTimeout(() => reject(new Error("Stream metadata load timed out.")), 20_000);
+      video.addEventListener("loadedmetadata", () => { clearTimeout(timeout); resolve(); }, { once: true });
+      video.addEventListener("error", () => { clearTimeout(timeout); reject(new Error("Progressive stream could not be loaded.")); }, { once: true });
+    });
+  }
+
   private async playHls(video: HTMLVideoElement, channel: Channel, generation: number): Promise<void> {
     if (Hls.isSupported()) {
       const host = this.originHost(channel);
