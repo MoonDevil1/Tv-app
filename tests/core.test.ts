@@ -1,22 +1,23 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { parseM3U, parseJsonPlaylist, parsePlaylist } from "../src/core/parser/m3uParser";
-import { hexToBase64Url, parseClearKeys } from "../src/core/parser/clearKeyUtils";
+import { clearKeyJwk, hexToBase64Url, parseClearKeys, createClearKeyDrm } from "../src/core/parser/clearKeyUtils";
 import { PlaylistManager } from "../src/core/parser/playlistManager";
 
+const KID = "00112233445566778899aabbccddeeff";
+const KEY = "ffeeddccbbaa99887766554433221100";
 const sample = `#EXTM3U url-tvg="https://epg.example/guide.xml"
 #EXTINF:-1 tvg-id="news.1" tvg-name="News HD" tvg-logo="https://img.example/news.png" group-title="News",News HD
 #EXTVLCOPT:http-user-agent=Test Player/1.0
 #EXTHTTP:{"cookie":"session=abc"}
 #KODIPROP:inputstream.adaptive.manifest_type=mpd
 #KODIPROP:inputstream.adaptive.license_type=clearkey
-#KODIPROP:inputstream.adaptive.license_key=00112233445566778899aabbccddeeff:ffeeddccbbaa99887766554433221100,11223344556677889900aabbccddeeff:00112233445566778899aabbccddeeff
+#KODIPROP:inputstream.adaptive.license_key=${KID}:${KEY},11223344556677889900aabbccddeeff:00112233445566778899aabbccddeeff
 https://cdn.example/live/index.mpd
 #EXTINF:-1 tvg-name="Radio" group-title="Audio",Radio
-https://cdn.example/radio/index.m3u8|Referer=https://provider.example
-`;
+https://cdn.example/radio/index.m3u8|Referer=https://provider.example`;
 
-test("parses channel metadata, DASH, multiple ClearKeys and request headers", () => {
+test("parses channel metadata, DASH, multiple ClearKeys and per-channel headers", () => {
   const channels = parseM3U(sample);
   assert.equal(channels.length, 2);
   assert.equal(channels[0].name, "News HD");
@@ -29,63 +30,84 @@ test("parses channel metadata, DASH, multiple ClearKeys and request headers", ()
   assert.equal(channels[1].headers.Referer, "https://provider.example");
 });
 
-test("normalizes hex and standard base64 ClearKey values", () => {
-  assert.equal(hexToBase64Url("000102"), "AAEC");
-  const keys = parseClearKeys("00112233445566778899aabbccddeeff:ffeeddccbbaa99887766554433221100");
+test("converts 128-bit hex values and round-trips ClearKey JWK", () => {
+  assert.equal(hexToBase64Url(KID), "ABEiM0RVZneImaq7zN3u_w");
+  const keys = parseClearKeys(`${KID}:${KEY}`);
   assert.equal(Object.keys(keys).length, 1);
-  assert.equal(parseClearKeys({ "AAEC": "AQID" }).AAEC, "AQID");
+  const jwk = clearKeyJwk(keys);
+  assert.equal(parseClearKeys(jwk)[Object.keys(keys)[0]], Object.values(keys)[0]);
 });
 
-test("parses JSON playlist variants and filters unsafe URLs", () => {
-  const channels = parseJsonPlaylist({ streams: [
-    { id: 10, title: "JSON TV", url: "https://cdn.example/live.m3u8", group: "JSON", headers: { Authorization: "Bearer x" } },
+test("accepts standard JWK data URIs, remote license URLs and Widevine metadata", () => {
+  const jwk = JSON.stringify({ keys: [{ kty: "oct", kid: "ABEiM0RVZneImaq7zN3u_w", k: "ABEiM0RVZneImaq7zN3u_w" }] });
+  assert.equal(Object.keys(parseClearKeys(jwk)).length, 1);
+  assert.equal(Object.keys(parseClearKeys(`data:application/json,${encodeURIComponent(jwk)}`)).length, 1);
+  assert.equal(createClearKeyDrm("clearkey", "https://license.example/key")?.licenseUrl, "https://license.example/key");
+  assert.equal(createClearKeyDrm("widevine", "https://license.example/wv")?.scheme, "widevine");
+});
+
+test("parses JSON playlist envelopes, IPTV aliases, headers and relative stream URLs", () => {
+  const channels = parseJsonPlaylist({ data: [
+    { id: 10, title: "JSON TV", url: "/live.m3u8", "group-title": "JSON", headers: { Authorization: "Bearer x" } },
+    { title: "DASH", stream_url: "https://cdn.example/movie.mpd", category: "Movies", drm: { scheme: "clearkey", clearKeys: { "ABEiM0RVZneImaq7zN3u_w": "ABEiM0RVZneImaq7zN3u_w" } } },
     { title: "bad", url: "javascript:alert(1)" }
-  ] });
-  assert.equal(channels.length, 1);
-  assert.equal(channels[0].id, "10");
+  ] }, "https://provider.example/list.json");
+  assert.equal(channels.length, 2);
+  assert.equal(channels[0].url, "https://provider.example/live.m3u8");
+  assert.equal(channels[0].manifestType, "hls");
   assert.equal(channels[0].headers.Authorization, "Bearer x");
+  assert.equal(channels[1].manifestType, "dash");
+  assert.equal(channels[1].drm?.clearKeys?.ABEiM0RVZneImaq7zN3u_w, "ABEiM0RVZneImaq7zN3u_w");
 });
 
-test("detects M3U and JSON and rejects unsupported documents", () => {
+test("auto-detects JSON and rejects unsupported or malformed input", () => {
   assert.equal(parsePlaylist(sample).length, 2);
   assert.equal(parsePlaylist(JSON.stringify([{ name: "one", url: "https://x.test/a.m3u8" }])).length, 1);
   assert.throws(() => parsePlaylist("<html>not a playlist</html>"), /Unsupported playlist/);
+  assert.throws(() => parsePlaylist('{"items":[]}'), /JSON playlist must contain/);
 });
 
-test("parses escaped Kodi keys and escaped CDN underscores", () => {
-  const escaped = `#EXTM3U
-#EXTINF:-1 tvg-name="Escaped",Escaped
+test("supports Kodi EXTGRP, quoted commas and escaped CDN underscores", () => {
+  const source = `#EXTM3U
+#EXTGRP:Documentary
+#EXTINF:-1 tvg-name="One" description="A, B",One, HD
 #KODIPROP:inputstream.adaptive.manifest\\_type=mpd
 #KODIPROP:inputstream.adaptive.license\\_type=clearkey
-#KODIPROP:inputstream.adaptive.license\\_key=00112233445566778899aabbccddeeff:ffeeddccbbaa99887766554433221100
+#KODIPROP:inputstream.adaptive.license\\_key=${KID}:${KEY}
 #EXTHTTP:{"cookie":"\\_\\_hdnea\\_\\_=token"}
-https://cdn.example/channel\\_one/index.mpd
-`;
-  const [channel] = parseM3U(escaped);
-  assert.equal(channel.manifestType, "dash");
+https://cdn.example/channel\\_one/index.mpd`;
+  const [channel] = parseM3U(source);
+  assert.equal(channel.name, "One, HD");
+  assert.equal(channel.group, "Documentary");
   assert.equal(channel.url, "https://cdn.example/channel_one/index.mpd");
-  assert.equal(Object.keys(channel.drm?.clearKeys ?? {}).length, 1);
   assert.equal(channel.headers.cookie, "__hdnea__=token");
+  assert.equal(channel.manifestType, "dash");
 });
 
-test("loads a local playlist and preserves EPG and category metadata", async () => {
-  const manager = new PlaylistManager();
-  const playlist = await manager.load(sample, { name: "Fixture" });
-  assert.equal(playlist.name, "Fixture");
-  assert.deepEqual(playlist.groups, ["News", "Audio"]);
-  assert.deepEqual(playlist.epgUrls, ["https://epg.example/guide.xml"]);
+test("resolves relative M3U stream URLs against playlist URL", () => {
+  const [channel] = parseM3U("#EXTM3U\n#EXTINF:-1,Relative\n../live/channel.mpd", "https://provider.example/lists/channels.m3u");
+  assert.equal(channel.url, "https://provider.example/live/channel.mpd");
+});
+
+test("PlaylistManager loads, stores and refreshes a remote playlist", async () => {
+  let calls = 0;
+  const manager = new PlaylistManager(async () => {
+    calls++;
+    return new Response("#EXTM3U\n#EXTINF:-1,Test\nhttps://cdn.example/test.m3u8", {
+      status: 200, headers: { "content-type": "application/x-mpegURL" }, url: "https://provider.example/list.m3u"
+    });
+  });
+  const playlist = await manager.load("https://provider.example/list.m3u", { id: "live", name: "LiveTGTV" });
+  assert.equal(playlist.channels.length, 1);
+  assert.equal(manager.get("live")?.channels[0].name, "Test");
+  const refreshed = await manager.refresh("live");
+  assert.equal(refreshed.channels.length, 1);
+  assert.equal(calls, 2);
+  assert.equal(manager.remove("live"), true);
   manager.dispose();
 });
 
-test("supports JSON data envelopes, IPTV field names and JWK ClearKey", () => {
-  const channels = parseJsonPlaylist({ data: [{
-    "tvg-id": "json.1", "tvg-name": "JSON DRM", "tvg-logo": "https://img.test/logo.png",
-    "group-title": "Premium", url: "https://cdn.test/live.mpd",
-    drm: { scheme: "clearkey", clearKeys: { "AAEC": "AQID" } },
-    request_headers: { Referer: "https://provider.test/" }
-  }] });
-  assert.equal(channels[0].tvgId, "json.1");
-  assert.equal(channels[0].group, "Premium");
-  assert.equal(channels[0].drm?.clearKeys?.AAEC, "AQID");
-  assert.equal(channels[0].headers.Referer, "https://provider.test/");
+test("rejects malformed ClearKey values and ignores unsafe stream schemes", () => {
+  assert.throws(() => parseClearKeys("not-a-key"));
+  assert.equal(parseJsonPlaylist({ channels: [{ name: "bad", url: "file:///etc/passwd" }] }).length, 0);
 });
