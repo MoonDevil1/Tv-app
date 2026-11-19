@@ -73,7 +73,7 @@ test("auto-detects JSON and rejects unsupported or malformed input", () => {
   assert.equal(parsePlaylist(sample).length, 2);
   assert.equal(parsePlaylist(JSON.stringify([{ name: "one", url: "https://x.test/a.m3u8" }])).length, 1);
   assert.throws(() => parsePlaylist("<html>not a playlist</html>"), /Unsupported playlist/);
-  assert.throws(() => parsePlaylist('{"items":[]}'), /JSON playlist must contain/);
+  assert.throws(() => parsePlaylist('{"items":[]}'), /no valid HTTP/);
 });
 
 test("supports Kodi EXTGRP, quoted commas and escaped CDN underscores", () => {
