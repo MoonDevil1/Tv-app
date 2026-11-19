@@ -132,6 +132,54 @@ export class StreamEngine {
     throw new Error("HLS playback is not supported by this runtime.");
   }
 
+  getQualityOptions(): Array<{ id: number; label: string }> {
+    if (this.hls) return this.hls.levels.map((level, id) => ({ id, label: level.height ? `${level.height}p` : `${Math.round(level.bitrate / 1000)} kbps` }));
+    return (this.shakaPlayer?.getVariantTracks() ?? []).filter((track, index, all) => all.findIndex(item => item.height === track.height && item.bandwidth === track.bandwidth) === index).map((track, id) => ({ id: track.id, label: track.height ? `${track.height}p` : `${Math.round(track.bandwidth / 1000)} kbps` }));
+  }
+
+  setQuality(id: number): void {
+    if (this.hls) this.hls.currentLevel = id;
+    else {
+      const track = this.shakaPlayer?.getVariantTracks().find(item => item.id === id);
+      if (track) this.shakaPlayer?.selectVariantTrack(track, true);
+    }
+  }
+
+  getAudioOptions(): Array<{ id: number; label: string }> {
+    if (this.hls) return this.hls.audioTracks.map((track, id) => ({ id, label: track.name || track.lang || `Audio ${id + 1}` }));
+    const tracks = this.shakaPlayer?.getVariantTracks() ?? [];
+    const unique = new Map<string, { id: number; label: string }>();
+    tracks.forEach(track => {
+      const key = track.language || track.audioId || String(track.id);
+      if (!unique.has(key)) unique.set(key, { id: track.id, label: track.language || `Audio ${unique.size + 1}` });
+    });
+    return [...unique.values()];
+  }
+
+  selectAudio(id: number): void {
+    if (this.hls) this.hls.audioTrack = id;
+    else {
+      const track = this.shakaPlayer?.getVariantTracks().find(item => item.id === id);
+      if (track?.language) this.shakaPlayer?.selectAudioLanguage(track.language);
+    }
+  }
+
+  getSubtitleOptions(): Array<{ id: number; label: string }> {
+    if (this.hls) return this.hls.subtitleTracks.map((track, id) => ({ id, label: track.name || track.lang || `Subtitle ${id + 1}` }));
+    return (this.shakaPlayer?.getTextTracks() ?? []).map(track => ({ id: track.id, label: track.language || track.kind || `Subtitle ${track.id + 1}` }));
+  }
+
+  selectSubtitle(id: number): void {
+    if (this.hls) this.hls.subtitleTrack = id;
+    else if (this.shakaPlayer) {
+      if (id < 0) this.shakaPlayer.setTextTrackVisibility(false);
+      else {
+        const track = this.shakaPlayer.getTextTracks().find(item => item.id === id);
+        if (track) { this.shakaPlayer.selectTextTrack(track); this.shakaPlayer.setTextTrackVisibility(true); }
+      }
+    }
+  }
+
   async stop(): Promise<void> {
     this.generation++;
     await window.tvApp?.setStreamRequestContext(null);
