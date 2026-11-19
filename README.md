@@ -37,6 +37,12 @@ npm run dist:linux
 
 Installers are written to `release/`.
 
+GitHub Actions can build Windows, macOS and Linux installers from **Actions → Desktop Release → Run workflow**. To prepare a draft GitHub release with attached installers, push a version tag such as `v2.0.1`; the workflow packages each platform and creates a draft release for review. The draft is not published automatically.
+
+## Continuous integration
+
+Every feature-branch push runs type-checking, the unit suite and the Electron production build on Windows, macOS and Linux. The Electron header proxy also has regression tests for host scoping and header-injection filtering.
+
 ## Architecture
 
 - Electron main process owns the desktop window and scoped stream request-header policy.
