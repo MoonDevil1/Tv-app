@@ -9,7 +9,7 @@ A cross-platform desktop IPTV player built with Electron, React 19, TypeScript, 
 - Channel search, category filters, favorites and recently watched.
 - Responsive virtualized channel grid for large playlists.
 - XMLTV EPG now/next guide when the playlist declares an accessible EPG feed.
-- Per-playlist automatic refresh (manual, 1m, 5m, 15m or 1h).
+- Per-playlist automatic refresh (manual, 1m, 5m, 15m or 1h).\n- GitHub release updates: installed builds check for updates, download on request and restart to install. Draft releases are not offered until published.
 - HLS and DASH playback, including authorized ClearKey/Widevine configurations supported by the runtime.
 - Player HUD: play/pause, seek, volume, quality, audio/subtitle selection, aspect fit, fullscreen and picture-in-picture.
 - Channel zapping, mini-player mode and keyboard shortcuts (Space/K play, arrows seek or zap, M mute, F fullscreen, I PiP, Ctrl/⌘+K or / search).
@@ -35,7 +35,7 @@ npm run dist:mac
 npm run dist:linux
 ```
 
-Installers are written to `release/`.
+Installers are written to `release/`. Published GitHub releases provide update metadata and binaries; the updater intentionally ignores draft releases. Windows NSIS and Linux AppImage builds are update targets. macOS updates require a Developer ID-signed and notarized build.
 
 GitHub Actions can build Windows, macOS and Linux installers from **Actions → Desktop Release → Run workflow**. To prepare a draft GitHub release with attached installers, push a version tag such as `v2.0.1`; the workflow packages each platform and creates a draft release for review. The draft is not published automatically.
 
