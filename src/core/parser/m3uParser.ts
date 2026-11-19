@@ -1,5 +1,5 @@
 import type { Channel, StreamHeaders } from "../types";
-import { createClearKeyDrm, parseClearKeys } from "./clearKeyUtils";
+import { createClearKeyDrm } from "./clearKeyUtils";
 
 const ATTR = /([\w-]+)\s*=\s*(?:"((?:\\.|[^"])*)"|'((?:\\.|[^'])*)'|([^\s,]+))/g;
 const unescapeValue = (value: string) => value.replace(/\\_/g, "_").replace(/\\(["'\\])/g, "$1");
@@ -64,9 +64,9 @@ export function parseM3U(source: string): Channel[] {
       };
     } else if (line.startsWith("#EXTVLCOPT:")) {
       const option = line.slice(11), index = option.indexOf("=");
-      if (index > 0) pendingHeaders[option.slice(0, index).replace(/^http-/i, "") === "user-agent" ? "User-Agent" : option.slice(0, index).replace(/^http-/i, "")] = option.slice(index + 1).trim();
+      if (index > 0) { const key = option.slice(0, index).replace(/^http-/i, "").toLowerCase(); pendingHeaders[key === "user-agent" ? "User-Agent" : key === "referrer" ? "Referer" : key] = option.slice(index + 1).trim(); }
     } else if (line.startsWith("#EXTHTTP:")) {
-      const value = line.slice(9).trim();
+      const value = unescapeValue(line.slice(9).trim());
       try { pendingHeaders = { ...pendingHeaders, ...safeHeaders(JSON.parse(value)) }; }
       catch { const index = value.indexOf("="); if (index > 0) pendingHeaders[value.slice(0,index)] = value.slice(index+1); }
     } else if (line.startsWith("#KODIPROP:")) {
