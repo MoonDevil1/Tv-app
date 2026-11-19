@@ -12,7 +12,8 @@ A cross-platform desktop IPTV player built with Electron, React 19, TypeScript, 
 - Per-playlist automatic refresh (manual, 1m, 5m, 15m or 1h).
 - HLS and DASH playback, including authorized ClearKey/Widevine configurations supported by the runtime.
 - Player HUD: play/pause, seek, volume, quality, audio/subtitle selection, aspect fit, fullscreen and picture-in-picture.
-- Channel zapping, mini-player mode and keyboard shortcuts.
+- Channel zapping, mini-player mode and keyboard shortcuts (Space/K play, arrows seek or zap, M mute, F fullscreen, I PiP, Ctrl/⌘+K or / search).
+- Optional ambient backdrop that samples video colors when browser cross-origin rules allow it.
 
 ## Development
 
