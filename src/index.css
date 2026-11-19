@@ -122,7 +122,7 @@ button:disabled{opacity:.45;cursor:not-allowed;transform:none!important}
 .player-overlay{position:fixed;inset:0;z-index:50;background:#020408;display:grid;place-items:center;color:#f1f6ff}
 .player-stage{position:relative;width:100%;height:100%;overflow:hidden;background:#020408;isolation:isolate}
 .player-video{position:absolute;inset:0;width:100%;height:100%;background:#020408;z-index:1}
-.player-ambient{position:absolute;inset:-8%;z-index:0;background-position:center;background-size:cover;filter:blur(42px) saturate(1.3);opacity:.28;transform:scale(1.1)}
+.player-ambient{position:absolute;inset:-8%;z-index:0;background-position:center;background-size:cover;filter:blur(42px) saturate(1.3);opacity:.32;transform:scale(1.1);transition:background-color 1.4s ease}
 .player-hud{position:absolute;inset:0;z-index:3;display:flex;flex-direction:column;justify-content:space-between;padding:26px 32px;background:linear-gradient(180deg,#03060bc9 0%,transparent 27%,transparent 55%,#03060bd9 100%);pointer-events:none}
 .player-hud button,.player-hud input,.player-menu,.player-reveal{pointer-events:auto}
 .player-topbar{display:flex;align-items:center;gap:14px}
