@@ -1,5 +1,5 @@
 import type { Channel, StreamHeaders } from "../types";
-import { createClearKeyDrm } from "./clearKeyUtils";
+import { createClearKeyDrm, parseClearKeys } from "./clearKeyUtils";
 
 const ATTR = /([\w-]+)\s*=\s*(?:"((?:\\.|[^"])*)"|'((?:\\.|[^'])*)'|([^\s,]+))/g;
 const unescapeValue = (value: string) => value.replace(/\\_/g, "_").replace(/\\(["'\\])/g, "$1");
@@ -97,7 +97,7 @@ export function parseM3U(source: string): Channel[] {
 export function parseJsonPlaylist(input: unknown): Channel[] {
   const root = (Array.isArray(input) ? { channels: input } : input) as Record<string, unknown> | null;
   if (!root || typeof root !== "object") throw new TypeError("JSON playlist must be an object or array.");
-  const list = [root.channels, root.streams, root.items].find(Array.isArray) as unknown[] | undefined;
+  const list = [root.channels, root.streams, root.items, root.data].find(Array.isArray) as unknown[] | undefined;
   if (!list) throw new TypeError("JSON playlist must contain channels, streams, or items.");
   return list.flatMap((item, index) => {
     if (!item || typeof item !== "object") return [];
@@ -105,16 +105,23 @@ export function parseJsonPlaylist(input: unknown): Channel[] {
     const url = String(row.url ?? row.streamUrl ?? row.stream_url ?? row.link ?? "");
     try { const parsed = new URL(url); if (!["http:","https:"].includes(parsed.protocol)) return []; } catch { return []; }
     const name = String(row.name ?? row.title ?? row.tvgName ?? `Channel ${index + 1}`);
-    const drmRaw = row.drmLicense ?? row.drm_license ?? row.licenseKey;
-    let drm = row.drm && typeof row.drm === "object" ? row.drm as Channel["drm"] : undefined;
-    if (!drm && typeof drmRaw === "string") drm = createClearKeyDrm(String(row.drmScheme ?? "clearkey"), drmRaw);
+    const drmInput = row.drm && typeof row.drm === "object" ? row.drm as Record<string, unknown> : {};
+    const scheme = String(drmInput.scheme ?? drmInput.type ?? row.drmScheme ?? row.drm_scheme ?? "clearkey");
+    const licenseUrl = String(drmInput.licenseUrl ?? drmInput.license_url ?? row.licenseUrl ?? row.license_url ?? "");
+    const drmRaw = drmInput.clearKeys ?? drmInput.keys ?? row.drmLicense ?? row.drm_license ?? row.licenseKey ?? row.license_key;
+    let drm = createClearKeyDrm(scheme, typeof drmRaw === "string" ? drmRaw : undefined);
+    if (!drm && drmRaw && typeof drmRaw === "object") {
+      const keyObject = drmRaw as Record<string, unknown>;
+      drm = { scheme: "clearkey", clearKeys: parseClearKeys(Array.isArray(keyObject.keys) ? JSON.stringify(keyObject) : drmRaw as Record<string, string>) };
+    }
+    if (licenseUrl) drm = { scheme: "clearkey", licenseUrl, clearKeys: drm?.clearKeys };
     return [{
-      id: String(row.id ?? row.tvgId ?? row.tvg_id ?? name), name, url,
-      logo: String(row.logo ?? row.tvgLogo ?? row.tvg_logo ?? "") || undefined,
-      group: String(row.group ?? row.groupTitle ?? row.group_title ?? "Uncategorized"),
-      tvgId: String(row.tvgId ?? row.tvg_id ?? "") || undefined,
-      tvgName: String(row.tvgName ?? row.tvg_name ?? "") || undefined,
-      headers: safeHeaders(row.headers ?? row.requestHeaders), drm,
+      id: String(row.id ?? row.tvgId ?? row.tvg_id ?? row["tvg-id"] ?? name), name, url,
+      logo: String(row.logo ?? row.tvgLogo ?? row.tvg_logo ?? row["tvg-logo"] ?? "") || undefined,
+      group: String(row.group ?? row.groupTitle ?? row.group_title ?? row["group-title"] ?? "Uncategorized"),
+      tvgId: String(row.tvgId ?? row.tvg_id ?? row["tvg-id"] ?? "") || undefined,
+      tvgName: String(row.tvgName ?? row.tvg_name ?? row["tvg-name"] ?? "") || undefined,
+      headers: safeHeaders(row.headers ?? row.requestHeaders ?? row.request_headers ?? row.http_headers), drm,
       manifestType: inferType(url, String(row.manifestType ?? "")),
       catchup: String(row.catchup ?? "") || undefined,
       catchupDays: Number(row.catchupDays ?? row.catchup_days) || undefined,
