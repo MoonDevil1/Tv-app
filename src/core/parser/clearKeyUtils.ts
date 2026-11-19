@@ -50,10 +50,12 @@ export function parseClearKeys(input: string | Record<string, string>): Record<s
   for (const pair of raw.split(/[;,]/).map(value => value.trim()).filter(Boolean)) {
     const separator = pair.indexOf(":");
     if (separator < 1) throw new TypeError("ClearKey entries must use keyId:key pairs.");
-    const kid = pair.slice(0, separator).replace(/-/g, "");
-    const key = pair.slice(separator + 1).replace(/-/g, "");
-    keys[HEX_128.test(kid) ? hexToBase64Url(kid) : normalizeBase64Url(kid)] =
-      HEX_128.test(key) ? hexToBase64Url(key) : normalizeBase64Url(key);
+    const rawKid = pair.slice(0, separator);
+    const rawKey = pair.slice(separator + 1);
+    const hexKid = rawKid.replace(/-/g, "");
+    const hexKey = rawKey.replace(/-/g, "");
+    keys[HEX_128.test(hexKid) ? hexToBase64Url(hexKid) : normalizeBase64Url(rawKid)] =
+      HEX_128.test(hexKey) ? hexToBase64Url(hexKey) : normalizeBase64Url(rawKey);
   }
   return keys;
 }
