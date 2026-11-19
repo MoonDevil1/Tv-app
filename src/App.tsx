@@ -44,7 +44,6 @@ export default function App() {
     let active = true;
     const unsubscribe = api.onUpdateState(state => { if (active) setUpdateState(state); });
     void api.getUpdateState().then(state => { if (active) setUpdateState(state); });
-    void api.checkForUpdates();
     return () => { active = false; unsubscribe(); };
   }, []);
 
