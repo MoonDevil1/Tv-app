@@ -74,8 +74,8 @@ export default function App() {
   async function addSource(source: string, name: string, file?: File) {
     setBusy(true); setError(""); setNotice("");
     try {
-      const singleStream = !file && name === "Single stream" && /^https?:\\/\\//i.test(source.trim());
-      const playlistInput = singleStream ? `#EXTM3U\\n#EXTINF:-1,${name}\\n${source.trim()}` : source.trim();
+      const singleStream = !file && name === "Single stream" && /^https?:\/\//i.test(source.trim());
+      const playlistInput = singleStream ? `#EXTM3U\n#EXTINF:-1,${name}\n${source.trim()}` : source.trim();
       const options = { name: name.trim() || file?.name || "My playlist", refreshIntervalMs: singleStream ? 0 : refreshInterval };
       const playlist = file ? await manager.loadFile(file, options) : await manager.load(playlistInput, options);
       addPlaylist(playlist); setSelectedPlaylistId(playlist.id); setSelectedGroup("All");
