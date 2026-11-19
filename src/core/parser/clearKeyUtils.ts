@@ -14,7 +14,7 @@ export function hexToBase64Url(hex: string): string {
 
 export function normalizeKey(value: string): string {
   const clean = value.trim().replace(/^0x/i, "");
-  if (HEX.test(clean) && clean.length % 2 === 0) return hexToBase64Url(clean);
+  if (HEX.test(clean) && clean.length === 32) return hexToBase64Url(clean);
   if (!BASE64.test(clean)) throw new TypeError("ClearKey values must be hexadecimal or base64.");
   return clean.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
 }
