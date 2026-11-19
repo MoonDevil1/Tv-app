@@ -1,6 +1,6 @@
 import { ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { Activity, AudioLines, Bookmark, Check, ChevronDown, CircleHelp, Command, Compass, FileUp, Heart, History, LayoutGrid, ListVideo, LoaderCircle, Plus, Radio, RefreshCw, Search, Settings2, Signal, Sparkles, Trash2, Tv2, Wifi, X, Clock3, PlayCircle } from "lucide-react";
+import { Activity, AudioLines, Check, ChevronDown, CircleHelp, Command, Compass, FileUp, Heart, History, LayoutGrid, ListVideo, LoaderCircle, Plus, Radio, RefreshCw, Search, Settings2, Signal, Sparkles, Trash2, Tv2, Wifi, X, Clock3, PlayCircle } from "lucide-react";
 import type { Channel, Playlist } from "./core/types";
 import { PlaylistManager } from "./core/parser/playlistManager";
 import { parseXmltv, currentAndNext } from "./core/epg/xmltv";
@@ -32,14 +32,13 @@ export default function App() {
   const [selectedChannel, setSelectedChannel] = useState<{ playlistId: string; channel: Channel } | null>(null);
   const [showAdd, setShowAdd] = useState(false), [sourceUrl, setSourceUrl] = useState(LIVE_TGTV_URL), [playlistName, setPlaylistName] = useState("LiveTGTV"), [refreshInterval, setRefreshInterval] = useState(300000);
   const [busy, setBusy] = useState(false), [epgBusy, setEpgBusy] = useState(false), [error, setError] = useState(""), [notice, setNotice] = useState(""), [scrollTop, setScrollTop] = useState(0);
-  const fileInput = useRef<HTMLInputElement>(null), restored = useRef(false);
+  const fileInput = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (restored.current) return;
-    restored.current = true;
     let cancelled = false;
+    const savedPlaylists = useAppStore.getState().playlists;
     void (async () => {
-      for (const saved of playlists) {
+      for (const saved of savedPlaylists) {
         try {
           const restoredPlaylist = await manager.load(saved.source, { id: saved.id, name: saved.name, refreshIntervalMs: saved.refreshIntervalMs });
           if (cancelled) return;
@@ -49,7 +48,7 @@ export default function App() {
       }
     })();
     return () => { cancelled = true; manager.dispose(); };
-  }, [manager, playlists.length, replacePlaylist]);
+  }, [manager, replacePlaylist]);
 
   useEffect(() => {
     if (!selectedPlaylistId && playlists[0]) setSelectedPlaylistId(playlists[0].id);
@@ -75,8 +74,10 @@ export default function App() {
   async function addSource(source: string, name: string, file?: File) {
     setBusy(true); setError(""); setNotice("");
     try {
-      const options = { name: name.trim() || file?.name || "My playlist", refreshIntervalMs: refreshInterval };
-      const playlist = file ? await manager.loadFile(file, options) : await manager.load(source.trim(), options);
+      const singleStream = !file && name === "Single stream" && /^https?:\\/\\//i.test(source.trim());
+      const playlistInput = singleStream ? `#EXTM3U\\n#EXTINF:-1,${name}\\n${source.trim()}` : source.trim();
+      const options = { name: name.trim() || file?.name || "My playlist", refreshIntervalMs: singleStream ? 0 : refreshInterval };
+      const playlist = file ? await manager.loadFile(file, options) : await manager.load(playlistInput, options);
       addPlaylist(playlist); setSelectedPlaylistId(playlist.id); setSelectedGroup("All");
       if (playlist.refreshIntervalMs) manager.startAutoRefresh(playlist, replacePlaylist, e => setError(e.message));
       setShowAdd(false); setActive("Live TV"); setNotice(`Imported ${playlist.channels.length.toLocaleString()} channels from ${playlist.name}.`);
