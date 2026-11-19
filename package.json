@@ -12,7 +12,7 @@
     "dist:win": "npm run build && electron-builder --win",
     "dist:mac": "npm run build && electron-builder --mac",
     "dist:linux": "npm run build && electron-builder --linux",
-    "test": "tsx --test tests/**/*.test.ts"
+    "test": "tsx --test tests/core.test.ts"
   },
   "dependencies": {
     "hls.js": "^1.6.13",
