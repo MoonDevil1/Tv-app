@@ -31,7 +31,7 @@ export default function App() {
   const [active, setActive] = useState("Discover"), [query, setQuery] = useState(""), [selectedPlaylistId, setSelectedPlaylistId] = useState(""), [selectedGroup, setSelectedGroup] = useState("All");
   const [selectedChannel, setSelectedChannel] = useState<{ playlistId: string; channel: Channel } | null>(null);
   const [showAdd, setShowAdd] = useState(false), [sourceUrl, setSourceUrl] = useState(LIVE_TGTV_URL), [playlistName, setPlaylistName] = useState("LiveTGTV"), [refreshInterval, setRefreshInterval] = useState(300000);
-  const [busy, setBusy] = useState(false), [epgBusy, setEpgBusy] = useState(false), [error, setError] = useState(""), [notice, setNotice] = useState(""), [scrollTop, setScrollTop] = useState(0);
+  const [busy, setBusy] = useState(false), [epgBusy, setEpgBusy] = useState(false), [error, setError] = useState(""), [notice, setNotice] = useState(""), [scrollTop, setScrollTop] = useState(0), [columns, setColumns] = useState(4);
   const fileInput = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -49,6 +49,16 @@ export default function App() {
     })();
     return () => { cancelled = true; manager.dispose(); };
   }, [manager, replacePlaylist]);
+
+  useEffect(() => {
+    const wide = window.matchMedia("(max-width: 1080px)");
+    const medium = window.matchMedia("(max-width: 1320px)");
+    const updateColumns = () => { setColumns(wide.matches ? 2 : medium.matches ? 3 : 4); setScrollTop(0); };
+    updateColumns();
+    wide.addEventListener("change", updateColumns);
+    medium.addEventListener("change", updateColumns);
+    return () => { wide.removeEventListener("change", updateColumns); medium.removeEventListener("change", updateColumns); };
+  }, []);
 
   useEffect(() => {
     if (!selectedPlaylistId && playlists[0]) setSelectedPlaylistId(playlists[0].id);
@@ -109,7 +119,7 @@ export default function App() {
   }
   function selectChannel(playlistId: string, channel: Channel) { setSelectedChannel({ playlistId, channel }); recordWatch(playlistId, channel); }
 
-  const columns = 4, rowHeight = 106, startRow = Math.max(0, Math.floor(scrollTop / rowHeight) - 1), visibleRows = 6;
+  const rowHeight = 106, startRow = Math.max(0, Math.floor(scrollTop / rowHeight) - 1), visibleRows = 6;
   const totalRows = Math.ceil(visibleChannels.length / columns);
   const renderedChannels = visibleChannels.slice(startRow * columns, (startRow + visibleRows) * columns);
   const isGridView = ["Discover", "Live TV", "Favorites", "Recently watched"].includes(active);
