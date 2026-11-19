@@ -15,8 +15,10 @@ export default defineConfig({
     build: { rollupOptions: { input: { index: `${root}electron/preload.ts` } } }
   },
   renderer: {
+    root,
     resolve: { alias: { "@": `${root}src` } },
     plugins: [react(), tailwindcss()],
+    build: { rollupOptions: { input: { index: `${root}index.html` } } },
     server: { host: "127.0.0.1", port: 5173, strictPort: true }
   }
 });
