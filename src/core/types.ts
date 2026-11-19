@@ -19,11 +19,11 @@ export interface Playlist {
 export interface PlaylistFetchOptions { headers?: StreamHeaders; signal?: AbortSignal; }
 export type JsonPlaylist = { channels?: unknown[]; streams?: unknown[]; items?: unknown[]; data?: unknown[]; epg?: string | string[]; name?: string };
 
-declare global {
+export type DesktopUpdateState = {\n  status: "idle" | "checking" | "available" | "not-available" | "downloading" | "downloaded" | "error" | "unsupported";\n  version?: string;\n  percent?: number;\n  message?: string;\n};\n\ndeclare global {
   interface Window {
     tvApp?: {
       platform(): Promise<string>;
-      setStreamRequestContext(context: { originUrl: string; headers: Record<string, string> } | null): Promise<{ active: boolean }>;
+      setStreamRequestContext(context: { originUrl: string; headers: Record<string, string> } | null): Promise<{ active: boolean }>;\n      getUpdateState(): Promise<DesktopUpdateState>;\n      checkForUpdates(): Promise<{ accepted: boolean }>;\n      downloadUpdate(): Promise<{ accepted: boolean }>;\n      installUpdate(): Promise<{ accepted: boolean }>;\n      onUpdateState(listener: (state: DesktopUpdateState) => void): () => void;
     };
   }
 }
