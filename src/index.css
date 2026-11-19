@@ -172,3 +172,5 @@ button:disabled{opacity:.45;cursor:not-allowed;transform:none!important}
 .mini-mode .player-menu{right:10px;bottom:55px;max-height:180px}
 @media(max-width:900px){.player-hud{padding:16px}.player-controls{gap:5px}.volume-control input{width:55px}.player-controls>.hud-icon:nth-of-type(n+5){width:32px;height:32px}.player-title b{font-size:14px}.player-shortcut-hint{display:none}}
 @media(prefers-reduced-motion:reduce){.player-spinner{animation-duration:2s}.player-hud,.player-menu{transition:none}}
+
+.update-card{display:grid;gap:14px}.update-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:16px}.update-heading>div{display:grid;gap:5px}.update-heading b{font-size:13px}.update-heading span,.update-status{font-size:11px;color:#91a2b7;line-height:1.55}.update-status{display:flex;align-items:center;gap:9px;overflow-wrap:anywhere}.update-indicator{display:grid;place-items:center;color:#72d6b4}.update-indicator.error{color:#ff899b}.update-progress{height:5px;border-radius:10px;overflow:hidden;background:#263345}.update-progress>div{height:100%;border-radius:inherit;background:linear-gradient(90deg,#6bd5ef,#8a88ff);transition:width .2s}
