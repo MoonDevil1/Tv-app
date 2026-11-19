@@ -1,7 +1,7 @@
 import type { EpgProgram } from "../store/appStore";
 
 export function parseXmltvDate(value: string): number {
-  const match = value.trim().match(/^(\\d{4})(\\d{2})(\\d{2})(\\d{2})(\\d{2})(\\d{2})(?:\\s*([+-])(\\d{2})(\\d{2}))?/);
+  const match = value.trim().match(/^(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})(?:\s*([+-])(\d{2})(\d{2}))?/);
   if (!match) return Number.NaN;
   const [, y, mo, d, h, mi, s, sign, oh = "00", om = "00"] = match;
   const utc = Date.UTC(+y, +mo - 1, +d, +h, +mi, +s);
