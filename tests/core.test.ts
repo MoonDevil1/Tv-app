@@ -1,0 +1,52 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import { parseM3U, parseJsonPlaylist, parsePlaylist } from "../src/core/parser/m3uParser";
+import { hexToBase64Url, parseClearKeys } from "../src/core/parser/clearKeyUtils";
+
+const sample = `#EXTM3U url-tvg="https://epg.example/guide.xml"
+#EXTINF:-1 tvg-id="news.1" tvg-name="News HD" tvg-logo="https://img.example/news.png" group-title="News",News HD
+#EXTVLCOPT:http-user-agent=Test Player/1.0
+#EXTHTTP:{"cookie":"session=abc"}
+#KODIPROP:inputstream.adaptive.manifest_type=mpd
+#KODIPROP:inputstream.adaptive.license_type=clearkey
+#KODIPROP:inputstream.adaptive.license_key=00112233445566778899aabbccddeeff:ffeeddccbbaa99887766554433221100,11223344556677889900aabbccddeeff:00112233445566778899aabbccddeeff
+https://cdn.example/live/index.mpd
+#EXTINF:-1 tvg-name="Radio" group-title="Audio",Radio
+https://cdn.example/radio/index.m3u8|Referer=https://provider.example
+`;
+
+test("parses channel metadata, DASH, multiple ClearKeys and request headers", () => {
+  const channels = parseM3U(sample);
+  assert.equal(channels.length, 2);
+  assert.equal(channels[0].name, "News HD");
+  assert.equal(channels[0].group, "News");
+  assert.equal(channels[0].manifestType, "dash");
+  assert.equal(channels[0].headers["User-Agent"], "Test Player/1.0");
+  assert.equal(channels[0].headers.cookie, "session=abc");
+  assert.equal(Object.keys(channels[0].drm?.clearKeys ?? {}).length, 2);
+  assert.equal(channels[1].manifestType, "hls");
+  assert.equal(channels[1].headers.Referer, "https://provider.example");
+});
+
+test("normalizes hex and standard base64 ClearKey values", () => {
+  assert.equal(hexToBase64Url("000102"), "AAEC");
+  const keys = parseClearKeys("00112233445566778899aabbccddeeff:ffeeddccbbaa99887766554433221100");
+  assert.equal(Object.keys(keys).length, 1);
+  assert.equal(parseClearKeys({ "AAEC": "AQID" }).AAEC, "AQID");
+});
+
+test("parses JSON playlist variants and filters unsafe URLs", () => {
+  const channels = parseJsonPlaylist({ streams: [
+    { id: 10, title: "JSON TV", url: "https://cdn.example/live.m3u8", group: "JSON", headers: { Authorization: "Bearer x" } },
+    { title: "bad", url: "javascript:alert(1)" }
+  ] });
+  assert.equal(channels.length, 1);
+  assert.equal(channels[0].id, "10");
+  assert.equal(channels[0].headers.Authorization, "Bearer x");
+});
+
+test("detects M3U and JSON and rejects unsupported documents", () => {
+  assert.equal(parsePlaylist(sample).length, 2);
+  assert.equal(parsePlaylist(JSON.stringify([{ name: "one", url: "https://x.test/a.m3u8" }])).length, 1);
+  assert.throws(() => parsePlaylist("<html>not a playlist</html>"), /Unsupported playlist/);
+});
