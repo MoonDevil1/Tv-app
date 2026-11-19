@@ -1,2 +1,20 @@
-import { defineConfig } from "vite";
-export default defineConfig({ clearScreen: false, server: { port: 1420, strictPort: true }, envPrefix: ["VITE_", "TAURI_ENV_*"], build: { target: process.env.TAURI_ENV_PLATFORM === "windows" ? "chrome105" : "safari13", minify: !process.env.TAURI_ENV_DEBUG, sourcemap: !!process.env.TAURI_ENV_DEBUG } });
+import { resolve } from "node:path";
+import { defineConfig, externalizeDepsPlugin } from "electron-vite";
+import react from "@vitejs/plugin-react";
+import tailwindcss from "@tailwindcss/vite";
+
+export default defineConfig({
+  main: {
+    plugins: [externalizeDepsPlugin()],
+    build: { rollupOptions: { input: { index: resolve(__dirname, "electron/main.ts") } } }
+  },
+  preload: {
+    plugins: [externalizeDepsPlugin()],
+    build: { rollupOptions: { input: { index: resolve(__dirname, "electron/preload.ts") } } }
+  },
+  renderer: {
+    resolve: { alias: { "@": resolve(__dirname, "src") } },
+    plugins: [react(), tailwindcss()],
+    server: { host: "127.0.0.1", port: 5173, strictPort: true }
+  }
+});
