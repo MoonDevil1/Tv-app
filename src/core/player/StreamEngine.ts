@@ -139,9 +139,10 @@ export class StreamEngine {
 
   setQuality(id: number): void {
     if (this.hls) this.hls.currentLevel = id;
+    else if (id < 0) this.shakaPlayer?.configure({ abr: { enabled: true } });
     else {
       const track = this.shakaPlayer?.getVariantTracks().find(item => item.id === id);
-      if (track) this.shakaPlayer?.selectVariantTrack(track, true);
+      if (track) { this.shakaPlayer?.configure({ abr: { enabled: false } }); this.shakaPlayer?.selectVariantTrack(track, true); }
     }
   }
 
