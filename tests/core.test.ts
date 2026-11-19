@@ -94,7 +94,7 @@ test("PlaylistManager loads, stores and refreshes a remote playlist", async () =
   const manager = new PlaylistManager(async () => {
     calls++;
     return new Response("#EXTM3U\n#EXTINF:-1,Test\nhttps://cdn.example/test.m3u8", {
-      status: 200, headers: { "content-type": "application/x-mpegURL" }, url: "https://provider.example/list.m3u"
+      status: 200, headers: { "content-type": "application/x-mpegURL" }
     });
   });
   const playlist = await manager.load("https://provider.example/list.m3u", { id: "live", name: "LiveTGTV" });
