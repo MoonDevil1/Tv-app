@@ -1,5 +1,9 @@
 name: Electron CI
 
+concurrency:
+  group: electron-ci-${{ github.ref }}
+  cancel-in-progress: true
+
 on:
   push:
     branches: [feat/electron-cinema-iptv]
