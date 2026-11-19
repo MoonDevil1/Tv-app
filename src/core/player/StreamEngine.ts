@@ -66,7 +66,9 @@ export class StreamEngine {
   private async playHls(video: HTMLVideoElement, channel: Channel, generation: number): Promise<void> {
     if (Hls.isSupported()) {
       const hls = new Hls({ xhrSetup: xhr => {
-        for (const [name, value] of Object.entries(channel.headers)) {\n          if (!["user-agent", "cookie", "host", "origin", "referer", "content-length", "connection"].includes(name.toLowerCase())) xhr.setRequestHeader(name, value);\n        }
+        for (const [name, value] of Object.entries(channel.headers)) {
+          if (!["user-agent", "cookie", "host", "origin", "referer", "content-length", "connection"].includes(name.toLowerCase())) xhr.setRequestHeader(name, value);
+        }
       } });
       this.hls = hls;
       hls.on(Hls.Events.ERROR, (_event, data) => {
