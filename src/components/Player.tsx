@@ -36,6 +36,7 @@ export function Player({ channel, channels, onClose, onChangeChannel, onRecover 
   const [selectedAudio, setSelectedAudio] = useState(-1);
   const [selectedSubtitle, setSelectedSubtitle] = useState(-1);
   const [ambient, setAmbient] = useState(true);
+  const [ambientColor, setAmbientColor] = useState("#1b3045");
 
   const engine = useMemo(() => new StreamEngine({
     onState: (next, err) => { setState(next); if (err) setError(err.message); },
@@ -120,6 +121,28 @@ export function Player({ channel, channels, onClose, onChangeChannel, onRecover 
 
   useEffect(() => () => { if (hideRef.current) window.clearTimeout(hideRef.current); }, []);
 
+  useEffect(() => {
+    if (!ambient) return;
+    const video = videoRef.current;
+    const canvas = document.createElement("canvas");
+    canvas.width = 2; canvas.height = 2;
+    const context = canvas.getContext("2d", { willReadFrequently: true });
+    if (!video || !context) return;
+    const sample = () => {
+      if (video.readyState < 2) return;
+      try {
+        context.drawImage(video, 0, 0, 2, 2);
+        const pixels = context.getImageData(0, 0, 2, 2).data;
+        let red = 0, green = 0, blue = 0;
+        for (let i = 0; i < pixels.length; i += 4) { red += pixels[i]; green += pixels[i + 1]; blue += pixels[i + 2]; }
+        setAmbientColor(`rgb(${Math.round(red / 4)}, ${Math.round(green / 4)}, ${Math.round(blue / 4)})`);
+      } catch { /* Cross-origin video frames may not be readable; keep the last safe ambient color. */ }
+    };
+    const timer = window.setInterval(sample, 1400);
+    sample();
+    return () => window.clearInterval(timer);
+  }, [ambient, channel.id]);
+
   async function togglePlay() {
     const video = videoRef.current;
     if (!video) return;
@@ -164,7 +187,7 @@ export function Player({ channel, channels, onClose, onChangeChannel, onRecover 
 
   return <div className={mini ? "player-overlay mini-mode" : "player-overlay"} onMouseMove={showHud} onMouseEnter={showHud}>
     <div className="player-stage">
-      {ambient && <div className="player-ambient" style={{ backgroundImage: channel.logo ? `linear-gradient(90deg,#080c13ee,#080c1388),url("${channel.logo}")` : undefined }} />}
+      {ambient && <div className="player-ambient" style={{ backgroundColor: ambientColor, backgroundImage: channel.logo ? `linear-gradient(90deg,${ambientColor}ee,${ambientColor}77),url("${channel.logo}")` : `radial-gradient(ellipse at center, ${ambientColor}aa, transparent 70%)` }} />}
       <video ref={videoRef} className="player-video" style={{ objectFit: fit }} playsInline autoPlay />
       {state === "loading" && <div className="player-center-state"><div className="player-spinner" /><span>Connecting to {channel.name}…</span></div>}
       {error && <div className="player-error"><b>Playback problem</b><span>{error}</span><button onClick={() => { setError(""); void engineRef.current?.play(videoRef.current!, channel).catch(e => setError(e.message)); }}>Retry stream</button></div>}
