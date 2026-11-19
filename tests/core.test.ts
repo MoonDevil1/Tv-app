@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { parseM3U, parseJsonPlaylist, parsePlaylist } from "../src/core/parser/m3uParser";
 import { clearKeyJwk, hexToBase64Url, parseClearKeys, createClearKeyDrm } from "../src/core/parser/clearKeyUtils";
 import { PlaylistManager } from "../src/core/parser/playlistManager";
+import { parseXmltvDate, currentAndNext } from "../src/core/epg/xmltv";
 
 const KID = "00112233445566778899aabbccddeeff";
 const KEY = "ffeeddccbbaa99887766554433221100";
@@ -119,4 +120,17 @@ test("PlaylistManager loads, stores and refreshes a remote playlist", async () =
 test("rejects malformed ClearKey values and ignores unsafe stream schemes", () => {
   assert.throws(() => parseClearKeys("not-a-key"));
   assert.throws(() => parseJsonPlaylist({ channels: [{ name: "bad", url: "file:///etc/passwd" }] }), /no valid HTTP/);
+});
+
+
+test("parses XMLTV timestamps with timezone offsets and selects now/next programmes", () => {
+  const start = parseXmltvDate("20261119120000 +0530");
+  assert.equal(new Date(start).toISOString(), "2026-11-19T06:30:00.000Z");
+  const programs = [
+    { channelId: "news", title: "Current", start: 1000, stop: 2000 },
+    { channelId: "news", title: "Next", start: 2000, stop: 3000 }
+  ];
+  const result = currentAndNext(programs, 1500);
+  assert.equal(result.current?.title, "Current");
+  assert.equal(result.next?.title, "Next");
 });
