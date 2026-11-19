@@ -64,12 +64,15 @@ export function Player({ channel, channels, onClose, onChangeChannel, onRecover 
       setDuration(Number.isFinite(video.duration) ? video.duration : 0);
       setPlaying(!video.paused);
     };
+    video.volume = 0.85;
+    video.addEventListener("loadedmetadata", update);
     video.addEventListener("timeupdate", update);
     video.addEventListener("durationchange", update);
     video.addEventListener("play", update);
     video.addEventListener("pause", update);
     video.addEventListener("volumechange", () => { setMuted(video.muted); setVolume(video.volume); });
     return () => {
+      video.removeEventListener("loadedmetadata", update);
       video.removeEventListener("timeupdate", update);
       video.removeEventListener("durationchange", update);
       video.removeEventListener("play", update);
