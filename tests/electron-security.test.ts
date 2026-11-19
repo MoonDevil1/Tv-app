@@ -43,7 +43,7 @@ test("Electron stream context rejects non-HTTP origins and sanitizes header inje
   assert.throws(() => setActiveStreamContext({ originUrl: "file:///tmp/video.m3u8", headers: {} }), /HTTP or HTTPS/);
   setActiveStreamContext({
     originUrl: "https://stream.example/live.m3u8",
-    headers: { "Bad\\r\\nHeader": "x", "X-Unsafe": "safe\\r\\nInjected: yes", Cookie: "sid=1" }
+    headers: { ["Bad" + String.fromCharCode(13, 10) + "Header"]: "x", "X-Unsafe": "safe" + String.fromCharCode(13, 10) + "Injected: yes", Cookie: "sid=1" }
   });
   let sanitized: Record<string, string> = {};
   const mockSession = {
