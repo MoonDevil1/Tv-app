@@ -146,7 +146,9 @@ export function parseJsonPlaylist(input: unknown, baseUrl?: string): Channel[] {
     let drm = typeof license === "string" ? createClearKeyDrm(scheme || "clearkey", license) : scheme ? createClearKeyDrm(scheme, undefined) : undefined;
     if (license && typeof license === "object") {
       const keyObject = license as Record<string, unknown>;
-      const normalized = Array.isArray(keyObject.keys) ? parseClearKeys(JSON.stringify(keyObject)) : parseClearKeys(license as Record<string, string>);
+      const normalized = Array.isArray(license) ? parseClearKeys(JSON.stringify({ keys: license })) :
+        Array.isArray(keyObject.keys) ? parseClearKeys(JSON.stringify(keyObject)) :
+        parseClearKeys(license as Record<string, string>);
       drm = { scheme: "clearkey", clearKeys: normalized };
     }
     if (licenseUrl) drm = { scheme: scheme.toLowerCase().includes("widevine") ? "widevine" : "clearkey", licenseUrl, clearKeys: drm?.clearKeys };
