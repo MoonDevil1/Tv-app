@@ -102,11 +102,10 @@ export class StreamEngine {
           void this.tryRecover(channel, generation, new Error(`HTTP ${data.response?.code}`));
         } else this.options.onState?.("error", new Error(data.details));
       });
-      hls.loadSource(channel.url);
-      hls.attachMedia(video);
-      await new Promise<void>((resolve, reject) => {
+      const manifestReady = new Promise<void>((resolve, reject) => {
+        let timeout: number | undefined;
         const finish = (error?: Error) => {
-          window.clearTimeout(timeout);
+          if (timeout !== undefined) window.clearTimeout(timeout);
           hls.off(Hls.Events.MANIFEST_PARSED, onParsed);
           hls.off(Hls.Events.ERROR, onError);
           signal.removeEventListener("abort", onAbort);
@@ -120,12 +119,15 @@ export class StreamEngine {
           hls.stopLoad();
           finish(Object.assign(new Error("HLS manifest load was cancelled."), { name: "AbortError" }));
         };
-        const timeout = window.setTimeout(() => finish(new Error("HLS manifest load timed out.")), 20_000);
+        timeout = window.setTimeout(() => finish(new Error("HLS manifest load timed out.")), 20_000);
         hls.on(Hls.Events.MANIFEST_PARSED, onParsed);
         hls.on(Hls.Events.ERROR, onError);
         signal.addEventListener("abort", onAbort, { once: true });
         if (signal.aborted) onAbort();
       });
+      hls.loadSource(channel.url);
+      hls.attachMedia(video);
+      await manifestReady;
       return;
     }
     if (video.canPlayType("application/vnd.apple.mpegurl")) {
