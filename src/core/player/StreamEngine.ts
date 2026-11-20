@@ -2,6 +2,7 @@ import Hls from "hls.js";
 import shaka from "shaka-player";
 import type { Channel } from "../types";
 import { licenseHeadersForRequest, shakaDrmConfiguration, streamHeadersForRequest } from "./streamPolicy";
+import { waitForMediaEvent } from "./mediaEvents";
 
 export type PlaybackState = "idle" | "loading" | "playing" | "error";
 export interface StreamEngineOptions {
@@ -79,11 +80,7 @@ export class StreamEngine {
 
   private async playProgressive(video: HTMLVideoElement, channel: Channel): Promise<void> {
     video.src = channel.url;
-    await new Promise<void>((resolve, reject) => {
-      const timeout = window.setTimeout(() => reject(new Error("Stream metadata load timed out.")), 20_000);
-      video.addEventListener("loadedmetadata", () => { clearTimeout(timeout); resolve(); }, { once: true });
-      video.addEventListener("error", () => { clearTimeout(timeout); reject(new Error("Progressive stream could not be loaded.")); }, { once: true });
-    });
+    await waitForMediaEvent(video, "loadedmetadata", "error", 20_000, "Progressive stream metadata load timed out or failed.");
   }
 
   private async playHls(video: HTMLVideoElement, channel: Channel, generation: number): Promise<void> {
@@ -113,10 +110,7 @@ export class StreamEngine {
     }
     if (video.canPlayType("application/vnd.apple.mpegurl")) {
       video.src = channel.url;
-      await new Promise<void>((resolve, reject) => {
-        video.addEventListener("loadedmetadata", () => resolve(), { once: true });
-        video.addEventListener("error", () => reject(new Error("Native HLS playback failed.")), { once: true });
-      });
+      await waitForMediaEvent(video, "loadedmetadata", "error", 20_000, "Native HLS metadata load timed out or failed.");
       return;
     }
     throw new Error("HLS playback is not supported by this runtime.");
