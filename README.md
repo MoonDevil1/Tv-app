@@ -1,5 +1,11 @@
 # TG IPTV — Cinema Edition
 
+## Version 2.0.1
+
+- Hardened playlist and EPG downloads, redirect handling, IPC validation and stream-header isolation.
+- Added tested HLS, DASH and encrypted DASH ClearKey playback, with audio and subtitle track selection.
+- Improved stream recovery, playback lifecycle handling and packaged-app startup verification across desktop platforms.
+
 A cross-platform desktop IPTV player built with Electron, React 19, TypeScript, Shaka Player and hls.js.
 
 ## Features
