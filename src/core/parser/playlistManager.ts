@@ -9,7 +9,13 @@ export class PlaylistManager {
   private controllers = new Map<string, AbortController>();
   private fetchOptions = new Map<string, PlaylistFetchOptions>();
   private playlists = new Map<string, Playlist>();
-  constructor(private readonly fetcher: Fetcher = (input, init) => fetch(input, init)) {}
+  constructor(private readonly fetcher: Fetcher = async (input, init) => {
+    if (!window.tvApp?.fetchRemoteText) throw new Error("Remote playlist downloads are only available in the desktop app.");
+    const result = await window.tvApp.fetchRemoteText(input, init?.headers as Record<string, string> | undefined);
+    const response = new Response(result.text, { status: result.status });
+    Object.defineProperty(response, "url", { value: result.url });
+    return response;
+  }) {}
 
   async load(source: string, options: AddPlaylistOptions = {}): Promise<Playlist> {
     const isUrl = /^https?:\/\//i.test(source);
