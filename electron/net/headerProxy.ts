@@ -5,11 +5,11 @@ export interface StreamRequestContext {
   headers: Record<string, string>;
 }
 
-let activeContext: { hosts: Set<string>; headers: Record<string, string> } | null = null;
+let activeContext: { origins: Set<string>; headers: Record<string, string> } | null = null;
 
 const BLOCKED_HEADERS = new Set([
   "host", "content-length", "connection", "transfer-encoding",
-  "upgrade", "proxy-authorization", "proxy-connection"
+  "upgrade", "proxy-authorization", "proxy-connection", "accept-encoding"
 ]);
 
 export function setActiveStreamContext(context: StreamRequestContext | null): void {
@@ -22,17 +22,21 @@ export function setActiveStreamContext(context: StreamRequestContext | null): vo
   if (origin.protocol !== "https:" && origin.protocol !== "http:") {
     throw new TypeError("Stream request context must use HTTP or HTTPS.");
   }
+  if (!context.headers || typeof context.headers !== "object" || Array.isArray(context.headers)) {
+    throw new TypeError("Stream request headers must be an object.");
+  }
+  if (Object.keys(context.headers).length > 50) throw new TypeError("Too many stream request headers.");
 
   const headers: Record<string, string> = {};
   for (const [rawName, rawValue] of Object.entries(context.headers)) {
     const name = rawName.trim();
     const value = String(rawValue).trim();
-    if (!name || /[\r\n:]/.test(name) || /[\r\n]/.test(value)) continue;
-    if (BLOCKED_HEADERS.has(name.toLowerCase())) continue;
+    if (!name || name.length > 128 || value.length > 8192 || /[\\r\\n:]/.test(name) || /[\\r\\n]/.test(value)) continue;
+    if (BLOCKED_HEADERS.has(name.toLowerCase()) || /^proxy-|^sec-/i.test(name)) continue;
     headers[name] = value;
   }
 
-  activeContext = { hosts: new Set([origin.hostname.toLowerCase()]), headers };
+  activeContext = { origins: new Set([origin.origin.toLowerCase()]), headers };
 }
 
 export function registerHeaderProxy(targetSession: Session): void {
@@ -46,7 +50,7 @@ export function registerHeaderProxy(targetSession: Session): void {
       try { requestOrigin = new URL(details.url).origin.toLowerCase(); } catch {
         return callback({ requestHeaders: details.requestHeaders });
       }
-      if (!context.hosts.has(hostname)) {
+      if (!context.origins.has(requestOrigin)) {
         return callback({ requestHeaders: details.requestHeaders });
       }
 
