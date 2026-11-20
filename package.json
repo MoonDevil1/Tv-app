@@ -15,14 +15,14 @@
     "test": "tsx --test tests/core.test.ts tests/electron-security.test.ts"
   },
   "dependencies": {
-    "hls.js": "^1.6.13",
+    "hls.js": "1.7.4",
     "lucide-react": "^0.468.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "shaka-player": "^4.12.8",
+    "shaka-player": "4.16.58",
     "zustand": "^5.0.3",
     "framer-motion": "^12.0.0",
-    "electron-updater": "^6.6.2"
+    "electron-updater": "6.8.12"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.0.0",
@@ -30,8 +30,8 @@
     "@types/react": "^19.0.8",
     "@types/react-dom": "^19.0.3",
     "@vitejs/plugin-react": "^4.3.4",
-    "electron": "^34.2.0",
-    "electron-builder": "^25.1.8",
+    "electron": "45.4.1",
+    "electron-builder": "26.18.1",
     "electron-vite": "^3.0.0",
     "tailwindcss": "^4.0.0",
     "typescript": "^5.7.3",
@@ -73,5 +73,9 @@
         "releaseType": "release"
       }
     ]
+  },
+  "packageManager": "npm@10.9.9",
+  "engines": {
+    "node": ">=22.0.0"
   }
 }

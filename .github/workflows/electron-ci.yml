@@ -33,7 +33,9 @@ jobs:
           echo "7a3cf35ad146fd7810b4ededab363c8a3e6121d1b2c8391f53863126186f9ee6  /tmp/packager" | sha256sum -c -
           chmod +x /tmp/packager
       - name: Install dependencies
-        run: npm install --no-audit --no-fund
+        run: npm install --no-fund
+      - name: Dependency security audit
+        run: npm audit --audit-level=high
       - name: Type-check
         run: npm run typecheck
       - name: Unit tests
