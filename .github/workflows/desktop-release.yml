@@ -28,6 +28,8 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && 'feat/electron-cinema-iptv' || github.ref }}
       - uses: actions/setup-node@v4
         with:
           node-version: 22
