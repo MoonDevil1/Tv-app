@@ -1,12 +1,40 @@
 # TG IPTV — Cinema Edition
 
+A cross-platform desktop IPTV player built with Electron, React 19, TypeScript, Shaka Player and hls.js.
+
 ## Version 2.0.1
 
 - Hardened playlist and EPG downloads, redirect handling, IPC validation and stream-header isolation.
 - Added tested HLS, DASH and encrypted DASH ClearKey playback, with audio and subtitle track selection.
 - Improved stream recovery, playback lifecycle handling and packaged-app startup verification across desktop platforms.
 
-A cross-platform desktop IPTV player built with Electron, React 19, TypeScript, Shaka Player and hls.js.
+## Downloads — v2.0.1
+
+Choose the download for your operating system. All installers below are attached to the [published v2.0.1 GitHub release](https://github.com/MoonDevil1/Tv-app/releases/tag/v2.0.1).
+
+### Windows
+
+| Package | Download | Notes |
+|---|---|---|
+| Windows Installer | [TG.IPTV.Setup.2.0.1.exe](https://github.com/MoonDevil1/Tv-app/releases/download/v2.0.1/TG.IPTV.Setup.2.0.1.exe) | Recommended; installs the app and supports the configured updater |
+| Portable | [TG.IPTV.2.0.1.exe](https://github.com/MoonDevil1/Tv-app/releases/download/v2.0.1/TG.IPTV.2.0.1.exe) | Run without installation; update manually |
+
+### macOS
+
+| Package | Download | Notes |
+|---|---|---|
+| Apple Silicon DMG | [TG.IPTV-2.0.1-arm64.dmg](https://github.com/MoonDevil1/Tv-app/releases/download/v2.0.1/TG.IPTV-2.0.1-arm64.dmg) | For Apple Silicon Macs (M1, M2, M3, M4) |
+| Apple Silicon ZIP | [TG.IPTV-2.0.1-arm64-mac.zip](https://github.com/MoonDevil1/Tv-app/releases/download/v2.0.1/TG.IPTV-2.0.1-arm64-mac.zip) | ZIP distribution for Apple Silicon Macs |
+
+> Intel Mac (x64) builds are not included in v2.0.1. macOS automatic updates require a Developer ID-signed and notarized build.
+
+### Linux
+
+| Package | Download | Notes |
+|---|---|---|
+| AppImage (x64) | [TG.IPTV-2.0.1.AppImage](https://github.com/MoonDevil1/Tv-app/releases/download/v2.0.1/TG.IPTV-2.0.1.AppImage) | Portable Linux application image |
+
+For checksums, update metadata and any additional release files, see the [complete v2.0.1 release](https://github.com/MoonDevil1/Tv-app/releases/tag/v2.0.1).
 
 ## Features
 
