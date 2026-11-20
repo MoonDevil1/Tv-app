@@ -22,7 +22,8 @@ function normalizeBase64Url(value: string): string {
 
 function normalizeKeyMaterial(value: string): string {
   const clean = value.trim().replace(/^0x/i, "");
-  return HEX_128.test(clean) ? hexToBase64Url(clean) : normalizeBase64Url(clean);
+  const compactHex = clean.replace(/-/g, "");
+  return HEX_128.test(compactHex) ? hexToBase64Url(compactHex) : normalizeBase64Url(clean);
 }
 
 function parseJwk(raw: string): Record<string, string> {
@@ -59,8 +60,6 @@ export function parseClearKeys(input: string | Record<string, string>): Record<s
     if (separator < 1) throw new TypeError("ClearKey entries must use keyId:key pairs.");
     const rawKid = pair.slice(0, separator);
     const rawKey = pair.slice(separator + 1);
-    const hexKid = rawKid.replace(/-/g, "");
-    const hexKey = rawKey.replace(/-/g, "");
     keys[normalizeKeyMaterial(rawKid)] = normalizeKeyMaterial(rawKey);
   }
   return keys;

@@ -38,6 +38,8 @@ test("converts 128-bit hex values and round-trips ClearKey JWK", () => {
   assert.equal(Object.keys(keys).length, 1);
   const hexMap = parseClearKeys({ [KID]: KEY });
   assert.equal(hexMap[hexToBase64Url(KID)], hexToBase64Url(KEY));
+  const uuidMap = parseClearKeys({ "00112233-4455-6677-8899-aabbccddeeff": "ffeeddcc-bbaa-9988-7766-554433221100" });
+  assert.equal(uuidMap[hexToBase64Url(KID)], hexToBase64Url(KEY));
   assert.throws(() => parseClearKeys({ [KID]: "short" }));
   assert.throws(() => parseClearKeys(`${hexToBase64Url(KID)}:short`));
   const jwk = clearKeyJwk(keys);
