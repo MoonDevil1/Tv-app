@@ -48,19 +48,29 @@ export class StreamEngine {
   private async tryRecover(channel: Channel, generation: number, error: Error): Promise<boolean> {
     if (!this.options.onRecover || this.recovered.has(channel.id) || !/401|403|410|expired|forbidden|unauthori[sz]ed/i.test(error.message)) return false;
     this.recovered.add(channel.id);
-    const refreshed = await this.options.onRecover(channel);
-    if (!refreshed || generation !== this.generation || !this.video) return false;
-    await this.play(this.video, refreshed);
-    return true;
+    try {
+      const refreshed = await this.options.onRecover(channel);
+      if (!refreshed || generation !== this.generation || !this.video) return false;
+      await this.play(this.video, refreshed);
+      return true;
+    } catch (recoveryError) {
+      if (generation === this.generation) {
+        this.options.onState?.("error", recoveryError instanceof Error ? recoveryError : new Error(String(recoveryError)));
+      }
+      return false;
+    }
   }
   private async loadDash(player: shaka.Player, url: string, signal: AbortSignal): Promise<void> {
     await new Promise<void>((resolve, reject) => {
       let timeout: ReturnType<typeof setTimeout> | undefined;
+      let settled = false;
       const cleanup = () => {
         if (timeout) clearTimeout(timeout);
         signal.removeEventListener("abort", onAbort);
       };
       const finish = (error?: Error) => {
+        if (settled) return;
+        settled = true;
         cleanup();
         if (error) reject(error); else resolve();
       };

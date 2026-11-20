@@ -72,6 +72,7 @@ test("Electron stream context rejects non-HTTP origins and sanitizes header inje
 
 
 import { fetchRemoteText } from "../electron/net/remoteFetch";
+import { isAllowedNavigation } from "../electron/security/navigation";
 
 test("remote fetch accepts HTTP(S), follows safe redirects and strips credentials across origins", async () => {
   const requests: Array<{ url: string; authorization: string | null }> = [];
@@ -127,4 +128,14 @@ test("remote fetch propagates caller cancellation and reports AbortError", async
   assert.equal(started, true);
   controller.abort();
   await assert.rejects(pending, error => error instanceof Error && error.name === "AbortError");
+});
+
+
+test("navigation policy blocks arbitrary file URLs and external origins", () => {
+  const renderer = "file:///opt/tg-iptv/renderer/index.html";
+  assert.equal(isAllowedNavigation("file:///opt/tg-iptv/renderer/index.html#settings", renderer), true);
+  assert.equal(isAllowedNavigation("file:///etc/passwd", renderer), false);
+  assert.equal(isAllowedNavigation("https://attacker.example/", renderer), false);
+  assert.equal(isAllowedNavigation("http://127.0.0.1:5173/settings", "http://127.0.0.1:5173/"), true);
+  assert.equal(isAllowedNavigation("http://127.0.0.1:5174/", "http://127.0.0.1:5173/"), false);
 });

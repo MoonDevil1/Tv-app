@@ -222,3 +222,37 @@ test("media event waits resolve, reject, time out and cancel with listener clean
   controller.abort();
   await assert.rejects(pending, error => error instanceof Error && error.name === "AbortError");
 });
+
+
+test("JSON playlist EPG URLs resolve relative to their source", async () => {
+  const manager = new PlaylistManager(async () => new Response(JSON.stringify({
+    epg: ["guide.xml", "https://epg.example/extra.xml"],
+    channels: [{ name: "News", url: "https://stream.example/news.m3u8" }]
+  }), { status: 200 }));
+  const playlist = await manager.load("https://provider.example/playlists/main.json");
+  assert.deepEqual(playlist.epgUrls, [
+    "https://provider.example/playlists/guide.xml",
+    "https://epg.example/extra.xml"
+  ]);
+  manager.dispose();
+});
+
+test("JSON DRM metadata preserves Widevine and ignores unsupported PlayReady", () => {
+  const widevine = parseJsonPlaylist({ channels: [{
+    name: "Widevine", url: "https://stream.example/wv.mpd",
+    drm: { scheme: "com.widevine.alpha", licenseUrl: "https://license.example/wv" }
+  }] })[0];
+  assert.equal(widevine.drm?.scheme, "widevine");
+  assert.equal(widevine.drm?.licenseUrl, "https://license.example/wv");
+  const playready = parseJsonPlaylist({ channels: [{
+    name: "PlayReady", url: "https://stream.example/pr.mpd",
+    drm: { scheme: "playready", licenseUrl: "https://license.example/pr" }
+  }] })[0];
+  assert.equal(playready.drm, undefined);
+});
+
+test("XMLTV date parser rejects impossible dates and offsets", () => {
+  assert.ok(Number.isNaN(parseXmltvDate("20241301120000 +0530")));
+  assert.ok(Number.isNaN(parseXmltvDate("20240230120000 +0530")));
+  assert.ok(Number.isNaN(parseXmltvDate("20240101120000 +9999")));
+});

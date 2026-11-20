@@ -1,5 +1,7 @@
 import { app, BrowserWindow, ipcMain, session } from "electron";
 import { join } from "node:path";
+import { pathToFileURL } from "node:url";
+import { isAllowedNavigation } from "./security/navigation";
 import { writeFileSync } from "node:fs";
 import { registerHeaderProxy, setActiveStreamContext, type StreamRequestContext } from "./net/headerProxy";
 import { registerAutoUpdates } from "./updater";
@@ -45,10 +47,12 @@ function createWindow(): void {
         .catch((error: unknown) => finishSmokeTest(false, error instanceof Error ? error.message : String(error)));
     });
   }
-  mainWindow.webContents.on("will-navigate", (event, url) => {
-    const current = mainWindow?.webContents.getURL();
-    if (current && new URL(url).origin !== new URL(current).origin) event.preventDefault();
-  });
+  const rendererUrl = process.env.ELECTRON_RENDERER_URL ?? pathToFileURL(join(__dirname, "../renderer/index.html")).href;
+  const blockExternalNavigation = (event: Electron.Event, url: string) => {
+    if (!isAllowedNavigation(url, rendererUrl)) event.preventDefault();
+  };
+  mainWindow.webContents.on("will-navigate", blockExternalNavigation);
+  mainWindow.webContents.on("will-redirect", blockExternalNavigation);
 
   if (process.env.ELECTRON_RENDERER_URL) {
     void mainWindow.loadURL(process.env.ELECTRON_RENDERER_URL);
@@ -61,7 +65,8 @@ function createWindow(): void {
 app.whenReady().then(() => {
   registerHeaderProxy(session.defaultSession);
   registerAutoUpdates();
-  ipcMain.handle("stream:set-request-context", (_event, context: StreamRequestContext | null) => {
+  ipcMain.handle("stream:set-request-context", (event, context: StreamRequestContext | null) => {
+    if (event.senderFrame !== event.sender.mainFrame) throw new Error("Stream context is only available to the main application frame.");
     setActiveStreamContext(context);
     return { active: context !== null };
   });
