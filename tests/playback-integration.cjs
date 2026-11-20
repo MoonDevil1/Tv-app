@@ -34,7 +34,7 @@ function createFixtures() {
 const page = '<!doctype html><html><head><meta charset="utf-8"><script src="/hls.js"></script><script src="/shaka.js"></script></head><body><video id="video" muted playsinline></video><script>' +
 'window.runPlaybackTests = async () => {' +
 ' const results=[]; const video=document.getElementById("video");' +
-' const wait=async()=>{ await Promise.race([new Promise((resolve,reject)=>{video.addEventListener("playing",resolve,{once:true});video.addEventListener("error",()=>reject(new Error("Media error "+(video.error?.code||"unknown"))),{once:true});}),new Promise((_,reject)=>setTimeout(()=>reject(new Error("Playback start timeout")),15000))]); const start=Date.now(); while(video.currentTime<1.2&&Date.now()-start<10000) await new Promise(r=>setTimeout(r,100)); if(video.currentTime<1.2) throw new Error("Playback did not advance"); };' +
+' const wait=async()=>{ if(video.paused||video.readyState<2) await Promise.race([new Promise((resolve,reject)=>{video.addEventListener("playing",resolve,{once:true});video.addEventListener("error",()=>reject(new Error("Media error "+(video.error?.code||"unknown"))),{once:true});}),new Promise((_,reject)=>setTimeout(()=>reject(new Error("Playback start timeout")),15000))]); const start=Date.now(); while(video.currentTime<1.2&&Date.now()-start<10000) await new Promise(r=>setTimeout(r,100)); if(video.currentTime<1.2) throw new Error("Playback did not advance"); };' +
 ' try { if(!window.Hls||!Hls.isSupported()) throw new Error("hls.js/MSE unavailable"); const hls=new Hls({enableWorker:false}); await new Promise((resolve,reject)=>{const timeout=setTimeout(()=>reject(new Error("HLS manifest timeout")),15000);hls.on(Hls.Events.MANIFEST_PARSED,()=>{clearTimeout(timeout);resolve();});hls.on(Hls.Events.ERROR,(_e,d)=>{if(d.fatal){clearTimeout(timeout);reject(new Error("HLS: "+d.details));}});hls.loadSource("/hls/index.m3u8");hls.attachMedia(video);}); await video.play(); await wait(); results.push({format:"HLS",passed:true,seconds:Number(video.currentTime.toFixed(2))}); hls.destroy(); } catch(e) { results.push({format:"HLS",passed:false,error:String(e)}); }' +
 ' try { video.pause();video.removeAttribute("src");video.load();const player=new shaka.Player();await player.attach(video);await player.load("/dash/manifest.mpd");await video.play();await wait();results.push({format:"DASH",passed:true,seconds:Number(video.currentTime.toFixed(2))});await player.destroy(); } catch(e) { results.push({format:"DASH",passed:false,error:String(e)}); }' +
 ' return results; };</script></body></html>';
@@ -51,8 +51,8 @@ function startServer() {
     else if (pathname.startsWith("/hls/")) file = path.join(hlsDir, path.basename(pathname));
     else if (pathname.startsWith("/dash/")) file = path.join(dashDir, path.basename(pathname));
     if (!file || !fs.existsSync(file) || !fs.statSync(file).isFile()) { res.writeHead(404); res.end("not found"); return; }
-    const type = file.endsWith(".m3u8") ? "application/vnd.apple.mpegurl" : file.endsWith(".mpd") ? "application/dash+xml" :
-      file.endsWith(".ts") ? "video/mp2t" : file.endsWith(".m4s") ? "video/iso.segment" : "application/octet-stream";
+    const type = pathname === "/hls.js" || pathname === "/shaka.js" ? "application/javascript" : file.endsWith(".m3u8") ? "application/vnd.apple.mpegurl" : file.endsWith(".mpd") ? "application/dash+xml" :
+      file.endsWith(".ts") ? "video/mp2t" : file.endsWith(".m4s") || file.endsWith(".mp4") ? "video/mp4" : "application/octet-stream";
     res.writeHead(200, { "Content-Type": type, "Access-Control-Allow-Origin": "*", "Cache-Control": "no-store" });
     fs.createReadStream(file).pipe(res);
   });
