@@ -7,9 +7,9 @@ export function waitForMediaEvent(
   signal?: AbortSignal
 ): Promise<void> {
   return new Promise((resolve, reject) => {
-    let timeout: ReturnType<typeof setTimeout>;
+    let timeout: ReturnType<typeof setTimeout> | undefined;
     const cleanup = () => {
-      clearTimeout(timeout);
+      if (timeout) clearTimeout(timeout);
       target.removeEventListener(successEvent, onSuccess);
       target.removeEventListener(errorEvent, onError);
       signal?.removeEventListener("abort", onAbort);
