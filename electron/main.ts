@@ -24,7 +24,7 @@ function createWindow(): void {
     title: "TG IPTV",
     autoHideMenuBar: true,
     webPreferences: {
-      preload: join(__dirname, "../preload/index.js"),
+      preload: join(__dirname, "../preload/index.cjs"),
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
@@ -39,7 +39,7 @@ function createWindow(): void {
     });
     mainWindow.webContents.on("did-finish-load", () => {
       void mainWindow?.webContents.executeJavaScript(
-        "Boolean(document.getElementById('root')?.childElementCount && window.tvApp && typeof window.tvApp.platform === 'function' && typeof window.tvApp.fetchRemoteText === 'function')"
+        "new Promise(resolve => { const start = Date.now(); const check = () => { const ready = Boolean(document.getElementById('root')?.childElementCount && window.tvApp && typeof window.tvApp.platform === 'function' && typeof window.tvApp.fetchRemoteText === 'function'); if (ready || Date.now() - start > 10000) resolve(ready); else setTimeout(check, 100); }; check(); })"
       ).then((ready: boolean) => finishSmokeTest(ready, "Renderer root or preload bridge is unavailable."))
         .catch((error: unknown) => finishSmokeTest(false, error instanceof Error ? error.message : String(error)));
     });
