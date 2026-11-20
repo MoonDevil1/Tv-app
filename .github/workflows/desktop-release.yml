@@ -39,9 +39,9 @@ jobs:
         run: npm version "${GITHUB_REF_NAME#v}" --no-git-tag-version --allow-same-version
       - name: Install Linux packaging dependencies
         if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y libnss3 libatk-bridge2.0-0 libgtk-3-0 libgbm1 libasound2t64
+        run: sudo apt-get update && sudo apt-get install -y libnss3 libatk-bridge2.0-0 libgtk-3-0 libgbm1 libasound2t64 xvfb
       - name: Install dependencies
-        run: npm install --no-fund
+        run: npm ci --no-fund
       - name: Dependency security audit
         run: npm audit --audit-level=high
       - name: Type-check
@@ -58,6 +58,18 @@ jobs:
       - name: Build Windows installers
         if: runner.os == 'Windows'
         run: npx electron-builder --win --publish never
+      - name: Build unpacked macOS app
+        if: matrix.platform == 'macos'
+        run: npx electron-builder --mac --dir --publish never
+      - name: Smoke test packaged macOS app
+        if: matrix.platform == 'macos'
+        run: ./scripts/smoke-test-unix.sh mac
+      - name: Build unpacked Linux app
+        if: matrix.platform == 'linux'
+        run: npx electron-builder --linux --dir --publish never
+      - name: Smoke test packaged Linux app
+        if: matrix.platform == 'linux'
+        run: xvfb-run -a ./scripts/smoke-test-unix.sh linux
       - name: Build macOS/Linux installer
         if: runner.os != 'Windows'
         run: ${{ matrix.command }}
