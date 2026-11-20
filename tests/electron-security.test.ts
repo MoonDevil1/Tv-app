@@ -18,7 +18,9 @@ test("Electron stream headers are limited to the active stream host", () => {
       Authorization: "Bearer test",
       Referer: "https://provider.example/",
       Host: "attacker.example",
-      "X-Test": "safe",\n      Cookie: "session=abc",\n      "User-Agent": "IPTV Player"
+      "X-Test": "safe",
+      Cookie: "session=abc",
+      "User-Agent": "IPTV Player"
     }
   });
 
@@ -26,7 +28,9 @@ test("Electron stream headers are limited to the active stream host", () => {
   listener!({ url: "https://stream.example/segment.ts", requestHeaders: { Accept: "*/*" } }, result => { sameHost = result.requestHeaders; });
   assert.equal(sameHost.Authorization, "Bearer test");
   assert.equal(sameHost.Referer, "https://provider.example/");
-  assert.equal(sameHost["X-Test"], "safe");\n  assert.equal(sameHost.Cookie, "session=abc");\n  assert.equal(sameHost["User-Agent"], "IPTV Player");
+  assert.equal(sameHost["X-Test"], "safe");
+  assert.equal(sameHost.Cookie, "session=abc");
+  assert.equal(sameHost["User-Agent"], "IPTV Player");
   assert.equal(sameHost.Host, undefined);
 
   let otherHost: Record<string, string> = {};
