@@ -1,36 +1,93 @@
-# TG IPTV — Windows Desktop
+# TG IPTV — Cinema Edition
 
-![Original TG IPTV APK logo](assets/tg-logo.svg)
+A cross-platform desktop IPTV player built with Electron, React 19, TypeScript, Shaka Player and hls.js.
 
-A lightweight Windows desktop IPTV player recreated from the supplied TG-IPTV Android APK using **Tauri 2, Rust, Vite, vanilla JavaScript and Shaka Player**. It avoids Electron.
+## Downloads — v2.0.1
 
-## Included features
-- Import M3U, M3U8 and supported JSON channel playlists from URLs or local files
-- Manage multiple playlists, refresh remote sources, delete sources and export M3U
-- Browse Live TV, channel groups/categories, search, favorites and recently watched history
-- Player with HLS/DASH playback, adaptive quality and manual quality selection
-- Audio-language and subtitle track selection, fullscreen, picture-in-picture, previous/next and autoplay
-- Audio gain boost up to 200% where WebAudio/CORS permissions allow it
-- Buffer-ahead tuning, live buffer diagnostics and copyable stream information
-- Stream Config for manual channels, logos, categories, request headers and DRM parameters
-- DRM Lab for authorized Widevine, PlayReady and ClearKey configuration
-- Google Drive URL/file-ID helper for public or authorized compatible media
-- Persistent preferences and JSON app-data backup/restore
-- Original app logo extracted from the APK and included in the desktop interface
+Choose the download for your operating system. All installers below are attached to the [published v2.0.1 GitHub release](https://github.com/MoonDevil1/Tv-app/releases/tag/v2.0.1).
 
-## Build on Windows
-Install Rust stable, Node.js 22 and Microsoft WebView2 Runtime. From the repository root:
+### Windows
 
-```powershell
+| Package | Download | Notes |
+|---|---|---|
+| Windows Installer | [TG.IPTV.Setup.2.0.1.exe](https://github.com/MoonDevil1/Tv-app/releases/download/v2.0.1/TG.IPTV.Setup.2.0.1.exe) | Recommended; installs the app and supports the configured updater |
+| Portable | [TG.IPTV.2.0.1.exe](https://github.com/MoonDevil1/Tv-app/releases/download/v2.0.1/TG.IPTV.2.0.1.exe) | Run without installation; update manually |
+
+### macOS
+
+| Package | Download | Notes |
+|---|---|---|
+| Apple Silicon DMG | [TG.IPTV-2.0.1-arm64.dmg](https://github.com/MoonDevil1/Tv-app/releases/download/v2.0.1/TG.IPTV-2.0.1-arm64.dmg) | For Apple Silicon Macs (M1, M2, M3, M4) |
+| Apple Silicon ZIP | [TG.IPTV-2.0.1-arm64-mac.zip](https://github.com/MoonDevil1/Tv-app/releases/download/v2.0.1/TG.IPTV-2.0.1-arm64-mac.zip) | ZIP distribution for Apple Silicon Macs |
+
+> Intel Mac (x64) builds are not included in v2.0.1. macOS automatic updates require a Developer ID-signed and notarized build.
+
+### Linux
+
+| Package | Download | Notes |
+|---|---|---|
+| AppImage (x64) | [TG.IPTV-2.0.1.AppImage](https://github.com/MoonDevil1/Tv-app/releases/download/v2.0.1/TG.IPTV-2.0.1.AppImage) | Portable Linux application image |
+
+For checksums, update metadata and any additional release files, see the [complete v2.0.1 release](https://github.com/MoonDevil1/Tv-app/releases/tag/v2.0.1).
+
+---
+
+## Features
+
+- Import remote M3U/M3U8 and JSON playlists or open local playlist files.
+- LiveTGTV playlist URL is prefilled in the Add Playlist dialog.
+- Channel search, category filters, favorites and recently watched.
+- Responsive virtualized channel grid for large playlists.
+- XMLTV EPG now/next guide when the playlist declares an accessible EPG feed.
+- Per-playlist automatic refresh (manual, 1m, 5m, 15m or 1h).
+- GitHub release updates: installed builds check for updates, download on request and restart to install. Draft releases are not offered until published.
+- HLS and DASH playback, including authorized ClearKey/Widevine configurations supported by the runtime.
+- Player HUD: play/pause, seek, volume, quality, audio/subtitle selection, aspect fit, fullscreen and picture-in-picture.
+- Channel zapping, mini-player mode and keyboard shortcuts (Space/K play, arrows seek or zap, M mute, F fullscreen, I PiP, Ctrl/⌘+K or / search).
+- Optional ambient backdrop that samples video colors when browser cross-origin rules allow it.
+
+## Development
+
+Requirements: Node.js 22+ and npm 10+.
+
+```bash
 npm install
-npm run tauri -- dev
-npm run tauri -- build
+npm run dev
+npm run typecheck
+npm test
+npm run build
 ```
 
-The NSIS and MSI installers are generated under `src-tauri/target/release/bundle/`. GitHub Actions also builds both Windows installer formats and uploads them as a workflow artifact.
+## Desktop packaging
 
-## Playback compatibility
-DRM playback requires a supported WebView2 Content Decryption Module (CDM), a valid license server, any required authorization headers, and rights to play the content. This player does not bypass DRM. ClearKey works only when the stream and runtime permit it. Browser security restricts some request headers (including User-Agent, Origin and Referer), and Google Drive does not provide a universal direct media URL for every file. Stream compatibility depends on the source, CORS configuration, codecs and license provider.
+```bash
+npm run dist:win
+npm run dist:mac
+npm run dist:linux
+```
 
-## APK reference
-The Android APK was inspected for its playlist, channel, favorites, history, player, audio/subtitle, quality, buffering, Stream Config, DRM Lab and Google Drive surfaces. This is a native desktop reimplementation, not an APK-to-EXE conversion; Android-only services and behavior must be adapted to Windows.
+Installers are written to `release/`. Published GitHub releases provide update metadata and binaries; the updater intentionally ignores draft releases. Windows NSIS-installed, macOS ZIP and Linux AppImage builds are update targets; the portable Windows executable must be updated manually. macOS updates require a Developer ID-signed and notarized build.
+
+GitHub Actions can build Windows, macOS and Linux installers from **Actions → Desktop Release → Run workflow**. To publish a release, create a version tag such as `v2.0.1` only after the feature branch has passed the full CI matrix. The release workflow stamps the tag version into the app, builds and smoke-tests each platform, then publishes the GitHub release with all generated installers attached.
+
+## Continuous integration
+
+Every feature-branch push runs type-checking, the unit suite and the Electron production build on Windows, macOS and Linux. The Electron header proxy also has regression tests for host scoping and header-injection filtering.
+
+## Architecture
+
+- Electron main process owns the desktop window and scoped stream request-header policy.
+- The isolated preload exposes a narrow, typed IPC surface.
+- React renderer owns navigation, channel library, EPG and player controls.
+- Playlist parsing, token refresh, DRM conversion, playback and EPG are isolated under `src/core`.
+- Shaka Player handles DASH; hls.js handles HLS; direct progressive streams use the native media element.
+
+## Security and playback
+
+Chromium web security remains enabled. The app does not disable CORS globally or bypass DRM. Custom request headers are scoped to the selected stream host. DRM playback requires a compatible runtime, valid license/key material and authorization from the content provider. Some providers restrict cross-origin EPG or stream requests; those restrictions are surfaced as errors rather than bypassed.
+
+## Playlist compatibility
+
+The playlist engine supports M3U/M3U8 and JSON channel collections, EXTINF metadata, EPG URLs, per-stream headers, tokenized URLs, catch-up metadata and authorized ClearKey/Widevine metadata. LiveTGTV is preconfigured as a convenient source URL, but its live endpoint contents and availability depend on that service and are not bundled or guaranteed.
+
+TG IPTV is a player only. Users must supply playlists and streams they are authorized to access.
