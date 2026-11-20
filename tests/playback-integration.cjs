@@ -63,7 +63,7 @@ function startServer() {
     if (pathname === "/playback-engine.js") file = engineBundle;
     else if (pathname.startsWith("/hls/")) file = path.join(hlsDir, pathname.slice("/hls/".length));
     else if (pathname.startsWith("/dash/")) file = path.join(dashDir, path.basename(pathname));
-    if (!file || !file.startsWith(temp) || !fs.existsSync(file) || !fs.statSync(file).isFile()) { res.writeHead(404); res.end("not found"); return; }
+    if (!file || (file !== engineBundle && !file.startsWith(temp + path.sep)) || !fs.existsSync(file) || !fs.statSync(file).isFile()) { res.writeHead(404); res.end("not found"); return; }
     const type = file.endsWith(".js") ? "application/javascript" : file.endsWith(".m3u8") ? "application/vnd.apple.mpegurl" : file.endsWith(".mpd") ? "application/dash+xml" : file.endsWith(".vtt") ? "text/vtt" :
       file.endsWith(".ts") ? "video/mp2t" : file.endsWith(".m4s") || file.endsWith(".mp4") ? "video/mp4" : "application/octet-stream";
     res.writeHead(200, { "Content-Type": type, "Access-Control-Allow-Origin": "*", "Cache-Control": "no-store" });
