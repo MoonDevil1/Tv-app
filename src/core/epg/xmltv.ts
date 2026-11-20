@@ -1,11 +1,17 @@
 import type { EpgProgram } from "../store/appStore";
 
 export function parseXmltvDate(value: string): number {
-  const match = value.trim().match(/^(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})(?:\s*([+-])(\d{2})(\d{2}))?/);
+  const match = value.trim().match(/^(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})(?:\s*([+-])(\d{2})(\d{2}))?\s*$/);
   if (!match) return Number.NaN;
   const [, y, mo, d, h, mi, s, sign, oh = "00", om = "00"] = match;
-  const utc = Date.UTC(+y, +mo - 1, +d, +h, +mi, +s);
-  const offset = (+oh * 60 + +om) * 60_000 * (sign === "+" ? 1 : -1);
+  const year = +y, month = +mo, day = +d, hour = +h, minute = +mi, second = +s;
+  const offsetHour = +oh, offsetMinute = +om;
+  if (year < 1900 || month < 1 || month > 12 || day < 1 || hour > 23 || minute > 59 || second > 59 ||
+      offsetHour > 23 || offsetMinute > 59) return Number.NaN;
+  const utc = Date.UTC(year, month - 1, day, hour, minute, second);
+  const date = new Date(utc);
+  if (date.getUTCFullYear() !== year || date.getUTCMonth() !== month - 1 || date.getUTCDate() !== day) return Number.NaN;
+  const offset = (offsetHour * 60 + offsetMinute) * 60_000 * (sign === "+" ? 1 : -1);
   return utc - offset;
 }
 

@@ -37,7 +37,9 @@ export default function App() {
   const fileInput = useRef<HTMLInputElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
   const playlistsRef = useRef(playlists);
+  const selectedPlaylistIdRef = useRef("");
   playlistsRef.current = playlists;
+  selectedPlaylistIdRef.current = selectedChannel?.playlistId ?? "";
 
   useEffect(() => {
     const api = window.tvApp;
@@ -142,7 +144,8 @@ export default function App() {
   }
   function selectChannel(playlistId: string, channel: Channel) { setSelectedChannel({ playlistId, channel }); recordWatch(playlistId, channel); }
   const recoverChannel = useCallback(async (channel: Channel) => {
-    const owner = playlistsRef.current.find(item => item.channels.some(candidate => candidate.id === channel.id));
+    const ownerId = selectedPlaylistIdRef.current;
+    const owner = playlistsRef.current.find(item => item.id === ownerId && item.channels.some(candidate => candidate.id === channel.id));
     if (!owner) return null;
     try {
       const refreshed = await manager.refresh(owner.id);

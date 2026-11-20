@@ -4,6 +4,22 @@ import { parsePlaylist } from "./m3uParser";
 export interface AddPlaylistOptions extends PlaylistFetchOptions { id?: string; name?: string; refreshIntervalMs?: number; }
 type Fetcher = (input: string, init?: RequestInit) => Promise<Response>;
 
+function extractEpgUrls(source: string, baseUrl?: string): string[] {
+  const values = [...source.matchAll(/(?:url-tvg|x-tvg-url|tvg-url)\s*=\s*["']([^"']+)["']/gi)].map(match => match[1]);
+  const trimmed = source.trim();
+  if (trimmed.startsWith("{")) {
+    const root = JSON.parse(trimmed) as { epg?: unknown };
+    if (typeof root.epg === "string") values.push(root.epg);
+    else if (Array.isArray(root.epg)) values.push(...root.epg.filter((value): value is string => typeof value === "string"));
+  }
+  return [...new Set(values.flatMap(value => {
+    try {
+      const url = new URL(value.trim(), baseUrl);
+      return url.protocol === "http:" || url.protocol === "https:" ? [url.toString()] : [];
+    } catch { return []; }
+  }))];
+}
+
 export class PlaylistManager {
   private timers = new Map<string, ReturnType<typeof setInterval>>();
   private controllers = new Map<string, AbortController>();
@@ -42,7 +58,7 @@ export class PlaylistManager {
       baseUrl = response.url || source;
     }
     const channels = parsePlaylist(text, baseUrl);
-    const epg = [...text.matchAll(/(?:url-tvg|x-tvg-url|tvg-url)\s*=\s*["']([^"']+)["']/gi)].map(match => match[1]);
+    const epg = extractEpgUrls(text, baseUrl);
     const id = options.id ?? (globalThis.crypto?.randomUUID?.() ?? `playlist-${Date.now()}`);
     const playlist: Playlist = {
       id, name: options.name ?? (isUrl ? new URL(source).hostname : "Local playlist"), source, channels,
