@@ -1,5 +1,8 @@
 import { app, BrowserWindow, ipcMain } from "electron";
-import { autoUpdater } from "electron-updater";
+import electronUpdater from "electron-updater";
+
+// electron-updater is CommonJS; use its default export for Node.js ESM interop.
+const { autoUpdater } = electronUpdater;
 
 export type UpdateState = {
   status: "idle" | "checking" | "available" | "not-available" | "downloading" | "downloaded" | "error" | "unsupported";
