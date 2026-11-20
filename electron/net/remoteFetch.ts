@@ -3,7 +3,7 @@ const DEFAULT_MAX_BYTES = 32 * 1024 * 1024;
 const REDIRECT_STATUSES = new Set([301, 302, 303, 307, 308]);
 const BLOCKED_HEADERS = new Set([
   "host", "content-length", "connection", "transfer-encoding", "upgrade",
-  "proxy-authorization", "proxy-connection", "origin", "cookie"
+  "proxy-authorization", "proxy-connection", "origin"
 ]);
 
 export interface RemoteTextResult {
@@ -85,6 +85,7 @@ export async function fetchRemoteText(
         if (next.origin !== current.origin) {
           headers.delete("authorization");
           headers.delete("proxy-authorization");
+          headers.delete("cookie");
         }
         current = next;
         continue;
