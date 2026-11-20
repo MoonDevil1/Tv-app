@@ -2,9 +2,24 @@ import Hls from "hls.js";
 import shaka from "shaka-player";
 import type { Channel } from "../types";
 import { licenseHeadersForRequest, shakaDrmConfiguration, streamHeadersForRequest } from "./streamPolicy";
-import { waitForMediaEvent } from "./mediaEvents";
+
 
 export type PlaybackState = "idle" | "loading" | "playing" | "error";
+
+function waitForMediaEvent(target: EventTarget, successEvent: string, errorEvent: string, timeoutMs: number, message: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const cleanup = () => {
+      clearTimeout(timeout);
+      target.removeEventListener(successEvent, onSuccess);
+      target.removeEventListener(errorEvent, onError);
+    };
+    const onSuccess = () => { cleanup(); resolve(); };
+    const onError = () => { cleanup(); reject(new Error(message)); };
+    const timeout = setTimeout(() => { cleanup(); reject(new Error(message)); }, timeoutMs);
+    target.addEventListener(successEvent, onSuccess, { once: true });
+    target.addEventListener(errorEvent, onError, { once: true });
+  });
+}
 export interface StreamEngineOptions {
   onState?: (state: PlaybackState, error?: Error) => void;
   onRecover?: (channel: Channel) => Promise<Channel | null>;
