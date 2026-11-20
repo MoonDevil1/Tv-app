@@ -39,7 +39,7 @@ function createWindow(): void {
     });
     mainWindow.webContents.on("did-finish-load", () => {
       void mainWindow?.webContents.executeJavaScript(
-        "Boolean(document.getElementById('root') && window.tvApp && typeof window.tvApp.platform === 'function' && typeof window.tvApp.fetchRemoteText === 'function')"
+        "Boolean(document.getElementById('root')?.childElementCount && window.tvApp && typeof window.tvApp.platform === 'function' && typeof window.tvApp.fetchRemoteText === 'function')"
       ).then((ready: boolean) => finishSmokeTest(ready, "Renderer root or preload bridge is unavailable."))
         .catch((error: unknown) => finishSmokeTest(false, error instanceof Error ? error.message : String(error)));
     });
