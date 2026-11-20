@@ -40,14 +40,14 @@ function createFixtures() {
       "-f", "hls", "-hls_time", "1", "-hls_list_size", "0", "-hls_segment_filename", path.join(directory, "segment%03d.ts"),
       path.join(directory, "index.m3u8")]);
   }
-  fs.writeFileSync(path.join(subtitlesDir, "captions.vtt"), "WEBVTT\\n\\n00:00:00.000 --> 00:00:04.800\\nStreamEngine subtitle test\\n");
-  fs.writeFileSync(path.join(subtitlesDir, "index.m3u8"), "#EXTM3U\\n#EXT-X-VERSION:3\\n#EXT-X-TARGETDURATION:5\\n#EXT-X-MEDIA-SEQUENCE:0\\n#EXTINF:5.0,\\ncaptions.vtt\\n#EXT-X-ENDLIST\\n");
+  fs.writeFileSync(path.join(subtitlesDir, "captions.vtt"), "WEBVTT\n\n00:00:00.000 --> 00:00:04.800\nStreamEngine subtitle test\n");
+  fs.writeFileSync(path.join(subtitlesDir, "index.m3u8"), "#EXTM3U\n#EXT-X-VERSION:3\n#EXT-X-TARGETDURATION:5\n#EXT-X-MEDIA-SEQUENCE:0\n#EXTINF:5.0,\ncaptions.vtt\n#EXT-X-ENDLIST\n");
   fs.writeFileSync(path.join(hlsDir, "master.m3u8"),
-    '#EXTM3U\\n#EXT-X-VERSION:3\\n' +
-    '#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="audio",NAME="English",LANGUAGE="en",DEFAULT=YES,AUTOSELECT=YES,URI="audio-en/index.m3u8"\\n' +
-    '#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="audio",NAME="Hindi",LANGUAGE="hi",DEFAULT=NO,AUTOSELECT=YES,URI="audio-hi/index.m3u8"\\n' +
-    '#EXT-X-MEDIA:TYPE=SUBTITLES,GROUP-ID="subs",NAME="English",LANGUAGE="en",DEFAULT=NO,AUTOSELECT=YES,URI="subs-en/index.m3u8"\\n' +
-    '#EXT-X-STREAM-INF:BANDWIDTH=400000,RESOLUTION=320x180,CODECS="avc1.42c00c",AUDIO="audio",SUBTITLES="subs"\\nvideo/index.m3u8\\n');
+    '#EXTM3U\n#EXT-X-VERSION:3\n' +
+    '#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="audio",NAME="English",LANGUAGE="en",DEFAULT=YES,AUTOSELECT=YES,URI="audio-en/index.m3u8"\n' +
+    '#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="audio",NAME="Hindi",LANGUAGE="hi",DEFAULT=NO,AUTOSELECT=YES,URI="audio-hi/index.m3u8"\n' +
+    '#EXT-X-MEDIA:TYPE=SUBTITLES,GROUP-ID="subs",NAME="English",LANGUAGE="en",DEFAULT=NO,AUTOSELECT=YES,URI="subs-en/index.m3u8"\n' +
+    '#EXT-X-STREAM-INF:BANDWIDTH=400000,RESOLUTION=320x180,CODECS="avc1.42c00c",AUDIO="audio",SUBTITLES="subs"\nvideo/index.m3u8\n');
   runFfmpeg(["-i", source, "-c", "copy", "-f", "dash", "-seg_duration", "1", "-use_template", "1",
     "-use_timeline", "1", path.join(dashDir, "manifest.mpd")]);
 }
@@ -64,7 +64,7 @@ function startServer() {
     else if (pathname.startsWith("/hls/")) file = path.join(hlsDir, pathname.slice("/hls/".length));
     else if (pathname.startsWith("/dash/")) file = path.join(dashDir, path.basename(pathname));
     if (!file || !file.startsWith(temp) || !fs.existsSync(file) || !fs.statSync(file).isFile()) { res.writeHead(404); res.end("not found"); return; }
-    const type = file.endsWith(".js") ? "application/javascript" : file.endsWith(".m3u8") ? "application/vnd.apple.mpegurl" : file.endsWith(".mpd") ? "application/dash+xml" :
+    const type = file.endsWith(".js") ? "application/javascript" : file.endsWith(".m3u8") ? "application/vnd.apple.mpegurl" : file.endsWith(".mpd") ? "application/dash+xml" : file.endsWith(".vtt") ? "text/vtt" :
       file.endsWith(".ts") ? "video/mp2t" : file.endsWith(".m4s") || file.endsWith(".mp4") ? "video/mp4" : "application/octet-stream";
     res.writeHead(200, { "Content-Type": type, "Access-Control-Allow-Origin": "*", "Cache-Control": "no-store" });
     fs.createReadStream(file).pipe(res);
@@ -82,7 +82,7 @@ app.whenReady().then(async () => {
     window = new BrowserWindow({ show: false, webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true } });
     await window.loadURL("http://127.0.0.1:" + port + "/");
     const results = await window.webContents.executeJavaScript(`(async () => {
-      const hls = await window.runStreamEngineTest("/hls/index.m3u8", "hls");
+      const hls = await window.runStreamEngineTest("/hls/master.m3u8", "hls");
       const dash = await window.runStreamEngineTest("/dash/manifest.mpd", "dash");
       return [{ format: "HLS", ...hls }, { format: "DASH", ...dash }];
     })()`);
