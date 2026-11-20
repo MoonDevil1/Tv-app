@@ -21,7 +21,8 @@ export class StreamEngine {
   private mediaAbort: AbortController | null = null;
   constructor(private readonly options: StreamEngineOptions = {}) {}
 
-  async play(video: HTMLVideoElement, channel: Channel): Promise<void> {
+  async play(video: HTMLVideoElement, channel: Channel, recoveryAttempt = false): Promise<void> {
+    if (!recoveryAttempt) this.recovered.delete(channel.id);
     await this.stop();
     const generation = ++this.generation;
     const abortController = new AbortController();
@@ -51,12 +52,9 @@ export class StreamEngine {
     try {
       const refreshed = await this.options.onRecover(channel);
       if (!refreshed || generation !== this.generation || !this.video) return false;
-      await this.play(this.video, refreshed);
+      await this.play(this.video, refreshed, true);
       return true;
-    } catch (recoveryError) {
-      if (generation === this.generation) {
-        this.options.onState?.("error", recoveryError instanceof Error ? recoveryError : new Error(String(recoveryError)));
-      }
+    } catch {
       return false;
     }
   }
@@ -108,8 +106,12 @@ export class StreamEngine {
       if (generation !== this.generation) return;
       const detail = (event as Event & { detail?: { code?: number; data?: unknown[] } }).detail;
       const response = detail?.data?.[1] as { status?: number } | undefined;
-      if ([401, 403, 410].includes(Number(response?.status))) void this.tryRecover(channel, generation, new Error(`HTTP ${response?.status}`));
-      else if (detail) this.options.onState?.("error", new Error(`Shaka playback error ${detail.code ?? "unknown"}`));
+      if ([401, 403, 410].includes(Number(response?.status))) {
+        const error = new Error(`HTTP ${response?.status}`);
+        void this.tryRecover(channel, generation, error).then(recovered => {
+          if (!recovered && generation === this.generation) this.options.onState?.("error", error);
+        });
+      } else if (detail) this.options.onState?.("error", new Error(`Shaka playback error ${detail.code ?? "unknown"}`));
     });
     try {
       await this.loadDash(player, channel.url, signal);
@@ -138,7 +140,10 @@ export class StreamEngine {
       hls.on(Hls.Events.ERROR, (_event, data) => {
         if (!data.fatal || generation !== this.generation) return;
         if ([401, 403, 410].includes(Number(data.response?.code))) {
-          void this.tryRecover(channel, generation, new Error(`HTTP ${data.response?.code}`));
+          const error = new Error(`HTTP ${data.response?.code}`);
+          void this.tryRecover(channel, generation, error).then(recovered => {
+            if (!recovered && generation === this.generation) this.options.onState?.("error", error);
+          });
         } else this.options.onState?.("error", new Error(data.details));
       });
       const manifestReady = new Promise<void>((resolve, reject) => {
