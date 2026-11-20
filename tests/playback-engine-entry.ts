@@ -42,6 +42,15 @@ window.runStreamEngineTest = async (url, manifestType) => {
       if (engine.getSelectedAudioId() !== audio[1].id) throw new Error("HLS audio track selection did not change");
       engine.selectSubtitle(subtitles[0].id);
       if (engine.getSelectedSubtitleId() !== subtitles[0].id) throw new Error("HLS subtitle selection did not change");
+      let cueText = "";
+      const subtitleDeadline = Date.now() + 5000;
+      while (!cueText && Date.now() < subtitleDeadline) {
+        for (const track of Array.from(video.textTracks)) {
+          if (track.cues?.length) cueText = track.cues[0].text;
+        }
+        if (!cueText) await new Promise(resolve => setTimeout(resolve, 100));
+      }
+      if (cueText !== "StreamEngine subtitle test") throw new Error("HLS subtitle cue was not rendered; received: " + cueText);
       result.audioTracks = audio.length;
       result.subtitleTracks = subtitles.length;
       result.selectedAudio = engine.getSelectedAudioId();
