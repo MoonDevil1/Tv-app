@@ -1,10 +1,18 @@
 import { app, BrowserWindow, ipcMain, session } from "electron";
 import { join } from "node:path";
+import { writeFileSync } from "node:fs";
 import { registerHeaderProxy, setActiveStreamContext, type StreamRequestContext } from "./net/headerProxy";
 import { registerAutoUpdates } from "./updater";
 import { fetchRemoteText } from "./net/remoteFetch";
 
 let mainWindow: BrowserWindow | null = null;
+const smokeTest = process.argv.includes("--smoke-test");
+
+function finishSmokeTest(ok: boolean, detail = ""): void {
+  const marker = join(app.getPath("temp"), `tg-iptv-smoke-${process.pid}.txt`);
+  try { writeFileSync(marker, ok ? "ok" : `error: ${detail}`); }
+  finally { app.exit(ok ? 0 : 1); }
+}
 
 function createWindow(): void {
   mainWindow = new BrowserWindow({
@@ -25,6 +33,17 @@ function createWindow(): void {
   });
 
   mainWindow.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
+  if (smokeTest) {
+    mainWindow.webContents.on("did-fail-load", (_event, errorCode, errorDescription, _validatedURL, isMainFrame) => {
+      if (isMainFrame) finishSmokeTest(false, `Renderer load failed (${errorCode}): ${errorDescription}`);
+    });
+    mainWindow.webContents.on("did-finish-load", () => {
+      void mainWindow?.webContents.executeJavaScript(
+        "Boolean(document.getElementById('root') && window.tvApp && typeof window.tvApp.platform === 'function' && typeof window.tvApp.fetchRemoteText === 'function')"
+      ).then((ready: boolean) => finishSmokeTest(ready, "Renderer root or preload bridge is unavailable."))
+        .catch((error: unknown) => finishSmokeTest(false, error instanceof Error ? error.message : String(error)));
+    });
+  }
   mainWindow.webContents.on("will-navigate", (event, url) => {
     const current = mainWindow?.webContents.getURL();
     if (current && new URL(url).origin !== new URL(current).origin) event.preventDefault();
