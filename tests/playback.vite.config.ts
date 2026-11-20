@@ -1,7 +1,6 @@
 import { defineConfig } from "vite";
 
 export default defineConfig({
-  configFile: false,
   build: {
     target: "chrome120",
     outDir: "tests/.playback-dist",
