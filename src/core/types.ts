@@ -30,6 +30,7 @@ declare global {
   interface Window {
     tvApp?: {
       platform(): Promise<string>;
+      fetchRemoteText(url: string, headers?: StreamHeaders): Promise<{ text: string; url: string; status: number }>;
       setStreamRequestContext(context: { originUrl: string; headers: Record<string, string> } | null): Promise<{ active: boolean }>;
       getUpdateState(): Promise<DesktopUpdateState>;
       checkForUpdates(): Promise<{ accepted: boolean }>;
