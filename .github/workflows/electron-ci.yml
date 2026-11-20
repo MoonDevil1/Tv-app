@@ -34,7 +34,10 @@ jobs:
         run: npm test
       - name: Build renderer and Electron processes
         run: npm run build
-      - name: Real HLS and DASH playback integration (Linux)
+      - name: Bundle StreamEngine playback integration
+        if: runner.os == 'Linux'
+        run: npx vite build --config tests/playback.vite.config.ts
+      - name: Real HLS and DASH playback through StreamEngine (Linux)
         if: runner.os == 'Linux'
         run: xvfb-run -a npx electron --no-sandbox tests/playback-integration.cjs
       - name: Build unpacked Windows app
