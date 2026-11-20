@@ -25,7 +25,7 @@ jobs:
           node-version: 22
       - name: Install Linux packaging dependencies
         if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y libnss3 libatk-bridge2.0-0 libgtk-3-0 libgbm1 libasound2t64
+        run: sudo apt-get update && sudo apt-get install -y libnss3 libatk-bridge2.0-0 libgtk-3-0 libgbm1 libasound2t64 xvfb ffmpeg
       - name: Install dependencies
         run: npm install --no-audit --no-fund
       - name: Type-check
@@ -34,6 +34,9 @@ jobs:
         run: npm test
       - name: Build renderer and Electron processes
         run: npm run build
+      - name: Real HLS and DASH playback integration (Linux)
+        if: runner.os == 'Linux'
+        run: xvfb-run -a npx electron tests/playback-integration.cjs
       - name: Build unpacked Windows app
         if: runner.os == 'Windows'
         run: npx electron-builder --win --dir --publish never
