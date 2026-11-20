@@ -133,9 +133,9 @@ export default function App() {
     if (!url) { setError("This playlist does not declare an XMLTV EPG URL."); return; }
     setEpgBusy(true); setError("");
     try {
-      const response = await fetch(url, { cache: "no-store" });
-      if (!response.ok) throw new Error(`EPG request failed: HTTP ${response.status}`);
-      const parsed = parseXmltv(await response.text()); setEpgPrograms(parsed);
+      if (!window.tvApp?.fetchRemoteText) throw new Error("EPG downloads are only available in the desktop app.");
+      const response = await window.tvApp.fetchRemoteText(url);
+      const parsed = parseXmltv(response.text); setEpgPrograms(parsed);
       setNotice(`Loaded guide data for ${Object.keys(parsed).length} channels.`);
     } catch (e) { setError(`Could not load EPG: ${e instanceof Error ? e.message : String(e)}`); }
     finally { setEpgBusy(false); }
