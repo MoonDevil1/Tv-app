@@ -62,9 +62,9 @@ function createFixtures() {
   const kid = "00112233445566778899aabbccddeeff";
   const key = "ffeeddccbbaa99887766554433221100";
   runPackager([
-    `in=${source},stream=audio,output=${path.join(encryptedDashDir, "audio.mp4")}`,
-    `in=${source},stream=video,output=${path.join(encryptedDashDir, "video.mp4")}`,
-    "--enable_raw_key_encryption", "--keys", `label=:key_id=${kid}:key=${key}`,
+    `in=${source},stream=audio,output=${path.join(encryptedDashDir, "audio.mp4")},drm_label=HD`,
+    `in=${source},stream=video,output=${path.join(encryptedDashDir, "video.mp4")},drm_label=HD`,
+    "--enable_raw_key_encryption", "--keys", `label=HD:key_id=${kid}:key=${key}`,
     "--protection_scheme=cenc", "--clear_lead=0", "--mpd_output", path.join(encryptedDashDir, "manifest.mpd")
   ]);
   const encryptedMpd = fs.readFileSync(path.join(encryptedDashDir, "manifest.mpd"), "utf8");
