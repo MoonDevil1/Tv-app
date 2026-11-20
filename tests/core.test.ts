@@ -4,6 +4,7 @@ import { parseM3U, parseJsonPlaylist, parsePlaylist } from "../src/core/parser/m
 import { clearKeyJwk, hexToBase64Url, parseClearKeys, createClearKeyDrm } from "../src/core/parser/clearKeyUtils";
 import { PlaylistManager } from "../src/core/parser/playlistManager";
 import { parseXmltvDate, currentAndNext } from "../src/core/epg/xmltv";
+import { waitForMediaEvent } from "../src/core/player/mediaEvents";
 
 const KID = "00112233445566778899aabbccddeeff";
 const KEY = "ffeeddccbbaa99887766554433221100";
@@ -176,3 +177,26 @@ test("builds ClearKey and Widevine Shaka DRM configurations", () => {
   assert.deepEqual(shakaDrmConfiguration(undefined), {});
 });
 
+
+
+test("media event waits resolve, reject, time out and cancel with listener cleanup", async () => {
+  const successTarget = new EventTarget();
+  const success = waitForMediaEvent(successTarget, "ready", "error", 100, "media failed");
+  successTarget.dispatchEvent(new Event("ready"));
+  await success;
+
+  const errorTarget = new EventTarget();
+  const failed = waitForMediaEvent(errorTarget, "ready", "error", 100, "media failed");
+  errorTarget.dispatchEvent(new Event("error"));
+  await assert.rejects(failed, /media failed/);
+
+  await assert.rejects(
+    waitForMediaEvent(new EventTarget(), "ready", "error", 5, "media timed out"),
+    /media timed out/
+  );
+
+  const controller = new AbortController();
+  const pending = waitForMediaEvent(new EventTarget(), "ready", "error", 1000, "media failed", controller.signal);
+  controller.abort();
+  await assert.rejects(pending, error => error instanceof Error && error.name === "AbortError");
+});
