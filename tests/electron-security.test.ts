@@ -18,7 +18,7 @@ test("Electron stream headers are limited to the active stream host", () => {
       Authorization: "Bearer test",
       Referer: "https://provider.example/",
       Host: "attacker.example",
-      "X-Test": "safe"
+      "X-Test": "safe",\n      Cookie: "session=abc",\n      "User-Agent": "IPTV Player"
     }
   });
 
@@ -26,12 +26,20 @@ test("Electron stream headers are limited to the active stream host", () => {
   listener!({ url: "https://stream.example/segment.ts", requestHeaders: { Accept: "*/*" } }, result => { sameHost = result.requestHeaders; });
   assert.equal(sameHost.Authorization, "Bearer test");
   assert.equal(sameHost.Referer, "https://provider.example/");
-  assert.equal(sameHost["X-Test"], "safe");
+  assert.equal(sameHost["X-Test"], "safe");\n  assert.equal(sameHost.Cookie, "session=abc");\n  assert.equal(sameHost["User-Agent"], "IPTV Player");
   assert.equal(sameHost.Host, undefined);
 
   let otherHost: Record<string, string> = {};
   listener!({ url: "https://unrelated.example/track.m3u8", requestHeaders: { Accept: "video/*" } }, result => { otherHost = result.requestHeaders; });
   assert.deepEqual(otherHost, { Accept: "video/*" });
+
+  let otherPort: Record<string, string> = {};
+  listener!({ url: "https://stream.example:8443/segment.ts", requestHeaders: { Accept: "*/*" } }, result => { otherPort = result.requestHeaders; });
+  assert.deepEqual(otherPort, { Accept: "*/*" });
+
+  let downgraded: Record<string, string> = {};
+  listener!({ url: "http://stream.example/segment.ts", requestHeaders: { Accept: "*/*" } }, result => { downgraded = result.requestHeaders; });
+  assert.deepEqual(downgraded, { Accept: "*/*" });
 
   setActiveStreamContext(null);
   let cleared: Record<string, string> = {};
