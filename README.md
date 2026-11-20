@@ -38,7 +38,7 @@ npm run dist:linux
 
 Installers are written to `release/`. Published GitHub releases provide update metadata and binaries; the updater intentionally ignores draft releases. Windows NSIS-installed, macOS ZIP and Linux AppImage builds are update targets; the portable Windows executable must be updated manually. macOS updates require a Developer ID-signed and notarized build.
 
-GitHub Actions can build Windows, macOS and Linux installers from **Actions → Desktop Release → Run workflow**. To prepare a draft GitHub release with attached installers, push a version tag such as `v2.0.1`; the workflow stamps that version into the packaged app, builds each platform and creates a draft release for review. The draft is not published automatically.
+GitHub Actions can build Windows, macOS and Linux installers from **Actions → Desktop Release → Run workflow**. To publish a release, create a version tag such as `v2.0.1` only after the feature branch has passed the full CI matrix. The release workflow stamps the tag version into the app, builds and smoke-tests each platform, then publishes the GitHub release with all generated installers attached.
 
 ## Continuous integration
 
