@@ -42,8 +42,8 @@ export function registerHeaderProxy(targetSession: Session): void {
       const context = activeContext;
       if (!context) return callback({ requestHeaders: details.requestHeaders });
 
-      let hostname = "";
-      try { hostname = new URL(details.url).hostname.toLowerCase(); } catch {
+      let requestOrigin = "";
+      try { requestOrigin = new URL(details.url).origin.toLowerCase(); } catch {
         return callback({ requestHeaders: details.requestHeaders });
       }
       if (!context.hosts.has(hostname)) {
