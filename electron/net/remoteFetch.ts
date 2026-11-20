@@ -68,10 +68,10 @@ export async function fetchRemoteText(
   options: { headers?: Record<string, string>; timeoutMs?: number; maxBytes?: number } = {},
   fetcher: FetchLike = (url, init) => fetch(url, init)
 ): Promise<RemoteTextResult> {
+  let current = validateHttpUrl(input);
+  const headers = safeHeaders(options.headers);
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(new Error("Remote request timed out.")), options.timeoutMs ?? 20000);
-  let current = validateHttpUrl(input);
-  let headers = safeHeaders(options.headers);
   try {
     for (let redirects = 0; ; redirects++) {
       const response = await fetcher(current.toString(), {
@@ -80,6 +80,7 @@ export async function fetchRemoteText(
       if (REDIRECT_STATUSES.has(response.status)) {
         if (redirects >= MAX_REDIRECTS) throw new Error("Remote source redirected too many times.");
         const location = response.headers.get("location");
+        await response.body?.cancel();
         if (!location) throw new Error("Remote source returned an invalid redirect.");
         const next = validateHttpUrl(new URL(location, current).toString());
         if (next.origin !== current.origin) {
