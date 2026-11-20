@@ -46,11 +46,13 @@ app.whenReady().then(() => {
     return { active: context !== null };
   });
   ipcMain.handle("app:get-platform", () => process.platform);
-  ipcMain.handle("net:fetch-remote-text", async (_event, input: unknown, headers?: unknown) => {
+  ipcMain.handle("net:fetch-remote-text", async (event, input: unknown, headers?: unknown) => {
+    if (event.senderFrame !== event.sender.mainFrame) throw new Error("Remote downloads are only available to the main application frame.");
     if (typeof input !== "string" || input.length > 8192) throw new TypeError("Invalid remote URL.");
     if (headers !== undefined && (typeof headers !== "object" || headers === null || Array.isArray(headers))) {
       throw new TypeError("Invalid remote request headers.");
     }
+    if (headers && Object.entries(headers).length > 30) throw new TypeError("Too many remote request headers.");
     return fetchRemoteText(input, { headers: headers as Record<string, string> | undefined });
   });
   createWindow();
