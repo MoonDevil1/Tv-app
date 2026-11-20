@@ -6,6 +6,7 @@ import { registerAutoUpdates } from "./updater";
 import { fetchRemoteText } from "./net/remoteFetch";
 
 let mainWindow: BrowserWindow | null = null;
+const remoteRequests = new Map<string, AbortController>();
 const smokeTest = process.argv.includes("--smoke-test");
 
 function finishSmokeTest(ok: boolean, detail = ""): void {
@@ -65,14 +66,30 @@ app.whenReady().then(() => {
     return { active: context !== null };
   });
   ipcMain.handle("app:get-platform", () => process.platform);
-  ipcMain.handle("net:fetch-remote-text", async (event, input: unknown, headers?: unknown) => {
+  ipcMain.handle("net:fetch-remote-text", async (event, input: unknown, headers?: unknown, requestId?: unknown) => {
     if (event.senderFrame !== event.sender.mainFrame) throw new Error("Remote downloads are only available to the main application frame.");
     if (typeof input !== "string" || input.length > 8192) throw new TypeError("Invalid remote URL.");
     if (headers !== undefined && (typeof headers !== "object" || headers === null || Array.isArray(headers))) {
       throw new TypeError("Invalid remote request headers.");
     }
     if (headers && Object.entries(headers).length > 30) throw new TypeError("Too many remote request headers.");
-    return fetchRemoteText(input, { headers: headers as Record<string, string> | undefined });
+    if (typeof requestId !== "string" || !/^[0-9a-f-]{36}$/i.test(requestId)) throw new TypeError("Invalid remote request ID.");
+    if (remoteRequests.has(requestId)) throw new Error("Duplicate remote request ID.");
+    const controller = new AbortController();
+    remoteRequests.set(requestId, controller);
+    try {
+      return await fetchRemoteText(input, { headers: headers as Record<string, string> | undefined, signal: controller.signal });
+    } finally {
+      if (remoteRequests.get(requestId) === controller) remoteRequests.delete(requestId);
+    }
+  });
+  ipcMain.handle("net:cancel-remote-text", (event, requestId: unknown) => {
+    if (event.senderFrame !== event.sender.mainFrame) throw new Error("Remote cancellation is only available to the main application frame.");
+    if (typeof requestId !== "string") return { cancelled: false };
+    const controller = remoteRequests.get(requestId);
+    if (!controller) return { cancelled: false };
+    controller.abort();
+    return { cancelled: true };
   });
   createWindow();
   app.on("activate", () => {

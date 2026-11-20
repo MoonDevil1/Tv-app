@@ -2,7 +2,7 @@ import Hls from "hls.js";
 import shaka from "shaka-player";
 import type { Channel } from "../types";
 import { waitForMediaEvent } from "./mediaEvents";
-import { licenseHeadersForRequest, shakaDrmConfiguration, streamHeadersForRequest } from "./streamPolicy";
+import { headersForRequestUris, licenseHeadersForRequest, shakaDrmConfiguration, streamHeadersForRequest } from "./streamPolicy";
 
 
 export type PlaybackState = "idle" | "loading" | "playing" | "error";
@@ -30,7 +30,7 @@ export class StreamEngine {
     this.options.onState?.("loading");
     try {
       await window.tvApp?.setStreamRequestContext({ originUrl: channel.url, headers: channel.headers });
-      if (channel.manifestType === "dash" || /\.mpd(?:$|[?#])/i.test(channel.url)) await this.playDash(video, channel, generation);
+      if (channel.manifestType === "dash" || /\.mpd(?:$|[?#])/i.test(channel.url)) await this.playDash(video, channel, generation, abortController.signal);
       else if (channel.manifestType === "progressive" || /\.(?:mp4|m4v|webm|ogg)(?:$|[?#])/i.test(channel.url)) await this.playProgressive(video, channel, abortController.signal);
       else await this.playHls(video, channel, generation, abortController.signal);
       if (generation !== this.generation) return;
@@ -53,7 +53,32 @@ export class StreamEngine {
     await this.play(this.video, refreshed);
     return true;
   }
-  private async playDash(video: HTMLVideoElement, channel: Channel, generation: number): Promise<void> {
+  private async loadDash(player: shaka.Player, url: string, signal: AbortSignal): Promise<void> {
+    await new Promise<void>((resolve, reject) => {
+      let timeout: ReturnType<typeof setTimeout> | undefined;
+      const cleanup = () => {
+        if (timeout) clearTimeout(timeout);
+        signal.removeEventListener("abort", onAbort);
+      };
+      const finish = (error?: Error) => {
+        cleanup();
+        if (error) reject(error); else resolve();
+      };
+      const onAbort = () => {
+        const error = new Error("DASH manifest load was cancelled.");
+        error.name = "AbortError";
+        finish(error);
+      };
+      timeout = setTimeout(() => finish(new Error("DASH manifest load timed out.")), 30_000);
+      signal.addEventListener("abort", onAbort, { once: true });
+      if (signal.aborted) { onAbort(); return; }
+      void Promise.resolve().then(() => player.load(url)).then(() => finish(), error =>
+        finish(error instanceof Error ? error : new Error(String(error)))
+      );
+    });
+  }
+
+  private async playDash(video: HTMLVideoElement, channel: Channel, generation: number, signal: AbortSignal): Promise<void> {
     shaka.polyfill.installAll();
     const player = new shaka.Player();
     this.shakaPlayer = player;
@@ -62,15 +87,11 @@ export class StreamEngine {
     if (drmConfiguration.drm) player.configure(drmConfiguration);
     player.getNetworkingEngine()?.registerRequestFilter((type, request) => {
       if (generation !== this.generation) return;
-      for (const uri of request.uris) {
-        try {
-          const streamHeaders = streamHeadersForRequest(channel, uri);
-          for (const [name, value] of Object.entries(streamHeaders)) request.headers[name] = value;
-          if (type === shaka.net.NetworkingEngine.RequestType.LICENSE) {
-            const licenseHeaders = licenseHeadersForRequest(channel.drm, uri);
-            for (const [name, value] of Object.entries(licenseHeaders)) request.headers[name] = value;
-          }
-        } catch { /* malformed or non-HTTP request URI */ }
+      const streamHeaders = headersForRequestUris(request.uris, uri => streamHeadersForRequest(channel, uri));
+      Object.assign(request.headers, streamHeaders);
+      if (type === shaka.net.NetworkingEngine.RequestType.LICENSE) {
+        const licenseHeaders = headersForRequestUris(request.uris, uri => licenseHeadersForRequest(channel.drm, uri));
+        Object.assign(request.headers, licenseHeaders);
       }
     });
     player.addEventListener("error", event => {
@@ -80,7 +101,15 @@ export class StreamEngine {
       if ([401, 403, 410].includes(Number(response?.status))) void this.tryRecover(channel, generation, new Error(`HTTP ${response?.status}`));
       else if (detail) this.options.onState?.("error", new Error(`Shaka playback error ${detail.code ?? "unknown"}`));
     });
-    await player.load(channel.url);
+    try {
+      await this.loadDash(player, channel.url, signal);
+    } catch (error) {
+      if (generation === this.generation && !signal.aborted && this.shakaPlayer === player) {
+        this.shakaPlayer = null;
+        await player.destroy().catch(() => undefined);
+      }
+      throw error;
+    }
   }
 
   private async playProgressive(video: HTMLVideoElement, channel: Channel, signal: AbortSignal): Promise<void> {
@@ -157,8 +186,11 @@ export class StreamEngine {
     const tracks = this.shakaPlayer?.getVariantTracks() ?? [];
     const unique = new Map<string, { id: number; label: string }>();
     tracks.forEach(track => {
-      const key = String(track.language || track.audioId || track.id);
-      if (!unique.has(key)) unique.set(key, { id: track.id, label: String(track.language || `Audio ${unique.size + 1}`) });
+      const key = JSON.stringify([track.audioId ?? "", track.language ?? "", track.audioRoles ?? [], track.channelsCount ?? 0, track.audioLabel ?? ""]);
+      if (!unique.has(key)) unique.set(key, {
+        id: track.id,
+        label: String(track.audioLabel || track.language || "Audio " + (unique.size + 1))
+      });
     });
     return [...unique.values()];
   }
@@ -167,7 +199,9 @@ export class StreamEngine {
     if (this.hls) this.hls.audioTrack = id;
     else {
       const track = this.shakaPlayer?.getVariantTracks().find(item => item.id === id);
-      if (track?.language) this.shakaPlayer?.selectAudioLanguage(String(track.language));
+      if (track?.language) this.shakaPlayer?.selectAudioLanguage(
+        String(track.language), track.audioRoles?.[0], track.channelsCount, track.audioLabel
+      );
     }
   }
 

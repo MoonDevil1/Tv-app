@@ -65,13 +65,17 @@ async function readLimited(response: Response, maxBytes: number): Promise<string
 
 export async function fetchRemoteText(
   input: string,
-  options: { headers?: Record<string, string>; timeoutMs?: number; maxBytes?: number } = {},
+  options: { headers?: Record<string, string>; timeoutMs?: number; maxBytes?: number; signal?: AbortSignal } = {},
   fetcher: FetchLike = (url, init) => fetch(url, init)
 ): Promise<RemoteTextResult> {
   let current = validateHttpUrl(input);
   const headers = safeHeaders(options.headers);
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(new Error("Remote request timed out.")), options.timeoutMs ?? 20000);
+  let timedOut = false;
+  const onCallerAbort = () => controller.abort();
+  if (options.signal?.aborted) controller.abort();
+  else options.signal?.addEventListener("abort", onCallerAbort, { once: true });
+  const timeout = setTimeout(() => { timedOut = true; controller.abort(); }, options.timeoutMs ?? 20000);
   try {
     for (let redirects = 0; ; redirects++) {
       const response = await fetcher(current.toString(), {
@@ -96,9 +100,16 @@ export async function fetchRemoteText(
       return { text, url: current.toString(), status: response.status };
     }
   } catch (error) {
+    if (timedOut) throw new Error("Remote request timed out.");
+    if (options.signal?.aborted) {
+      const cancelled = new Error("Remote request was cancelled.");
+      cancelled.name = "AbortError";
+      throw cancelled;
+    }
     if (controller.signal.aborted) throw new Error("Remote request timed out.");
     throw error instanceof Error ? error : new Error(String(error));
   } finally {
     clearTimeout(timeout);
+    options.signal?.removeEventListener("abort", onCallerAbort);
   }
 }

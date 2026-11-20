@@ -10,11 +10,25 @@ export class PlaylistManager {
   private fetchOptions = new Map<string, PlaylistFetchOptions>();
   private playlists = new Map<string, Playlist>();
   constructor(private readonly fetcher: Fetcher = async (input, init) => {
-    if (!window.tvApp?.fetchRemoteText) throw new Error("Remote playlist downloads are only available in the desktop app.");
-    const result = await window.tvApp.fetchRemoteText(input, init?.headers as Record<string, string> | undefined);
-    const response = new Response(result.text, { status: result.status });
-    Object.defineProperty(response, "url", { value: result.url });
-    return response;
+    const api = window.tvApp;
+    if (!api?.fetchRemoteText) throw new Error("Remote playlist downloads are only available in the desktop app.");
+    if (init?.signal?.aborted) {
+      const cancelled = new Error("Remote request was cancelled.");
+      cancelled.name = "AbortError";
+      throw cancelled;
+    }
+    const requestId = globalThis.crypto.randomUUID();
+    const cancel = () => { void api.cancelRemoteText(requestId); };
+    init?.signal?.addEventListener("abort", cancel, { once: true });
+    try {
+      const result = await api.fetchRemoteText(input, init?.headers as Record<string, string> | undefined, requestId);
+      const body = [204, 205, 304].includes(result.status) ? null : result.text;
+      const response = new Response(body, { status: result.status });
+      Object.defineProperty(response, "url", { value: result.url });
+      return response;
+    } finally {
+      init?.signal?.removeEventListener("abort", cancel);
+    }
   }) {}
 
   async load(source: string, options: AddPlaylistOptions = {}): Promise<Playlist> {

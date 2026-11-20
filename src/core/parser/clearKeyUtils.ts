@@ -13,9 +13,16 @@ export function hexToBase64Url(hex: string): string {
 }
 
 function normalizeBase64Url(value: string): string {
-  const clean = value.trim().replace(/=/g, "").replace(/\+/g, "-").replace(/\//g, "_");
-  if (!BASE64URL.test(clean)) throw new TypeError("Invalid base64url ClearKey value.");
+  const clean = value.trim().replace(/=+$/, "").replace(/\+/g, "-").replace(/\//g, "_");
+  if (!BASE64URL.test(clean) || clean.length !== 22) throw new TypeError("ClearKey values must encode exactly 128 bits.");
+  const standard = clean.replace(/-/g, "+").replace(/_/g, "/");
+  if (atob(standard + "==").length !== 16) throw new TypeError("ClearKey values must encode exactly 128 bits.");
   return clean;
+}
+
+function normalizeKeyMaterial(value: string): string {
+  const clean = value.trim().replace(/^0x/i, "");
+  return HEX_128.test(clean) ? hexToBase64Url(clean) : normalizeBase64Url(clean);
 }
 
 function parseJwk(raw: string): Record<string, string> {
@@ -33,7 +40,7 @@ function parseJwk(raw: string): Record<string, string> {
 
 export function parseClearKeys(input: string | Record<string, string>): Record<string, string> {
   if (typeof input !== "string") {
-    return Object.fromEntries(Object.entries(input).map(([kid, key]) => [normalizeBase64Url(kid), normalizeBase64Url(key)]));
+    return Object.fromEntries(Object.entries(input).map(([kid, key]) => [normalizeKeyMaterial(kid), normalizeKeyMaterial(String(key))]));
   }
   const raw = input.trim();
   if (!raw) return {};
@@ -54,8 +61,7 @@ export function parseClearKeys(input: string | Record<string, string>): Record<s
     const rawKey = pair.slice(separator + 1);
     const hexKid = rawKid.replace(/-/g, "");
     const hexKey = rawKey.replace(/-/g, "");
-    keys[HEX_128.test(hexKid) ? hexToBase64Url(hexKid) : normalizeBase64Url(rawKid)] =
-      HEX_128.test(hexKey) ? hexToBase64Url(hexKey) : normalizeBase64Url(rawKey);
+    keys[normalizeKeyMaterial(rawKid)] = normalizeKeyMaterial(rawKey);
   }
   return keys;
 }
@@ -64,7 +70,7 @@ export function createClearKeyDrm(type: string | undefined, license: string | un
   if (!type && !license) return undefined;
   const scheme = (type ?? "clearkey").toLowerCase();
   if (scheme.includes("widevine")) return license ? { scheme: "widevine", licenseUrl: license.trim() } : { scheme: "widevine" };
-  if (!scheme.includes("clearkey") && !license) return undefined;
+  if (!scheme.includes("clearkey")) return undefined;
   if (!license) return { scheme: "clearkey" };
   if (/^https?:\/\//i.test(license.trim())) return { scheme: "clearkey", licenseUrl: license.trim(), rawLicenseKey: license };
   return { scheme: "clearkey", clearKeys: parseClearKeys(license), rawLicenseKey: license };

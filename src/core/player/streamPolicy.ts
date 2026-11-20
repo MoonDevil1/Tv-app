@@ -31,6 +31,17 @@ export function licenseHeadersForRequest(drm: DrmConfig | undefined, requestUrl:
   return drm?.licenseUrl && originOf(drm.licenseUrl) === originOf(requestUrl) ? safeHeaders(drm.licenseHeaders) : {};
 }
 
+export function headersForRequestUris(
+  uris: readonly string[],
+  resolve: (uri: string) => StreamHeaders
+): StreamHeaders {
+  if (!uris.length) return {};
+  const candidates = uris.map(resolve);
+  const signature = (headers: StreamHeaders) => JSON.stringify(Object.entries(headers).sort(([a], [b]) => a.localeCompare(b)));
+  const first = signature(candidates[0]);
+  return candidates.every(candidate => signature(candidate) === first) ? candidates[0] : {};
+}
+
 export function shakaDrmConfiguration(drm: DrmConfig | undefined): { drm?: { clearKeys?: Record<string, string>; servers?: Record<string, string> } } {
   if (!drm) return {};
   if (drm.scheme === "clearkey" && drm.clearKeys && Object.keys(drm.clearKeys).length) {
