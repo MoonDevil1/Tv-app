@@ -39,9 +39,6 @@ export class StreamEngine {
     }
   }
 
-  private originHost(channel: Channel): string {
-    try { return new URL(channel.url).hostname.toLowerCase(); } catch { return ""; }
-  }
   private async tryRecover(channel: Channel, generation: number, error: Error): Promise<boolean> {
     if (!this.options.onRecover || this.recovered.has(channel.id) || !/401|403|410|expired|forbidden|unauthori[sz]ed/i.test(error.message)) return false;
     this.recovered.add(channel.id);
@@ -61,7 +58,6 @@ export class StreamEngine {
       if (generation !== this.generation) return;
       for (const uri of request.uris) {
         try {
-          const requestHost = new URL(uri).hostname.toLowerCase();
           const streamHeaders = streamHeadersForRequest(channel, uri);
           for (const [name, value] of Object.entries(streamHeaders)) request.headers[name] = value;
           if (type === shaka.net.NetworkingEngine.RequestType.LICENSE) {
