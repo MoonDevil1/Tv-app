@@ -34,7 +34,6 @@ function createFixtures() {
 const page = '<!doctype html><html><head><meta charset="utf-8"></head><body><video id="video" muted playsinline></video><script type="module" src="/playback-engine.js"></script></body></html>';
 
 function startServer() {
-  const hlsEntry = require.resolve("hls.js");
   const engineBundle = path.resolve("tests/.playback-dist/playback-engine.js");
   return createServer((req, res) => {
     const pathname = decodeURIComponent(new URL(req.url, "http://127.0.0.1").pathname);
@@ -44,7 +43,7 @@ function startServer() {
     else if (pathname.startsWith("/hls/")) file = path.join(hlsDir, path.basename(pathname));
     else if (pathname.startsWith("/dash/")) file = path.join(dashDir, path.basename(pathname));
     if (!file || !fs.existsSync(file) || !fs.statSync(file).isFile()) { res.writeHead(404); res.end("not found"); return; }
-    const type = pathname === "/hls.js" || pathname === "/shaka.js" ? "application/javascript" : file.endsWith(".m3u8") ? "application/vnd.apple.mpegurl" : file.endsWith(".mpd") ? "application/dash+xml" :
+    const type = file.endsWith(".js") ? "application/javascript" : file.endsWith(".m3u8") ? "application/vnd.apple.mpegurl" : file.endsWith(".mpd") ? "application/dash+xml" :
       file.endsWith(".ts") ? "video/mp2t" : file.endsWith(".m4s") || file.endsWith(".mp4") ? "video/mp4" : "application/octet-stream";
     res.writeHead(200, { "Content-Type": type, "Access-Control-Allow-Origin": "*", "Cache-Control": "no-store" });
     fs.createReadStream(file).pipe(res);
