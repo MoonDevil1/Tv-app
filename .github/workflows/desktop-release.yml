@@ -56,6 +56,8 @@ jobs:
         run: npm run typecheck
       - name: Unit tests
         run: npm test
+      - name: Build renderer and Electron processes
+        run: npm run build
       - name: Build unpacked Windows app
         if: runner.os == 'Windows'
         run: npx electron-builder --win --dir --publish never
@@ -85,7 +87,13 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: TG-IPTV-${{ matrix.platform }}
-          path: release/*
+          path: |
+            release/*.exe
+            release/*.dmg
+            release/*.zip
+            release/*.AppImage
+            release/*.yml
+            release/*.blockmap
           if-no-files-found: error
           retention-days: 14
 
