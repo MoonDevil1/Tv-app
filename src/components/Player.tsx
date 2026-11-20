@@ -48,11 +48,15 @@ export function Player({ channel, channels, onClose, onChangeChannel, onRecover 
     const video = videoRef.current;
     if (!video) return;
     setError(""); setState("loading"); setPlaying(false);
+    setQuality([]); setAudio([]); setSubtitles([]);
+    setSelectedQuality(-1); setSelectedAudio(-1); setSelectedSubtitle(-1);
+    setMenu(null); setCurrentTime(0); setDuration(0);
+    setLive(!(channel.manifestType === "progressive" || /\.(?:mp4|m4v|mkv|webm)(?:$|[?#])/i.test(channel.url)));
     void engine.play(video, channel).then(() => {
       setQuality(engine.getQualityOptions());
       setAudio(engine.getAudioOptions());
       setSubtitles(engine.getSubtitleOptions());
-      setLive(!/\.mp4(?:$|[?#])|\.mkv(?:$|[?#])/i.test(channel.url));
+      setLive(!(channel.manifestType === "progressive" || /\.(?:mp4|m4v|mkv|webm)(?:$|[?#])/i.test(channel.url)));
     }).catch(err => setError(err instanceof Error ? err.message : String(err)));
     return () => { void engine.destroy(); engineRef.current = null; };
   }, [engine, channel.id, channel.url]);
@@ -64,20 +68,24 @@ export function Player({ channel, channels, onClose, onChangeChannel, onRecover 
       setCurrentTime(video.currentTime || 0);
       setDuration(Number.isFinite(video.duration) ? video.duration : 0);
       setPlaying(!video.paused);
+      if (Number.isFinite(video.duration) && video.duration > 0) setLive(false);
+      else if (video.duration === Infinity) setLive(true);
     };
+    const volumeChange = () => { setMuted(video.muted); setVolume(video.volume); };
     video.volume = 0.85;
     video.addEventListener("loadedmetadata", update);
     video.addEventListener("timeupdate", update);
     video.addEventListener("durationchange", update);
     video.addEventListener("play", update);
     video.addEventListener("pause", update);
-    video.addEventListener("volumechange", () => { setMuted(video.muted); setVolume(video.volume); });
+    video.addEventListener("volumechange", volumeChange);
     return () => {
       video.removeEventListener("loadedmetadata", update);
       video.removeEventListener("timeupdate", update);
       video.removeEventListener("durationchange", update);
       video.removeEventListener("play", update);
       video.removeEventListener("pause", update);
+      video.removeEventListener("volumechange", volumeChange);
     };
   }, []);
 
@@ -87,6 +95,8 @@ export function Player({ channel, channels, onClose, onChangeChannel, onRecover 
     setQuality(active.getQualityOptions());
     setAudio(active.getAudioOptions());
     setSubtitles(active.getSubtitleOptions());
+    setSelectedAudio(active.getSelectedAudioId());
+    setSelectedSubtitle(active.getSelectedSubtitleId());
   }, []);
 
   const showHud = useCallback(() => {

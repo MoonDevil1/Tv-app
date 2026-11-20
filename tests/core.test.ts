@@ -36,6 +36,10 @@ test("converts 128-bit hex values and round-trips ClearKey JWK", () => {
   assert.equal(hexToBase64Url(KID), "ABEiM0RVZneImaq7zN3u_w");
   const keys = parseClearKeys(`${KID}:${KEY}`);
   assert.equal(Object.keys(keys).length, 1);
+  const hexMap = parseClearKeys({ [KID]: KEY });
+  assert.equal(hexMap[hexToBase64Url(KID)], hexToBase64Url(KEY));
+  assert.throws(() => parseClearKeys({ [KID]: "short" }));
+  assert.throws(() => parseClearKeys(`${hexToBase64Url(KID)}:short`));
   const jwk = clearKeyJwk(keys);
   assert.equal(parseClearKeys(jwk)[Object.keys(keys)[0]], Object.values(keys)[0]);
 });
@@ -46,6 +50,7 @@ test("accepts standard JWK data URIs, remote license URLs and Widevine metadata"
   assert.equal(Object.keys(parseClearKeys(`data:application/json,${encodeURIComponent(jwk)}`)).length, 1);
   assert.equal(createClearKeyDrm("clearkey", "https://license.example/key")?.licenseUrl, "https://license.example/key");
   assert.equal(createClearKeyDrm("widevine", "https://license.example/wv")?.scheme, "widevine");
+  assert.equal(createClearKeyDrm("playready", "https://license.example/pr"), undefined);
 });
 
 test("parses JSON playlist envelopes, IPTV aliases, headers and relative stream URLs", () => {
@@ -137,7 +142,7 @@ test("parses XMLTV timestamps with timezone offsets and selects now/next program
 });
 
 
-import { licenseHeadersForRequest, shakaDrmConfiguration, streamHeadersForRequest } from "../src/core/player/streamPolicy";
+import { headersForRequestUris, licenseHeadersForRequest, shakaDrmConfiguration, streamHeadersForRequest } from "../src/core/player/streamPolicy";
 
 test("playback request policy scopes stream headers to the manifest origin", () => {
   const channel = {
@@ -151,6 +156,21 @@ test("playback request policy scopes stream headers to the manifest origin", () 
   assert.deepEqual(streamHeadersForRequest(channel, "https://cdn.example/segment.ts"), {});
   assert.deepEqual(streamHeadersForRequest(channel, "http://origin.example/segment.ts"), {});
   assert.deepEqual(streamHeadersForRequest(channel, "file:///tmp/segment.ts"), {});
+});
+
+test("request headers are not leaked across Shaka fallback origins", () => {
+  const channel = {
+    id: "one", name: "One", url: "https://origin.example/live.mpd", group: "Live",
+    headers: { Authorization: "Bearer private" }, rawAttributes: {}
+  };
+  assert.deepEqual(headersForRequestUris(
+    ["https://origin.example/live.mpd", "https://origin.example/fallback.mpd"],
+    uri => streamHeadersForRequest(channel, uri)
+  ), { Authorization: "Bearer private" });
+  assert.deepEqual(headersForRequestUris(
+    ["https://origin.example/live.mpd", "https://cdn.example/fallback.mpd"],
+    uri => streamHeadersForRequest(channel, uri)
+  ), {});
 });
 
 test("license headers are sent only to the configured license server", () => {

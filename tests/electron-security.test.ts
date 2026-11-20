@@ -112,3 +112,19 @@ test("remote fetch enforces redirect count and sanitizes dangerous headers", asy
   }), /too many times/);
   assert.equal(calls, 6);
 });
+
+
+test("remote fetch propagates caller cancellation and reports AbortError", async () => {
+  const controller = new AbortController();
+  let started = false;
+  const pending = fetchRemoteText("https://provider.example/slow", { signal: controller.signal }, async (_url, init) => {
+    started = true;
+    return new Promise((_resolve, reject) => {
+      init.signal?.addEventListener("abort", () => reject(new Error("aborted")), { once: true });
+    });
+  });
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(started, true);
+  controller.abort();
+  await assert.rejects(pending, error => error instanceof Error && error.name === "AbortError");
+});
