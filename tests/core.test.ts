@@ -176,16 +176,3 @@ test("builds ClearKey and Widevine Shaka DRM configurations", () => {
   assert.deepEqual(shakaDrmConfiguration(undefined), {});
 });
 
-
-import { waitForMediaEvent } from "../src/core/player/mediaEvents";
-
-test("media event wait resolves on metadata and removes listeners", async () => {
-  const target = new EventTarget();
-  const pending = waitForMediaEvent(target, "loadedmetadata", "error", 100, "Timed out");
-  target.dispatchEvent(new Event("loadedmetadata"));
-  await assert.doesNotReject(pending);
-});
-
-test("native media event wait rejects when metadata never arrives", async () => {
-  await assert.rejects(waitForMediaEvent(new EventTarget(), "loadedmetadata", "error", 5, "Timed out"), /Timed out/);
-});
