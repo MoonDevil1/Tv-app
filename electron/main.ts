@@ -2,6 +2,7 @@ import { app, BrowserWindow, ipcMain, session } from "electron";
 import { join } from "node:path";
 import { registerHeaderProxy, setActiveStreamContext, type StreamRequestContext } from "./net/headerProxy";
 import { registerAutoUpdates } from "./updater";
+import { fetchRemoteText } from "./net/remoteFetch";
 
 let mainWindow: BrowserWindow | null = null;
 
@@ -45,6 +46,13 @@ app.whenReady().then(() => {
     return { active: context !== null };
   });
   ipcMain.handle("app:get-platform", () => process.platform);
+  ipcMain.handle("net:fetch-remote-text", async (_event, input: unknown, headers?: unknown) => {
+    if (typeof input !== "string" || input.length > 8192) throw new TypeError("Invalid remote URL.");
+    if (headers !== undefined && (typeof headers !== "object" || headers === null || Array.isArray(headers))) {
+      throw new TypeError("Invalid remote request headers.");
+    }
+    return fetchRemoteText(input, { headers: headers as Record<string, string> | undefined });
+  });
   createWindow();
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
