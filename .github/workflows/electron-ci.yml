@@ -26,6 +26,12 @@ jobs:
       - name: Install Linux packaging dependencies
         if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y libnss3 libatk-bridge2.0-0 libgtk-3-0 libgbm1 libasound2t64 xvfb ffmpeg
+      - name: Install pinned Shaka Packager
+        if: runner.os == 'Linux'
+        run: |
+          curl -fsSL https://github.com/shaka-project/shaka-packager/releases/download/v3.9.3/packager-linux-x64 -o /tmp/packager
+          echo "7a3cf35ad146fd7810b4ededab363c8a3e6121d1b2c8391f53863126186f9ee6  /tmp/packager" | sha256sum -c -
+          chmod +x /tmp/packager
       - name: Install dependencies
         run: npm install --no-audit --no-fund
       - name: Type-check
@@ -37,8 +43,10 @@ jobs:
       - name: Bundle StreamEngine playback integration
         if: runner.os == 'Linux'
         run: npx vite build --config tests/playback.vite.config.ts
-      - name: Real HLS and DASH playback through StreamEngine (Linux)
+      - name: Real HLS, DASH and encrypted ClearKey playback through StreamEngine (Linux)
         if: runner.os == 'Linux'
+        env:
+          SHAKA_PACKAGER_BIN: /tmp/packager
         run: xvfb-run -a npx electron --no-sandbox tests/playback-integration.cjs
       - name: Build unpacked Windows app
         if: runner.os == 'Windows'

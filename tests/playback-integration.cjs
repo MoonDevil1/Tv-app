@@ -11,12 +11,14 @@ app.commandLine.appendSwitch("disable-gpu");
 const temp = fs.mkdtempSync(path.join(os.tmpdir(), "tg-iptv-playback-"));
 const hlsDir = path.join(temp, "hls");
 const dashDir = path.join(temp, "dash");
+const encryptedDashDir = path.join(temp, "dash-clearkey");
 const videoDir = path.join(hlsDir, "video");
 const audioEnDir = path.join(hlsDir, "audio-en");
 const audioHiDir = path.join(hlsDir, "audio-hi");
 const subtitlesDir = path.join(hlsDir, "subs-en");
 fs.mkdirSync(hlsDir);
 fs.mkdirSync(dashDir);
+fs.mkdirSync(encryptedDashDir);
 fs.mkdirSync(videoDir);
 fs.mkdirSync(audioEnDir);
 fs.mkdirSync(audioHiDir);
@@ -26,6 +28,13 @@ function runFfmpeg(args) {
   const result = spawnSync("ffmpeg", ["-hide_banner", "-loglevel", "error", "-y", ...args], { encoding: "utf8" });
   if (result.error) throw result.error;
   if (result.status !== 0) throw new Error("ffmpeg failed: " + result.stderr);
+}
+
+function runPackager(args) {
+  const binary = process.env.SHAKA_PACKAGER_BIN || "packager";
+  const result = spawnSync(binary, args, { encoding: "utf8" });
+  if (result.error) throw result.error;
+  if (result.status !== 0) throw new Error("Shaka Packager failed: " + result.stderr);
 }
 
 function createFixtures() {
@@ -50,6 +59,18 @@ function createFixtures() {
     '#EXT-X-STREAM-INF:BANDWIDTH=400000,RESOLUTION=320x180,CODECS="avc1.42c00c",AUDIO="audio",SUBTITLES="subs"\nvideo/index.m3u8\n');
   runFfmpeg(["-i", source, "-c", "copy", "-f", "dash", "-seg_duration", "1", "-use_template", "1",
     "-use_timeline", "1", path.join(dashDir, "manifest.mpd")]);
+  const kid = "00112233445566778899aabbccddeeff";
+  const key = "ffeeddccbbaa99887766554433221100";
+  runPackager([
+    `in=${source},stream=audio,output=${path.join(encryptedDashDir, "audio.mp4")}`,
+    `in=${source},stream=video,output=${path.join(encryptedDashDir, "video.mp4")}`,
+    "--enable_raw_key_encryption", "--keys", `label=:key_id=${kid}:key=${key}`,
+    "--protection_scheme=cenc", "--clear_lead=0", "--mpd_output", path.join(encryptedDashDir, "manifest.mpd")
+  ]);
+  const encryptedMpd = fs.readFileSync(path.join(encryptedDashDir, "manifest.mpd"), "utf8");
+  if (!/schemeIdUri="urn:mpeg:dash:mp4protection:2011"[^>]*value="cenc"/i.test(encryptedMpd) || !/default_KID/i.test(encryptedMpd)) {
+    throw new Error("Shaka Packager did not produce a CENC-protected DASH manifest.");
+  }
 }
 
 const page = '<!doctype html><html><head><meta charset="utf-8"></head><body><video id="video" muted playsinline></video><script type="module" src="/playback-engine.js"></script></body></html>';
@@ -62,6 +83,7 @@ function startServer() {
     if (pathname === "/") { res.writeHead(200, { "Content-Type": "text/html" }); res.end(page); return; }
     if (pathname === "/playback-engine.js") file = engineBundle;
     else if (pathname.startsWith("/hls/")) file = path.join(hlsDir, pathname.slice("/hls/".length));
+    else if (pathname.startsWith("/dash-clearkey/")) file = path.join(encryptedDashDir, path.basename(pathname));
     else if (pathname.startsWith("/dash/")) file = path.join(dashDir, path.basename(pathname));
     if (!file || (file !== engineBundle && !file.startsWith(temp + path.sep)) || !fs.existsSync(file) || !fs.statSync(file).isFile()) { res.writeHead(404); res.end("not found"); return; }
     const type = file.endsWith(".js") ? "application/javascript" : file.endsWith(".m3u8") ? "application/vnd.apple.mpegurl" : file.endsWith(".mpd") ? "application/dash+xml" : file.endsWith(".vtt") ? "text/vtt" :
@@ -84,10 +106,11 @@ app.whenReady().then(async () => {
     const results = await window.webContents.executeJavaScript(`(async () => {
       const hls = await window.runStreamEngineTest("/hls/master.m3u8", "hls");
       const dash = await window.runStreamEngineTest("/dash/manifest.mpd", "dash");
-      return [{ format: "HLS", ...hls }, { format: "DASH", ...dash }];
+      const clearKey = await window.runStreamEngineTest("/dash-clearkey/manifest.mpd", "dash", true);
+      return [{ format: "HLS", ...hls }, { format: "DASH", ...dash }, { format: "DASH ClearKey", ...clearKey }];
     })()`);
     for (const result of results) console.log(JSON.stringify(result));
-    app.exit(results.length === 2 && results.every(result => result.state === "playing" && result.seconds >= 1.2) ? 0 : 1);
+    app.exit(results.length === 3 && results.every(result => result.state === "playing" && result.seconds >= 1.2) && results[2].videoWidth === 320 ? 0 : 1);
   } catch (error) {
     console.error(error);
     app.exit(1);
