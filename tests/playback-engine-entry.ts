@@ -46,7 +46,7 @@ window.runStreamEngineTest = async (url, manifestType) => {
       const subtitleDeadline = Date.now() + 5000;
       while (!cueText && Date.now() < subtitleDeadline) {
         for (const track of Array.from(video.textTracks)) {
-          if (track.cues?.length) cueText = track.cues[0].text;
+          if (track.cues?.length) cueText = (track.cues[0] as VTTCue).text;
         }
         if (!cueText) await new Promise(resolve => setTimeout(resolve, 100));
       }
