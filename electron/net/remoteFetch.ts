@@ -18,7 +18,7 @@ function validateHttpUrl(value: string): URL {
   let url: URL;
   try { url = new URL(value); } catch { throw new Error("A valid HTTP or HTTPS URL is required."); }
   if (url.protocol !== "http:" && url.protocol !== "https:") {
-    throw new Error("Only HTTP and HTTPS remote sources are supported.");
+    throw new Error("Only HTTP or HTTPS URLs are supported.");
   }
   if (url.username || url.password) throw new Error("URLs containing embedded credentials are not supported.");
   return url;
