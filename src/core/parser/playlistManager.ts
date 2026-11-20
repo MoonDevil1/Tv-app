@@ -18,7 +18,7 @@ export class PlaylistManager {
       throw cancelled;
     }
     const requestId = globalThis.crypto.randomUUID();
-    const cancel = () => { void api.cancelRemoteText(requestId); };
+    const cancel = () => { void api.cancelRemoteText(requestId).catch(() => undefined); };
     init?.signal?.addEventListener("abort", cancel, { once: true });
     try {
       const result = await api.fetchRemoteText(input, init?.headers as Record<string, string> | undefined, requestId);

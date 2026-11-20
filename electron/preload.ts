@@ -3,7 +3,7 @@ import type { StreamRequestContext } from "./net/headerProxy";
 
 contextBridge.exposeInMainWorld("tvApp", {
   platform: (): Promise<string> => ipcRenderer.invoke("app:get-platform"),
-  fetchRemoteText: (url: string, headers: Record<string, string> | undefined, requestId: string): Promise<{ text: string; url: string; status: number }> =>
+  fetchRemoteText: (url: string, headers?: Record<string, string>, requestId = globalThis.crypto.randomUUID()): Promise<{ text: string; url: string; status: number }> =>
     ipcRenderer.invoke("net:fetch-remote-text", url, headers, requestId),
   cancelRemoteText: (requestId: string): Promise<{ cancelled: boolean }> =>
     ipcRenderer.invoke("net:cancel-remote-text", requestId),
