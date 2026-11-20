@@ -97,6 +97,6 @@ test("remote fetch enforces redirect count and sanitizes dangerous headers", asy
     assert.equal(headers.get("host"), null);
     assert.equal(headers.get("x-safe"), "ok");
     return new Response(null, { status: 302, headers: { location: `/next-${calls}` } });
-  }), /too many redirects/);
+  }), /too many times/);
   assert.equal(calls, 6);
 });
