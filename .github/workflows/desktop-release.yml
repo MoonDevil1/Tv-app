@@ -58,6 +58,8 @@ jobs:
         run: npm run typecheck
       - name: Unit tests
         run: npm test
+      - name: Build renderer and Electron processes
+        run: npm run build
       - name: Build unpacked Windows app
         if: runner.os == 'Windows'
         run: npx electron-builder --win --dir --publish never
