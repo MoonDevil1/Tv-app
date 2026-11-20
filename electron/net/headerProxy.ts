@@ -31,7 +31,7 @@ export function setActiveStreamContext(context: StreamRequestContext | null): vo
   for (const [rawName, rawValue] of Object.entries(context.headers)) {
     const name = rawName.trim();
     const value = String(rawValue).trim();
-    if (!name || name.length > 128 || value.length > 8192 || /[\\r\\n:]/.test(name) || /[\\r\\n]/.test(value)) continue;
+    if (!name || name.length > 128 || value.length > 8192 || /[\r\n:]/.test(name) || /[\r\n]/.test(value)) continue;
     if (BLOCKED_HEADERS.has(name.toLowerCase()) || /^proxy-|^sec-/i.test(name)) continue;
     headers[name] = value;
   }
