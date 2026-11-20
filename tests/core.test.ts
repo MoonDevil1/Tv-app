@@ -134,3 +134,46 @@ test("parses XMLTV timestamps with timezone offsets and selects now/next program
   assert.equal(result.current?.title, "Current");
   assert.equal(result.next?.title, "Next");
 });
+
+
+import { licenseHeadersForRequest, shakaDrmConfiguration, streamHeadersForRequest } from "../src/core/player/streamPolicy";
+
+test("playback request policy scopes stream headers to the manifest origin", () => {
+  const channel = {
+    id: "one", name: "One", url: "https://origin.example/live/master.m3u8", group: "Live",
+    headers: { Authorization: "Bearer stream", Referer: "https://origin.example/", "X-Token": "abc", Cookie: "sid=secret" },
+    rawAttributes: {}
+  };
+  assert.deepEqual(streamHeadersForRequest(channel, "https://origin.example/live/segment.ts"), {
+    Authorization: "Bearer stream", "X-Token": "abc"
+  });
+  assert.deepEqual(streamHeadersForRequest(channel, "https://cdn.example/segment.ts"), {});
+  assert.deepEqual(streamHeadersForRequest(channel, "http://origin.example/segment.ts"), {
+    Authorization: "Bearer stream", "X-Token": "abc"
+  });
+  assert.deepEqual(streamHeadersForRequest(channel, "file:///tmp/segment.ts"), {});
+});
+
+test("license headers are sent only to the configured license server", () => {
+  const drm = {
+    scheme: "widevine" as const, licenseUrl: "https://license.example/wv",
+    licenseHeaders: { Authorization: "Bearer license", "X-License": "yes" }
+  };
+  assert.deepEqual(licenseHeadersForRequest(drm, "https://license.example/wv"), {
+    Authorization: "Bearer license", "X-License": "yes"
+  });
+  assert.deepEqual(licenseHeadersForRequest(drm, "https://cdn.example/wv"), {});
+  assert.deepEqual(licenseHeadersForRequest(drm, "https://license.example.evil.test/wv"), {});
+});
+
+test("builds ClearKey and Widevine Shaka DRM configurations", () => {
+  const keys = { "ABEiM0RVZneImaq7zN3u_w": "ABEiM0RVZneImaq7zN3u_w" };
+  assert.deepEqual(shakaDrmConfiguration({ scheme: "clearkey", clearKeys: keys }), { drm: { clearKeys: keys } });
+  assert.deepEqual(shakaDrmConfiguration({ scheme: "clearkey", licenseUrl: "https://license.example/ck" }), {
+    drm: { servers: { "org.w3.clearkey": "https://license.example/ck" } }
+  });
+  assert.deepEqual(shakaDrmConfiguration({ scheme: "widevine", licenseUrl: "https://license.example/wv" }), {
+    drm: { servers: { "com.widevine.alpha": "https://license.example/wv" } }
+  });
+  assert.deepEqual(shakaDrmConfiguration(undefined), {});
+});
