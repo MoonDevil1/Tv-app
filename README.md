@@ -10,15 +10,15 @@ Choose the download for your operating system. All installers below are attached
 
 | Package | Download | Notes |
 |---|---|---|
-| Windows Installer | [TG.IPTV.Setup.2.0.1.exe](https://github.com/MoonDevil1/Tv-app/releases/download/v2.0.1/TG.IPTV.Setup.2.0.1.exe) | Recommended; installs the app and supports the configured updater |
-| Portable | [TG.IPTV.2.0.1.exe](https://github.com/MoonDevil1/Tv-app/releases/download/v2.0.1/TG.IPTV.2.0.1.exe) | Run without installation; update manually |
+| Windows Installer (x64) | [Download `.exe` — 135.9 MB](https://github.com/MoonDevil1/Tv-app/releases/download/v2.0.1/TG.IPTV.Setup.2.0.1.exe) | Recommended; installs the app and supports the configured updater |
+| Portable (x64) | [Download `.exe` — 112.8 MB](https://github.com/MoonDevil1/Tv-app/releases/download/v2.0.1/TG.IPTV.2.0.1.exe) | Run without installation; update manually |
 
 ### macOS
 
 | Package | Download | Notes |
 |---|---|---|
-| Apple Silicon DMG | [TG.IPTV-2.0.1-arm64.dmg](https://github.com/MoonDevil1/Tv-app/releases/download/v2.0.1/TG.IPTV-2.0.1-arm64.dmg) | For Apple Silicon Macs (M1, M2, M3, M4) |
-| Apple Silicon ZIP | [TG.IPTV-2.0.1-arm64-mac.zip](https://github.com/MoonDevil1/Tv-app/releases/download/v2.0.1/TG.IPTV-2.0.1-arm64-mac.zip) | ZIP distribution for Apple Silicon Macs |
+| Apple Silicon DMG (ARM64) | [Download `.dmg` — 133.7 MB](https://github.com/MoonDevil1/Tv-app/releases/download/v2.0.1/TG.IPTV-2.0.1-arm64.dmg) | Installer for Apple Silicon Macs (M1, M2, M3, M4) |
+| Apple Silicon ZIP (ARM64) | [Download `.zip` — 143.8 MB](https://github.com/MoonDevil1/Tv-app/releases/download/v2.0.1/TG.IPTV-2.0.1-arm64-mac.zip) | ZIP distribution for Apple Silicon Macs |
 
 > Intel Mac (x64) builds are not included in v2.0.1. macOS automatic updates require a Developer ID-signed and notarized build.
 
@@ -26,7 +26,7 @@ Choose the download for your operating system. All installers below are attached
 
 | Package | Download | Notes |
 |---|---|---|
-| AppImage (x64) | [TG.IPTV-2.0.1.AppImage](https://github.com/MoonDevil1/Tv-app/releases/download/v2.0.1/TG.IPTV-2.0.1.AppImage) | Portable Linux application image |
+| AppImage (x64) | [Download `.AppImage` — 123.5 MB](https://github.com/MoonDevil1/Tv-app/releases/download/v2.0.1/TG.IPTV-2.0.1.AppImage) | Portable Linux application image; mark it executable before launching |
 
 For checksums, update metadata and any additional release files, see the [complete v2.0.1 release](https://github.com/MoonDevil1/Tv-app/releases/tag/v2.0.1).
 
