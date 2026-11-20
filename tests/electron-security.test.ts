@@ -57,3 +57,46 @@ test("Electron stream context rejects non-HTTP origins and sanitizes header inje
   assert.deepEqual(sanitized, { Cookie: "sid=1" });
   setActiveStreamContext(null);
 });
+
+
+import { fetchRemoteText } from "../electron/net/remoteFetch";
+
+test("remote fetch accepts HTTP(S), follows safe redirects and strips credentials across origins", async () => {
+  const requests: Array<{ url: string; authorization: string | null }> = [];
+  const result = await fetchRemoteText("https://provider.example/list.m3u", {
+    headers: { Authorization: "Bearer private", Referer: "https://provider.example/" }
+  }, async (url, init) => {
+    const headers = new Headers(init.headers);
+    requests.push({ url, authorization: headers.get("authorization") });
+    if (requests.length === 1) return new Response(null, { status: 302, headers: { location: "https://cdn.example/final.m3u" } });
+    return new Response("#EXTM3U\\n#EXTINF:-1,News\\nhttps://cdn.example/news.m3u8", { status: 200 });
+  });
+  assert.equal(result.url, "https://cdn.example/final.m3u");
+  assert.match(result.text, /News/);
+  assert.equal(requests[0].authorization, "Bearer private");
+  assert.equal(requests[1].authorization, null);
+});
+
+test("remote fetch rejects unsafe schemes, excessive redirects and oversized responses", async () => {
+  await assert.rejects(fetchRemoteText("file:///etc/passwd"), /HTTP or HTTPS/);
+  await assert.rejects(fetchRemoteText("https://provider.example/start", {}, async () =>
+    new Response(null, { status: 302, headers: { location: "file:///etc/passwd" } })
+  ), /HTTP or HTTPS/);
+  await assert.rejects(fetchRemoteText("https://provider.example/large", { maxBytes: 4 }, async () =>
+    new Response("12345", { status: 200 })
+  ), /too large/);
+});
+
+test("remote fetch enforces redirect count and sanitizes dangerous headers", async () => {
+  let calls = 0;
+  await assert.rejects(fetchRemoteText("https://provider.example/0", {
+    headers: { Host: "evil.example", "X-Bad\\r\\nInjected": "x", "X-Safe": "ok" }
+  }, async (_url, init) => {
+    calls++;
+    const headers = new Headers(init.headers);
+    assert.equal(headers.get("host"), null);
+    assert.equal(headers.get("x-safe"), "ok");
+    return new Response(null, { status: 302, headers: { location: `/next-${calls}` } });
+  }), /too many redirects/);
+  assert.equal(calls, 6);
+});
