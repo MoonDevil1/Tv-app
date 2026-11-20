@@ -186,10 +186,10 @@ export class StreamEngine {
     const tracks = this.shakaPlayer?.getVariantTracks() ?? [];
     const unique = new Map<string, { id: number; label: string }>();
     tracks.forEach(track => {
-      const key = JSON.stringify([track.audioId ?? "", track.language ?? "", track.audioRoles ?? [], track.channelsCount ?? 0, track.audioLabel ?? ""]);
+      const key = JSON.stringify([track.audioId ?? "", track.language ?? "", track.audioRoles ?? [], track.channelsCount ?? 0, track.label ?? ""]);
       if (!unique.has(key)) unique.set(key, {
         id: track.id,
-        label: String(track.audioLabel || track.language || "Audio " + (unique.size + 1))
+        label: String(track.label || track.language || "Audio " + (unique.size + 1))
       });
     });
     return [...unique.values()];
@@ -200,7 +200,7 @@ export class StreamEngine {
     else {
       const track = this.shakaPlayer?.getVariantTracks().find(item => item.id === id);
       if (track?.language) this.shakaPlayer?.selectAudioLanguage(
-        String(track.language), track.audioRoles?.[0], track.channelsCount, track.audioLabel
+        String(track.language), track.audioRoles?.[0], track.channelsCount ?? undefined, track.label ?? undefined
       );
     }
   }
