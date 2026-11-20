@@ -1,25 +1,12 @@
 import Hls from "hls.js";
 import shaka from "shaka-player";
 import type { Channel } from "../types";
+import { waitForMediaEvent } from "./mediaEvents";
 import { licenseHeadersForRequest, shakaDrmConfiguration, streamHeadersForRequest } from "./streamPolicy";
 
 
 export type PlaybackState = "idle" | "loading" | "playing" | "error";
 
-function waitForMediaEvent(target: EventTarget, successEvent: string, errorEvent: string, timeoutMs: number, message: string): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const cleanup = () => {
-      clearTimeout(timeout);
-      target.removeEventListener(successEvent, onSuccess);
-      target.removeEventListener(errorEvent, onError);
-    };
-    const onSuccess = () => { cleanup(); resolve(); };
-    const onError = () => { cleanup(); reject(new Error(message)); };
-    const timeout = setTimeout(() => { cleanup(); reject(new Error(message)); }, timeoutMs);
-    target.addEventListener(successEvent, onSuccess, { once: true });
-    target.addEventListener(errorEvent, onError, { once: true });
-  });
-}
 export interface StreamEngineOptions {
   onState?: (state: PlaybackState, error?: Error) => void;
   onRecover?: (channel: Channel) => Promise<Channel | null>;
@@ -31,18 +18,21 @@ export class StreamEngine {
   private video: HTMLVideoElement | null = null;
   private generation = 0;
   private recovered = new Set<string>();
+  private mediaAbort: AbortController | null = null;
   constructor(private readonly options: StreamEngineOptions = {}) {}
 
   async play(video: HTMLVideoElement, channel: Channel): Promise<void> {
     await this.stop();
     const generation = ++this.generation;
+    const abortController = new AbortController();
+    this.mediaAbort = abortController;
     this.video = video;
-    await window.tvApp?.setStreamRequestContext({ originUrl: channel.url, headers: channel.headers });
     this.options.onState?.("loading");
     try {
+      await window.tvApp?.setStreamRequestContext({ originUrl: channel.url, headers: channel.headers });
       if (channel.manifestType === "dash" || /\.mpd(?:$|[?#])/i.test(channel.url)) await this.playDash(video, channel, generation);
-      else if (channel.manifestType === "progressive" || /\.(?:mp4|m4v|webm|ogg)(?:$|[?#])/i.test(channel.url)) await this.playProgressive(video, channel);
-      else await this.playHls(video, channel, generation);
+      else if (channel.manifestType === "progressive" || /\.(?:mp4|m4v|webm|ogg)(?:$|[?#])/i.test(channel.url)) await this.playProgressive(video, channel, abortController.signal);
+      else await this.playHls(video, channel, generation, abortController.signal);
       if (generation !== this.generation) return;
       await video.play();
       this.options.onState?.("playing");
@@ -93,12 +83,12 @@ export class StreamEngine {
     await player.load(channel.url);
   }
 
-  private async playProgressive(video: HTMLVideoElement, channel: Channel): Promise<void> {
+  private async playProgressive(video: HTMLVideoElement, channel: Channel, signal: AbortSignal): Promise<void> {
     video.src = channel.url;
-    await waitForMediaEvent(video, "loadedmetadata", "error", 20_000, "Progressive stream metadata load timed out or failed.");
+    await waitForMediaEvent(video, "loadedmetadata", "error", 20_000, "Progressive stream metadata load timed out or failed.", signal);
   }
 
-  private async playHls(video: HTMLVideoElement, channel: Channel, generation: number): Promise<void> {
+  private async playHls(video: HTMLVideoElement, channel: Channel, generation: number, signal: AbortSignal): Promise<void> {
     if (Hls.isSupported()) {
       const hls = new Hls({ xhrSetup: (xhr, url) => {
         for (const [name, value] of Object.entries(streamHeadersForRequest(channel, url))) {
@@ -115,17 +105,32 @@ export class StreamEngine {
       hls.loadSource(channel.url);
       hls.attachMedia(video);
       await new Promise<void>((resolve, reject) => {
-        const timeout = window.setTimeout(() => reject(new Error("HLS manifest load timed out.")), 20_000);
-        hls.once(Hls.Events.MANIFEST_PARSED, () => { clearTimeout(timeout); resolve(); });
-        hls.once(Hls.Events.ERROR, (_event, data) => {
-          if (data.fatal) { clearTimeout(timeout); reject(new Error(data.details)); }
-        });
+        const finish = (error?: Error) => {
+          window.clearTimeout(timeout);
+          hls.off(Hls.Events.MANIFEST_PARSED, onParsed);
+          hls.off(Hls.Events.ERROR, onError);
+          signal.removeEventListener("abort", onAbort);
+          if (error) reject(error); else resolve();
+        };
+        const onParsed = () => finish();
+        const onError = (_event: string, data: { fatal: boolean; details: string }) => {
+          if (data.fatal) finish(new Error(data.details));
+        };
+        const onAbort = () => {
+          hls.stopLoad();
+          finish(Object.assign(new Error("HLS manifest load was cancelled."), { name: "AbortError" }));
+        };
+        const timeout = window.setTimeout(() => finish(new Error("HLS manifest load timed out.")), 20_000);
+        hls.on(Hls.Events.MANIFEST_PARSED, onParsed);
+        hls.on(Hls.Events.ERROR, onError);
+        signal.addEventListener("abort", onAbort, { once: true });
+        if (signal.aborted) onAbort();
       });
       return;
     }
     if (video.canPlayType("application/vnd.apple.mpegurl")) {
       video.src = channel.url;
-      await waitForMediaEvent(video, "loadedmetadata", "error", 20_000, "Native HLS metadata load timed out or failed.");
+      await waitForMediaEvent(video, "loadedmetadata", "error", 20_000, "Native HLS metadata load timed out or failed.", signal);
       return;
     }
     throw new Error("HLS playback is not supported by this runtime.");
@@ -182,7 +187,9 @@ export class StreamEngine {
 
   async stop(): Promise<void> {
     this.generation++;
-    await window.tvApp?.setStreamRequestContext(null);
+    this.mediaAbort?.abort();
+    this.mediaAbort = null;
+    try { await window.tvApp?.setStreamRequestContext(null); } catch { /* Continue local cleanup if IPC is unavailable. */ }
     this.hls?.destroy(); this.hls = null;
     if (this.shakaPlayer) { await this.shakaPlayer.destroy(); this.shakaPlayer = null; }
     if (this.video) { this.video.pause(); this.video.removeAttribute("src"); this.video.load(); this.video = null; }
