@@ -36,7 +36,7 @@ jobs:
         run: npm run build
       - name: Real HLS and DASH playback integration (Linux)
         if: runner.os == 'Linux'
-        run: xvfb-run -a npx electron tests/playback-integration.cjs
+        run: xvfb-run -a npx electron --no-sandbox tests/playback-integration.cjs
       - name: Build unpacked Windows app
         if: runner.os == 'Windows'
         run: npx electron-builder --win --dir --publish never
