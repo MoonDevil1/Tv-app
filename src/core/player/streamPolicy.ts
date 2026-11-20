@@ -2,11 +2,11 @@ import type { Channel, DrmConfig, StreamHeaders } from "../types";
 
 const BLOCKED_HEADERS = /^(?:accept-encoding|connection|content-length|cookie|host|origin|referer|te|trailer|transfer-encoding|upgrade|user-agent|proxy-|sec-)/i;
 
-function hostOf(value: string | undefined): string {
+function originOf(value: string | undefined): string {
   if (!value) return "";
   try {
     const url = new URL(value);
-    return url.protocol === "http:" || url.protocol === "https:" ? url.hostname.toLowerCase() : "";
+    return url.protocol === "http:" || url.protocol === "https:" ? url.origin.toLowerCase() : "";
   } catch {
     return "";
   }
@@ -23,12 +23,12 @@ function safeHeaders(headers?: StreamHeaders): StreamHeaders {
 
 /** Stream credentials are sent only to the manifest's origin, never arbitrary CDN hosts. */
 export function streamHeadersForRequest(channel: Channel, requestUrl: string): StreamHeaders {
-  return hostOf(channel.url) && hostOf(channel.url) === hostOf(requestUrl) ? safeHeaders(channel.headers) : {};
+  return originOf(channel.url) && originOf(channel.url) === originOf(requestUrl) ? safeHeaders(channel.headers) : {};
 }
 
 /** License credentials are isolated to the configured license server. */
 export function licenseHeadersForRequest(drm: DrmConfig | undefined, requestUrl: string): StreamHeaders {
-  return drm?.licenseUrl && hostOf(drm.licenseUrl) === hostOf(requestUrl) ? safeHeaders(drm.licenseHeaders) : {};
+  return drm?.licenseUrl && originOf(drm.licenseUrl) === originOf(requestUrl) ? safeHeaders(drm.licenseHeaders) : {};
 }
 
 export function shakaDrmConfiguration(drm: DrmConfig | undefined): { drm?: { clearKeys?: Record<string, string>; servers?: Record<string, string> } } {
