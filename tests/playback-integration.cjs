@@ -31,23 +31,16 @@ function createFixtures() {
     "-use_timeline", "1", path.join(dashDir, "manifest.mpd")]);
 }
 
-const page = '<!doctype html><html><head><meta charset="utf-8"><script src="/hls.js"></script><script src="/shaka.js"></script></head><body><video id="video" muted playsinline></video><script>' +
-'window.runPlaybackTests = async () => {' +
-' const results=[]; const video=document.getElementById("video");' +
-' const wait=async()=>{ if(video.paused||video.readyState<2) await Promise.race([new Promise((resolve,reject)=>{video.addEventListener("playing",resolve,{once:true});video.addEventListener("error",()=>reject(new Error("Media error "+(video.error?.code||"unknown"))),{once:true});}),new Promise((_,reject)=>setTimeout(()=>reject(new Error("Playback start timeout")),15000))]); const start=Date.now(); while(video.currentTime<1.2&&Date.now()-start<10000) await new Promise(r=>setTimeout(r,100)); if(video.currentTime<1.2) throw new Error("Playback did not advance"); };' +
-' try { if(!window.Hls||!Hls.isSupported()) throw new Error("hls.js/MSE unavailable"); const hls=new Hls({enableWorker:false}); await new Promise((resolve,reject)=>{const timeout=setTimeout(()=>reject(new Error("HLS manifest timeout")),15000);hls.on(Hls.Events.MANIFEST_PARSED,()=>{clearTimeout(timeout);resolve();});hls.on(Hls.Events.ERROR,(_e,d)=>{if(d.fatal){clearTimeout(timeout);reject(new Error("HLS: "+d.details));}});hls.loadSource("/hls/index.m3u8");hls.attachMedia(video);}); await video.play(); await wait(); results.push({format:"HLS",passed:true,seconds:Number(video.currentTime.toFixed(2))}); hls.destroy(); } catch(e) { results.push({format:"HLS",passed:false,error:String(e)}); }' +
-' try { video.pause();video.removeAttribute("src");video.load();shaka.polyfill.installAll();const player=new shaka.Player();await player.attach(video);await player.load("/dash/manifest.mpd");await video.play();await wait();results.push({format:"DASH",passed:true,seconds:Number(video.currentTime.toFixed(2))});await player.destroy(); } catch(e) { results.push({format:"DASH",passed:false,error:String(e)}); }' +
-' return results; };</script></body></html>';
+const page = '<!doctype html><html><head><meta charset="utf-8"></head><body><video id="video" muted playsinline></video><script type="module" src="/playback-engine.js"></script></body></html>';
 
 function startServer() {
   const hlsEntry = require.resolve("hls.js");
-  const shakaEntry = require.resolve("shaka-player");
+  const engineBundle = path.resolve("tests/.playback-dist/playback-engine.js");
   return createServer((req, res) => {
     const pathname = decodeURIComponent(new URL(req.url, "http://127.0.0.1").pathname);
     let file;
     if (pathname === "/") { res.writeHead(200, { "Content-Type": "text/html" }); res.end(page); return; }
-    if (pathname === "/hls.js") file = hlsEntry;
-    else if (pathname === "/shaka.js") file = shakaEntry;
+    if (pathname === "/playback-engine.js") file = engineBundle;
     else if (pathname.startsWith("/hls/")) file = path.join(hlsDir, path.basename(pathname));
     else if (pathname.startsWith("/dash/")) file = path.join(dashDir, path.basename(pathname));
     if (!file || !fs.existsSync(file) || !fs.statSync(file).isFile()) { res.writeHead(404); res.end("not found"); return; }
@@ -68,9 +61,13 @@ app.whenReady().then(async () => {
     const port = server.address().port;
     window = new BrowserWindow({ show: false, webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true } });
     await window.loadURL("http://127.0.0.1:" + port + "/");
-    const results = await window.webContents.executeJavaScript("window.runPlaybackTests()");
+    const results = await window.webContents.executeJavaScript(`(async () => {
+      const hls = await window.runStreamEngineTest("/hls/index.m3u8", "hls");
+      const dash = await window.runStreamEngineTest("/dash/manifest.mpd", "dash");
+      return [{ format: "HLS", ...hls }, { format: "DASH", ...dash }];
+    })()`);
     for (const result of results) console.log(JSON.stringify(result));
-    app.exit(results.length === 2 && results.every(result => result.passed) ? 0 : 1);
+    app.exit(results.length === 2 && results.every(result => result.state === "playing" && result.seconds >= 1.2) ? 0 : 1);
   } catch (error) {
     console.error(error);
     app.exit(1);
