@@ -148,9 +148,7 @@ test("playback request policy scopes stream headers to the manifest origin", () 
     Authorization: "Bearer stream", "X-Token": "abc"
   });
   assert.deepEqual(streamHeadersForRequest(channel, "https://cdn.example/segment.ts"), {});
-  assert.deepEqual(streamHeadersForRequest(channel, "http://origin.example/segment.ts"), {
-    Authorization: "Bearer stream", "X-Token": "abc"
-  });
+  assert.deepEqual(streamHeadersForRequest(channel, "http://origin.example/segment.ts"), {});
   assert.deepEqual(streamHeadersForRequest(channel, "file:///tmp/segment.ts"), {});
 });
 
