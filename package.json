@@ -1,6 +1,6 @@
 {
   "name": "tg-iptv-cinema",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "private": true,
   "type": "module",
   "main": "out/main/index.js",
@@ -72,10 +72,16 @@
         "repo": "Tv-app",
         "releaseType": "release"
       }
+    ],
+    "compression": "maximum",
+    "electronLanguages": [
+      "en-US"
     ]
   },
   "packageManager": "npm@10.9.9",
   "engines": {
     "node": ">=22.0.0"
-  }
+  },
+  "description": "Cross-platform IPTV desktop player built with Electron.",
+  "author": "MoonDevil1"
 }
