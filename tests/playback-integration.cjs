@@ -68,8 +68,8 @@ function createFixtures() {
     "--protection_scheme=cenc", "--clear_lead=0", "--mpd_output", path.join(encryptedDashDir, "manifest.mpd")
   ]);
   const encryptedMpd = fs.readFileSync(path.join(encryptedDashDir, "manifest.mpd"), "utf8");
-  if (!/schemeIdUri="urn:mpeg:dash:mp4protection:2011"[^>]*value="cenc"/i.test(encryptedMpd) || !/default_KID/i.test(encryptedMpd)) {
-    throw new Error("Shaka Packager did not produce a CENC-protected DASH manifest.");
+  if (!/urn:mpeg:dash:mp4protection:2011/i.test(encryptedMpd) || !/value=["\']cenc["\']/i.test(encryptedMpd) || !/default_KID/i.test(encryptedMpd)) {
+    throw new Error("Shaka Packager did not produce a CENC-protected DASH manifest:\n" + encryptedMpd);
   }
 }
 
