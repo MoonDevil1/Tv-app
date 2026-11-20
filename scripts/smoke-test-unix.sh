@@ -15,7 +15,13 @@ fi
 [[ -n "$executable" && -x "$executable" ]] || { echo "Packaged application executable not found"; exit 1; }
 
 tmpdir="${TMPDIR:-/tmp}"
-"$executable" --smoke-test --disable-gpu &
+if [[ "$platform" == "linux" ]]; then
+  # GitHub-hosted Linux runners do not provide a root-owned SUID sandbox helper.
+  # This flag is only for the CI smoke process; the packaged app remains sandboxed by default.
+  "$executable" --smoke-test --disable-gpu --no-sandbox &
+else
+  "$executable" --smoke-test --disable-gpu &
+fi
 pid=$!
 marker="$tmpdir/tg-iptv-smoke-$pid.txt"
 deadline=$((SECONDS + 35))
