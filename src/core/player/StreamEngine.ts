@@ -171,6 +171,11 @@ export class StreamEngine {
     }
   }
 
+  getSelectedAudioId(): number {
+    if (this.hls) return this.hls.audioTrack;
+    return this.shakaPlayer?.getVariantTracks().find(track => track.active)?.id ?? -1;
+  }
+
   getSubtitleOptions(): Array<{ id: number; label: string }> {
     if (this.hls) return this.hls.subtitleTracks.map((track, id) => ({ id, label: track.name || track.lang || `Subtitle ${id + 1}` }));
     return (this.shakaPlayer?.getTextTracks() ?? []).map(track => ({ id: track.id, label: track.language || track.kind || `Subtitle ${track.id + 1}` }));
@@ -185,6 +190,11 @@ export class StreamEngine {
         if (track) { this.shakaPlayer.selectTextTrack(track); this.shakaPlayer.setTextTrackVisibility(true); }
       }
     }
+  }
+
+  getSelectedSubtitleId(): number {
+    if (this.hls) return this.hls.subtitleTrack;
+    return this.shakaPlayer?.getTextTracks().find(track => track.active)?.id ?? -1;
   }
 
   async stop(): Promise<void> {
