@@ -1,14 +1,13 @@
 import Hls from "hls.js";
 import shaka from "shaka-player";
 import type { Channel } from "../types";
+import { licenseHeadersForRequest, shakaDrmConfiguration, streamHeadersForRequest } from "./streamPolicy";
 
 export type PlaybackState = "idle" | "loading" | "playing" | "error";
 export interface StreamEngineOptions {
   onState?: (state: PlaybackState, error?: Error) => void;
   onRecover?: (channel: Channel) => Promise<Channel | null>;
 }
-const FORBIDDEN_BROWSER_HEADERS = /^(?:accept-encoding|connection|content-length|cookie|host|origin|referer|te|trailer|transfer-encoding|upgrade|user-agent|proxy-|sec-)/i;
-function isBrowserForbiddenHeader(name: string): boolean { return FORBIDDEN_BROWSER_HEADERS.test(name); }
 
 export class StreamEngine {
   private hls: Hls | null = null;
@@ -56,29 +55,18 @@ export class StreamEngine {
     const player = new shaka.Player();
     this.shakaPlayer = player;
     await player.attach(video);
-    if (channel.drm?.scheme === "clearkey" && channel.drm.clearKeys) {
-      player.configure({ drm: { clearKeys: channel.drm.clearKeys } });
-    } else if (channel.drm?.scheme === "clearkey" && channel.drm.licenseUrl) {
-      player.configure({ drm: { servers: { "org.w3.clearkey": channel.drm.licenseUrl } } });
-    } else if (channel.drm?.scheme === "widevine" && channel.drm.licenseUrl) {
-      player.configure({ drm: { servers: { "com.widevine.alpha": channel.drm.licenseUrl } } });
-    }
-    const host = this.originHost(channel);
+    const drmConfiguration = shakaDrmConfiguration(channel.drm);
+    if (drmConfiguration.drm) player.configure(drmConfiguration);
     player.getNetworkingEngine()?.registerRequestFilter((type, request) => {
       if (generation !== this.generation) return;
       for (const uri of request.uris) {
         try {
           const requestHost = new URL(uri).hostname.toLowerCase();
-          if (requestHost === host) {
-            for (const [name, value] of Object.entries(channel.headers)) {
-              if (!isBrowserForbiddenHeader(name)) request.headers[name] = value;
-            }
-          }
-          const licenseHost = channel.drm?.licenseUrl ? new URL(channel.drm.licenseUrl).hostname.toLowerCase() : "";
-          if (type === shaka.net.NetworkingEngine.RequestType.LICENSE && requestHost === licenseHost && channel.drm?.licenseHeaders) {
-            for (const [name, value] of Object.entries(channel.drm.licenseHeaders)) {
-              if (!isBrowserForbiddenHeader(name)) request.headers[name] = value;
-            }
+          const streamHeaders = streamHeadersForRequest(channel, uri);
+          for (const [name, value] of Object.entries(streamHeaders)) request.headers[name] = value;
+          if (type === shaka.net.NetworkingEngine.RequestType.LICENSE) {
+            const licenseHeaders = licenseHeadersForRequest(channel.drm, uri);
+            for (const [name, value] of Object.entries(licenseHeaders)) request.headers[name] = value;
           }
         } catch { /* malformed or non-HTTP request URI */ }
       }
@@ -104,14 +92,10 @@ export class StreamEngine {
 
   private async playHls(video: HTMLVideoElement, channel: Channel, generation: number): Promise<void> {
     if (Hls.isSupported()) {
-      const host = this.originHost(channel);
       const hls = new Hls({ xhrSetup: (xhr, url) => {
-        try {
-          if (new URL(url).hostname.toLowerCase() !== host) return;
-          for (const [name, value] of Object.entries(channel.headers)) {
-            if (!isBrowserForbiddenHeader(name)) xhr.setRequestHeader(name, value);
-          }
-        } catch { /* malformed request URL */ }
+        for (const [name, value] of Object.entries(streamHeadersForRequest(channel, url))) {
+          xhr.setRequestHeader(name, value);
+        }
       } });
       this.hls = hls;
       hls.on(Hls.Events.ERROR, (_event, data) => {
