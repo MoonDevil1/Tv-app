@@ -30,7 +30,24 @@ window.runStreamEngineTest = async (url, manifestType) => {
     }
     if (state !== "playing") throw new Error("Expected playing state, received " + state);
     if (video.currentTime < 1.2) throw new Error("StreamEngine playback did not advance");
-    return { state, seconds: Number(video.currentTime.toFixed(2)) };
+    const result: { state: string; seconds: number; audioTracks?: number; subtitleTracks?: number; selectedAudio?: number; selectedSubtitle?: number } = {
+      state, seconds: Number(video.currentTime.toFixed(2))
+    };
+    if (manifestType === "hls") {
+      const audio = engine.getAudioOptions();
+      const subtitles = engine.getSubtitleOptions();
+      if (audio.length < 2) throw new Error("Expected two HLS audio tracks; found " + audio.length);
+      if (subtitles.length < 1) throw new Error("Expected an HLS subtitle track");
+      engine.selectAudio(audio[1].id);
+      if (engine.getSelectedAudioId() !== audio[1].id) throw new Error("HLS audio track selection did not change");
+      engine.selectSubtitle(subtitles[0].id);
+      if (engine.getSelectedSubtitleId() !== subtitles[0].id) throw new Error("HLS subtitle selection did not change");
+      result.audioTracks = audio.length;
+      result.subtitleTracks = subtitles.length;
+      result.selectedAudio = engine.getSelectedAudioId();
+      result.selectedSubtitle = engine.getSelectedSubtitleId();
+    }
+    return result;
   } finally {
     await engine.destroy();
   }
