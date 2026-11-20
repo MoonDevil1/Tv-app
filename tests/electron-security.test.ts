@@ -90,7 +90,7 @@ test("remote fetch rejects unsafe schemes, excessive redirects and oversized res
 test("remote fetch enforces redirect count and sanitizes dangerous headers", async () => {
   let calls = 0;
   await assert.rejects(fetchRemoteText("https://provider.example/0", {
-    headers: { Host: "evil.example", "X-Bad\\r\\nInjected": "x", "X-Safe": "ok" }
+    headers: { Host: "evil.example", ["X-Bad" + String.fromCharCode(13, 10) + "Injected"]: "x", "X-Safe": "ok" }
   }, async (_url, init) => {
     calls++;
     const headers = new Headers(init.headers);
