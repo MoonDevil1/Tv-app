@@ -200,7 +200,7 @@ export class StreamEngine {
     else {
       const track = this.shakaPlayer?.getVariantTracks().find(item => item.id === id);
       if (track?.language) this.shakaPlayer?.selectAudioLanguage(
-        String(track.language), track.audioRoles?.[0], track.channelsCount ?? undefined, track.label ?? undefined
+        String(track.language), track.audioRoles?.[0], track.channelsCount ?? undefined
       );
     }
   }
