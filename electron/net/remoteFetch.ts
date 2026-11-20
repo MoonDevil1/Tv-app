@@ -29,7 +29,7 @@ function safeHeaders(input?: Record<string, string>): Headers {
   for (const [rawName, rawValue] of Object.entries(input ?? {})) {
     const name = rawName.trim();
     const value = String(rawValue);
-    if (!name || /[\\r\\n:]/.test(name) || /[\\r\\n]/.test(value)) continue;
+    if (!name || name.includes(String.fromCharCode(13)) || name.includes(String.fromCharCode(10)) || name.includes(":") || value.includes(String.fromCharCode(13)) || value.includes(String.fromCharCode(10))) continue;
     if (BLOCKED_HEADERS.has(name.toLowerCase())) continue;
     headers.set(name, value);
   }
