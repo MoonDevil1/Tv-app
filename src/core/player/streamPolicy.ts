@@ -15,7 +15,7 @@ function originOf(value: string | undefined): string {
 function safeHeaders(headers?: StreamHeaders): StreamHeaders {
   const result: StreamHeaders = {};
   for (const [name, value] of Object.entries(headers ?? {})) {
-    if (!name.trim() || BLOCKED_HEADERS.test(name) || /[\\r\\n:]/.test(name) || /[\\r\\n]/.test(String(value))) continue;
+    if (!name.trim() || BLOCKED_HEADERS.test(name) || /[\r\n:]/.test(name) || /[\r\n]/.test(String(value))) continue;
     result[name] = String(value);
   }
   return result;
