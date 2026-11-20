@@ -1,0 +1,46 @@
+import type { Channel, DrmConfig, StreamHeaders } from "../types";
+
+const BLOCKED_HEADERS = /^(?:accept-encoding|connection|content-length|cookie|host|origin|referer|te|trailer|transfer-encoding|upgrade|user-agent|proxy-|sec-)/i;
+
+function hostOf(value: string | undefined): string {
+  if (!value) return "";
+  try {
+    const url = new URL(value);
+    return url.protocol === "http:" || url.protocol === "https:" ? url.hostname.toLowerCase() : "";
+  } catch {
+    return "";
+  }
+}
+
+function safeHeaders(headers?: StreamHeaders): StreamHeaders {
+  const result: StreamHeaders = {};
+  for (const [name, value] of Object.entries(headers ?? {})) {
+    if (!name.trim() || BLOCKED_HEADERS.test(name) || /[\\r\\n:]/.test(name) || /[\\r\\n]/.test(String(value))) continue;
+    result[name] = String(value);
+  }
+  return result;
+}
+
+/** Stream credentials are sent only to the manifest's origin, never arbitrary CDN hosts. */
+export function streamHeadersForRequest(channel: Channel, requestUrl: string): StreamHeaders {
+  return hostOf(channel.url) && hostOf(channel.url) === hostOf(requestUrl) ? safeHeaders(channel.headers) : {};
+}
+
+/** License credentials are isolated to the configured license server. */
+export function licenseHeadersForRequest(drm: DrmConfig | undefined, requestUrl: string): StreamHeaders {
+  return drm?.licenseUrl && hostOf(drm.licenseUrl) === hostOf(requestUrl) ? safeHeaders(drm.licenseHeaders) : {};
+}
+
+export function shakaDrmConfiguration(drm: DrmConfig | undefined): { drm?: { clearKeys?: Record<string, string>; servers?: Record<string, string> } } {
+  if (!drm) return {};
+  if (drm.scheme === "clearkey" && drm.clearKeys && Object.keys(drm.clearKeys).length) {
+    return { drm: { clearKeys: drm.clearKeys } };
+  }
+  if (drm.scheme === "clearkey" && drm.licenseUrl) {
+    return { drm: { servers: { "org.w3.clearkey": drm.licenseUrl } } };
+  }
+  if (drm.scheme === "widevine" && drm.licenseUrl) {
+    return { drm: { servers: { "com.widevine.alpha": drm.licenseUrl } } };
+  }
+  return {};
+}
