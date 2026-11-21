@@ -25,6 +25,18 @@ function ChannelCard({ channel, favorite, selected, onSelect, onFavorite }: { ch
 }
 
 export default function App() {
+  useEffect(() => {
+    const onError = (event: ErrorEvent) => {
+      void window.tvApp?.reportDiagnostic({ type: "renderer-error", message: event.message, source: event.filename ? event.filename.split("/").pop() : undefined, line: event.lineno });
+    };
+    const onRejection = (event: PromiseRejectionEvent) => {
+      const reason = event.reason;
+      void window.tvApp?.reportDiagnostic({ type: "renderer-unhandled-rejection", message: reason instanceof Error ? reason.message : String(reason).slice(0, 1000) });
+    };
+    window.addEventListener("error", onError);
+    window.addEventListener("unhandledrejection", onRejection);
+    return () => { window.removeEventListener("error", onError); window.removeEventListener("unhandledrejection", onRejection); };
+  }, []);
   const manager = useMemo(() => new PlaylistManager(), []);
   const playlists = useAppStore(s => s.playlists), favorites = useAppStore(s => s.favorites), recentlyWatched = useAppStore(s => s.recentlyWatched), epgPrograms = useAppStore(s => s.epgPrograms);
   const addPlaylist = useAppStore(s => s.addPlaylist), replacePlaylist = useAppStore(s => s.replacePlaylist), removeStoredPlaylist = useAppStore(s => s.removePlaylist), toggleFavorite = useAppStore(s => s.toggleFavorite), recordWatch = useAppStore(s => s.recordWatch), setEpgPrograms = useAppStore(s => s.setEpgPrograms);
