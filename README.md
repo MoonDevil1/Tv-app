@@ -42,9 +42,14 @@ For checksums, update metadata and any additional release files, see the [comple
 - Per-playlist automatic refresh (manual, 1m, 5m, 15m or 1h).
 - GitHub release updates: installed builds check for updates, download on request and restart to install. Draft releases are not offered until published.
 - HLS and DASH playback, including authorized ClearKey/Widevine configurations supported by the runtime.
-- Player HUD: play/pause, seek, volume, quality, audio/subtitle selection, aspect fit, fullscreen and picture-in-picture.
+- Player controls: play/pause, seek, mouse-wheel volume, quality, audio/subtitle selection, aspect fit, fullscreen and picture-in-picture.
 - Channel zapping, mini-player mode and keyboard shortcuts (Space/K play, arrows seek or zap, M mute, F fullscreen, I PiP, Ctrl/⌘+K or / search).
-- Optional ambient backdrop that samples video colors when browser cross-origin rules allow it.
+- Lightweight static interface without animated transitions, ambient video sampling or blur-heavy overlays.
+- Automatic local diagnostics for playback failures, renderer errors and buffering stalls; reports omit stream URLs and credentials. The Feedback action opens a prefilled GitHub issue for user review and submission.
+
+## Diagnostics and feedback
+
+Playback errors and renderer failures are written locally to the Electron user-data `logs/diagnostics.log` file (rotated after approximately 2 MB). Buffering reports include media readiness, buffered seconds and dropped-frame counters, not stream URLs, cookies, license keys or credentials. Use **Settings → Feedback and diagnostics** or **Report problem** in the player to open a prefilled GitHub issue. The issue is not submitted until the user reviews and clicks Submit; the app cannot send background reports directly to a ChatGPT conversation.
 
 ## Development
 
