@@ -147,19 +147,19 @@ export default function App() {
   const resolveLiveTgChannel = useCallback(async (channel: Channel): Promise<Channel | null> => {
     const ownerId = selectedPlaylistIdRef.current;
     const owner = playlistsRef.current.find(item => item.id === ownerId && item.channels.some(candidate => candidate.id === channel.id));
-    if (!owner || owner.source.split("?")[0] !== LIVE_TGTV_URL || !channel.tvgId || !/^\d+$/.test(channel.tvgId)) return null;
+    if (!owner || owner.source.split("?")[0] !== LIVE_TGTV_URL || !channel.tvgId || !/^[0-9]+$/.test(channel.tvgId)) return null;
     if (!window.tvApp?.fetchRemoteText) return null;
     const requestId = globalThis.crypto.randomUUID();
     try {
       const response = await window.tvApp.fetchRemoteText("https://livetgtv.lovable.app/api/public/channels/" + encodeURIComponent(channel.tvgId), undefined, requestId);
       if (response.status < 200 || response.status >= 300) throw new Error("LiveTGTV returned HTTP " + response.status);
       const payload = JSON.parse(response.text) as { sources?: unknown; drm?: { type?: string; keyId?: string; key?: string } };
-      const source = Array.isArray(payload.sources) ? payload.sources.find((item): item is string => typeof item === "string" && /^https?:\/\//i.test(item)) : undefined;
+      const source = Array.isArray(payload.sources) ? payload.sources.find((item): item is string => typeof item === "string" && (item.startsWith("https://") || item.startsWith("http://"))) : undefined;
       if (!source) return null;
       const clearKeys = payload.drm?.type?.toLowerCase() === "clearkey" && payload.drm.keyId && payload.drm.key
         ? parseClearKeys({ [payload.drm.keyId]: payload.drm.key }) : undefined;
       return { ...channel, url: source, headers: {},
-        manifestType: /\.mpd(?:$|[?#])/i.test(source) ? "dash" : /\.m3u8(?:$|[?#])/i.test(source) ? "hls" : channel.manifestType,
+        manifestType: source.includes(".mpd") ? "dash" : source.includes(".m3u8") ? "hls" : channel.manifestType,
         drm: clearKeys ? { scheme: "clearkey", clearKeys } : undefined };
     } catch { return null; }
     finally { void window.tvApp?.cancelRemoteText(requestId); }
