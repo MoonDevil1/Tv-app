@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type WheelEvent } from "react";
-import { AudioLines, Check, ChevronLeft, ChevronRight, Maximize, Minimize, MonitorPlay, Pause, PictureInPicture2, Play, Radio, Settings2, Volume2, VolumeX, X, Subtitles, Heart, Search, Star } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight, Maximize, Minimize, MonitorPlay, Pause, PictureInPicture2, Play, Radio, Settings2, Volume2, VolumeX, X, Heart, Search } from "lucide-react";
 import type { Channel } from "../core/types";
 import { currentAndNext, parseLiveTgGuide, parseXmltv } from "../core/epg/xmltv";
 import { useAppStore } from "../core/store/appStore";
