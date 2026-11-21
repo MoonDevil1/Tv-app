@@ -3,6 +3,7 @@ import shaka from "shaka-player";
 import type { Channel } from "../types";
 import { waitForMediaEvent } from "./mediaEvents";
 import { headersForRequestUris, licenseHeadersForRequest, shakaDrmConfiguration, streamHeadersForRequest } from "./streamPolicy";
+import { describeShakaError } from "./shakaErrors";
 
 
 export type PlaybackState = "idle" | "loading" | "playing" | "error";
@@ -111,7 +112,7 @@ export class StreamEngine {
         void this.tryRecover(channel, generation, error).then(recovered => {
           if (!recovered && generation === this.generation) this.options.onState?.("error", error);
         });
-      } else if (detail) this.options.onState?.("error", new Error(`Shaka playback error ${detail.code ?? "unknown"}`));
+      } else if (detail) this.options.onState?.("error", describeShakaError(detail.code, detail.data));
     });
     try {
       await this.loadDash(player, channel.url, signal);
@@ -120,7 +121,7 @@ export class StreamEngine {
         this.shakaPlayer = null;
         await player.destroy().catch(() => undefined);
       }
-      throw error;
+      throw describeShakaError((error as { code?: number })?.code, (error as { data?: unknown[] })?.data, error);
     }
   }
 
