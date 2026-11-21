@@ -193,6 +193,9 @@ export class StreamEngine {
       await manifestReady;
       return;
     }
+    if (channel.drm) {
+      throw new Error("This runtime cannot play encrypted HLS through its native video fallback. Use a Chromium runtime with Media Source Extensions and Encrypted Media Extensions.");
+    }
     if (video.canPlayType("application/vnd.apple.mpegurl")) {
       video.src = channel.url;
       await waitForMediaEvent(video, "loadedmetadata", "error", 20_000, "Native HLS metadata load timed out or failed.", signal);
