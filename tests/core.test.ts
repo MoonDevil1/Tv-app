@@ -238,6 +238,34 @@ test("JSON playlist EPG URLs resolve relative to their source", async () => {
   manager.dispose();
 });
 
+test("M3U Widevine license headers stay separate from stream headers", () => {
+  const source = `#EXTM3U
+#EXTINF:-1,Encrypted
+#KODIPROP:inputstream.adaptive.manifest_type=mpd
+#KODIPROP:inputstream.adaptive.license_type=widevine
+#KODIPROP:inputstream.adaptive.license_key=https://license.example/wv|R{Authorization=Bearer%20license-token&Content-Type=application%2Foctet-stream}
+https://stream.example/live.mpd`;
+  const [channel] = parseM3U(source);
+  assert.equal(channel.drm?.scheme, "widevine");
+  assert.equal(channel.drm?.licenseUrl, "https://license.example/wv");
+  assert.deepEqual(channel.drm?.licenseHeaders, {
+    Authorization: "Bearer license-token",
+    "Content-Type": "application/octet-stream"
+  });
+  assert.deepEqual(channel.headers, {});
+});
+
+test("JSON DRM metadata keeps license headers separate from media headers", () => {
+  const [channel] = parseJsonPlaylist({ channels: [{
+    name: "Widevine", url: "https://stream.example/live.mpd",
+    headers: { "X-Stream": "media" },
+    drm: { type: "com.widevine.alpha", licenseServer: "https://license.example/wv", headers: { Authorization: "Bearer license" } }
+  }] });
+  assert.deepEqual(channel.headers, { "X-Stream": "media" });
+  assert.equal(channel.drm?.licenseUrl, "https://license.example/wv");
+  assert.deepEqual(channel.drm?.licenseHeaders, { Authorization: "Bearer license" });
+});
+
 test("JSON DRM metadata preserves Widevine and ignores unsupported PlayReady", () => {
   const widevine = parseJsonPlaylist({ channels: [{
     name: "Widevine", url: "https://stream.example/wv.mpd",
