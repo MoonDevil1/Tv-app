@@ -41,10 +41,10 @@ For checksums, update metadata and any additional release files, see the [comple
 - XMLTV EPG now/next guide when the playlist declares an accessible EPG feed.
 - Per-playlist automatic refresh (manual, 1m, 5m, 15m or 1h).
 - GitHub release updates: installed builds check for updates, download on request and restart to install. Draft releases are not offered until published.
-- HLS and DASH playback, including authorized ClearKey/Widevine configurations supported by the runtime.
+- HLS and DASH playback with authorized ClearKey/Widevine EME license-server support, subject to the installed runtime and available DRM CDM.
 - Player controls: play/pause, seek, mouse-wheel volume, quality, audio/subtitle selection, aspect fit, fullscreen and picture-in-picture.
 - Channel zapping, mini-player mode and keyboard shortcuts (Space/K play, arrows seek or zap, M mute, F fullscreen, I PiP, Ctrl/⌘+K or / search).
-- Lightweight static interface without animated transitions, ambient video sampling or blur-heavy overlays.
+- Lightweight interface using system fonts, simple surfaces and no animated transitions, decorative hero artwork, ambient video sampling or blur-heavy overlays.
 - Automatic local diagnostics for playback failures, renderer errors and buffering stalls; reports omit stream URLs and credentials. The Feedback action opens a prefilled GitHub issue for user review and submission.
 
 ## Diagnostics and feedback
@@ -89,7 +89,7 @@ Every feature-branch push runs type-checking, the unit suite and the Electron pr
 
 ## Security and playback
 
-Chromium web security remains enabled. The app does not disable CORS globally or bypass DRM. Custom request headers are scoped to the selected stream host. DRM playback requires a compatible runtime, valid license/key material and authorization from the content provider. Some providers restrict cross-origin EPG or stream requests; those restrictions are surfaced as errors rather than bypassed.
+Chromium web security remains enabled. The app does not disable CORS globally or bypass DRM. Custom request headers are scoped to the selected stream host. DRM playback uses Shaka Player for DASH and hls.js EME for encrypted HLS. Inline ClearKey keys are supported for DASH/MPD; HLS DRM requires a license-server URL. Stream headers and license headers are kept separate and scoped to their configured origins. Widevine additionally requires a compatible Widevine CDM in the installed Electron/Chromium runtime; the app does not bundle proprietary CDM files. DRM playback requires valid license/key material and authorization from the content provider. Some providers restrict cross-origin EPG, stream or license requests; those restrictions are surfaced as errors rather than bypassed.
 
 ## Playlist compatibility
 
