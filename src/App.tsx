@@ -15,13 +15,13 @@ const channelKey = (playlistId: string, channel: Channel) => `${playlistId}:${ch
 const formatTime = (timestamp?: number) => timestamp ? new Date(timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "—";
 
 function ChannelCard({ channel, favorite, selected, onSelect, onFavorite }: { channel: Channel; favorite: boolean; selected: boolean; onSelect: () => void; onFavorite: () => void }) {
-  return <motion.article className={selected ? "channel-card selected" : "channel-card"} layout whileHover={{ y: -2 }} transition={{ duration: .16 }}>
+  return <article className={selected ? "channel-card selected" : "channel-card"}>
     <button className="channel-main" onClick={onSelect} aria-label={`Select ${channel.name}`}>
       <div className="channel-logo">{channel.logo && <img src={channel.logo} alt="" loading="lazy" onError={e => { e.currentTarget.style.display = "none"; }} />}{!channel.logo && <Tv2 size={23} />}</div>
       <div className="channel-copy"><b title={channel.name}>{channel.name}</b><span>{channel.group}</span></div>
     </button>
     <div className="channel-meta"><span>{channel.manifestType === "dash" ? "DASH" : channel.manifestType === "hls" ? "HLS" : "STREAM"}</span><button className={favorite ? "favorite-button is-favorite" : "favorite-button"} onClick={onFavorite} aria-label={favorite ? "Remove favorite" : "Add favorite"}><Heart size={15} fill={favorite ? "currentColor" : "none"} /></button></div>
-  </motion.article>;
+  </article>;
 }
 
 export default function App() {
