@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { AudioLines, Check, ChevronLeft, ChevronRight, Expand, Maximize, Minimize, MonitorPlay, Pause, PictureInPicture2, Play, Radio, Settings2, Volume2, VolumeX, X, Subtitles } from "lucide-react";
 import type { Channel } from "../core/types";
-import { currentAndNext, parseXmltv } from "../core/epg/xmltv";
+import { currentAndNext, parseLiveTgGuide, parseXmltv } from "../core/epg/xmltv";
 import { useAppStore } from "../core/store/appStore";
 import { StreamEngine, type PlaybackState } from "../core/player/StreamEngine";
 
@@ -72,17 +72,31 @@ export function Player({ channel, channels, onClose, onChangeChannel, onRecover 
     const tvgId = channel.tvgId;
     if (!tvgId || epgPrograms[tvgId]?.length) return;
     const owner = playlists.find(item => item.channels.some(candidate => candidate.id === channel.id));
-    const epgUrl = owner?.epgUrls[0];
-    if (!owner || !epgUrl || !window.tvApp?.fetchRemoteText) return;
+    if (!owner || !window.tvApp?.fetchRemoteText) return;
     const loadKey = `${owner.id}:${tvgId}`;
     if (epgLoadRef.current.has(loadKey)) return;
     epgLoadRef.current.add(loadKey);
     let cancelled = false;
     const requestId = globalThis.crypto.randomUUID();
-    void window.tvApp.fetchRemoteText(epgUrl, undefined, requestId).then(response => {
+    const guideUrl = `https://livetgtv.lovable.app/api/public/guide/${encodeURIComponent(tvgId)}`;
+    void window.tvApp.fetchRemoteText(guideUrl, undefined, requestId).then(async response => {
       if (cancelled) return;
-      const parsed = parseXmltv(response.text);
-      if (Object.keys(parsed).length) setEpgPrograms({ ...useAppStore.getState().epgPrograms, ...parsed });
+      let liveGuide: EpgProgram[] = [];
+      try { liveGuide = parseLiveTgGuide(JSON.parse(response.text), tvgId); } catch { /* Fall back to XMLTV below. */ }
+      if (liveGuide.length) {
+        setEpgPrograms({ ...useAppStore.getState().epgPrograms, [tvgId]: liveGuide });
+        return;
+      }
+      const epgUrl = owner.epgUrls[0];
+      if (!epgUrl) return;
+      const fallbackId = globalThis.crypto.randomUUID();
+      try {
+        const fallback = await window.tvApp.fetchRemoteText(epgUrl, undefined, fallbackId);
+        if (cancelled) return;
+        const parsed = parseXmltv(fallback.text);
+        if (Object.keys(parsed).length) setEpgPrograms({ ...useAppStore.getState().epgPrograms, ...parsed });
+      } catch { /* EPG is optional; guide failures must never interrupt video playback. */ }
+      finally { void window.tvApp?.cancelRemoteText(fallbackId); }
     }).catch(() => {
       // EPG is optional; a failed guide request must never interrupt video playback.
     });
