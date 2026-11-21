@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type WheelEvent } from "react";
-import { AudioLines, Check, ChevronLeft, ChevronRight, Maximize, Minimize, MonitorPlay, Pause, PictureInPicture2, Play, Radio, Settings2, Volume2, VolumeX, X, Subtitles } from "lucide-react";
+import { AudioLines, Check, ChevronLeft, ChevronRight, Maximize, Minimize, MonitorPlay, Pause, PictureInPicture2, Play, Radio, Settings2, Volume2, VolumeX, X, Subtitles, Heart, Search, Star } from "lucide-react";
 import type { Channel } from "../core/types";
 import { currentAndNext, parseLiveTgGuide, parseXmltv } from "../core/epg/xmltv";
 import { useAppStore } from "../core/store/appStore";
@@ -30,17 +30,17 @@ export function Player({ channel, channels, onClose, onChangeChannel, onRecover,
   const [hud, setHud] = useState(true);
   const [mini, setMini] = useState(false);
   const [fit, setFit] = useState<"contain" | "cover" | "fill">("contain");
-  const [menu, setMenu] = useState<"quality" | "audio" | "subtitles" | "zap" | null>(null);
+  const [menu, setMenu] = useState<"settings" | "zap" | null>(null);
   const [quality, setQuality] = useState<Option[]>([]);
   const [audio, setAudio] = useState<Option[]>([]);
   const [subtitles, setSubtitles] = useState<Option[]>([]);
   const [selectedQuality, setSelectedQuality] = useState(-1);
   const [selectedAudio, setSelectedAudio] = useState(-1);
-  const [selectedSubtitle, setSelectedSubtitle] = useState(-1);
+  const [selectedSubtitle, setSelectedSubtitle] = useState(-1);\n  const [channelQuery, setChannelQuery] = useState("");
   const [epgClock, setEpgClock] = useState(Date.now());
   const epgPrograms = useAppStore(s => s.epgPrograms);
   const setEpgPrograms = useAppStore(s => s.setEpgPrograms);
-  const playlists = useAppStore(s => s.playlists);
+  const playlists = useAppStore(s => s.playlists);\n  const favorites = useAppStore(s => s.favorites);\n  const toggleFavorite = useAppStore(s => s.toggleFavorite);
   const epgLoadRef = useRef(new Set<string>());
   const reportedErrorsRef = useRef(new Set<string>());
   const channelRef = useRef(channel);
@@ -277,7 +277,7 @@ export function Player({ channel, channels, onClose, onChangeChannel, onRecover,
     engineRef.current?.selectSubtitle(option?.id ?? -1); setSelectedSubtitle(option?.id ?? -1); setMenu(null);
   }
 
-  const guide = channel.tvgId ? currentAndNext(epgPrograms[channel.tvgId] ?? [], epgClock) : {};
+  const guide = channel.tvgId ? currentAndNext(epgPrograms[channel.tvgId] ?? [], epgClock) : {};\n  const ownerPlaylist = playlists.find(item => item.channels.some(itemChannel => itemChannel.id === channel.id));\n  const favoriteKey = ownerPlaylist ? `${ownerPlaylist.id}:${channel.id}` : "";\n  const isFavorite = Boolean(favoriteKey && favorites.includes(favoriteKey));\n  const filteredChannels = channels.filter(item => `${item.name} ${item.group}`.toLowerCase().includes(channelQuery.trim().toLowerCase()));
   const currentIndex = channels.findIndex(item => item.id === channel.id);
   const previous = currentIndex > 0;
   const next = currentIndex >= 0 && currentIndex < channels.length - 1;
