@@ -30,6 +30,8 @@ declare global {
   interface Window {
     tvApp?: {
       platform(): Promise<string>;
+      reportDiagnostic(report: Record<string, unknown>): Promise<{ saved: boolean }>;
+      openFeedbackReport(report: Record<string, unknown>): Promise<{ opened: boolean }>;
       fetchRemoteText(url: string, headers?: StreamHeaders, requestId?: string): Promise<{ text: string; url: string; status: number }>;
       cancelRemoteText(requestId: string): Promise<{ cancelled: boolean }>;
       setStreamRequestContext(context: { originUrl: string; headers: Record<string, string> } | null): Promise<{ active: boolean }>;
