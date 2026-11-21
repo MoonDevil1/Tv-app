@@ -145,6 +145,20 @@ button:disabled{opacity:.45;cursor:not-allowed;transform:none!important}
 .player-option:hover,.zap-item:hover,.zap-item.active{background:#1d354a;color:#e9f8ff}
 .player-empty-option{padding:9px;color:#8799ae;font-size:10px;line-height:1.5}
 .zap-menu{width:min(370px,calc(100vw - 40px));right:32px;bottom:95px}
+.zap-menu{top:72px;bottom:78px;right:18px;width:min(390px,calc(100vw - 36px));max-height:none;display:flex;flex-direction:column}
+.zap-list{min-height:0;overflow:auto;overscroll-behavior:contain;scrollbar-width:thin}
+.channel-list-search{display:flex;align-items:center;gap:8px;margin:8px 4px 10px;padding:9px 10px;border:1px solid #344459;border-radius:8px;color:#8fa3b9;background:#101b29}
+.channel-list-search input{min-width:0;width:100%;border:0;outline:0;background:transparent;color:#edf5ff;font:inherit;font-size:11px}
+.zap-item-copy{display:grid;gap:3px;min-width:0;flex:1}
+.zap-item-copy b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.zap-item-copy small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#8297ad;font-size:9px}
+.zap-item.active .zap-item-copy small{color:#9bcde3}
+.settings-menu{width:min(310px,calc(100vw - 36px));right:22px;bottom:94px}
+.player-settings-content{display:grid;gap:9px}
+.player-setting-group{padding:4px 0 7px;border-bottom:1px solid #ffffff13}
+.player-setting-group>b{display:block;padding:7px 9px;color:#75c7e7;font-size:10px;letter-spacing:.5px}
+.player-setting-group .player-option{padding:8px 9px}
+
 .zap-list{display:grid;gap:3px}
 .zap-item{display:flex;align-items:center;gap:10px;width:100%;min-height:42px;padding:6px 8px;border:0;border-radius:8px;background:transparent;color:#b8c8da;text-align:left}
 .zap-item>span{width:20px;color:#70859c;font-size:9px;font-variant-numeric:tabular-nums}
