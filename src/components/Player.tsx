@@ -42,6 +42,7 @@ export function Player({ channel, channels, onClose, onChangeChannel, onRecover 
   const epgPrograms = useAppStore(s => s.epgPrograms);
   const setEpgPrograms = useAppStore(s => s.setEpgPrograms);
   const playlists = useAppStore(s => s.playlists);
+  const epgLoadRef = useRef(new Set<string>());
   const [ambientColor, setAmbientColor] = useState("#1b3045");
 
   const engine = useMemo(() => new StreamEngine({
@@ -72,7 +73,10 @@ export function Player({ channel, channels, onClose, onChangeChannel, onRecover 
     if (!tvgId || epgPrograms[tvgId]?.length) return;
     const owner = playlists.find(item => item.channels.some(candidate => candidate.id === channel.id));
     const epgUrl = owner?.epgUrls[0];
-    if (!epgUrl || !window.tvApp?.fetchRemoteText) return;
+    if (!owner || !epgUrl || !window.tvApp?.fetchRemoteText) return;
+    const loadKey = `${owner.id}:${tvgId}`;
+    if (epgLoadRef.current.has(loadKey)) return;
+    epgLoadRef.current.add(loadKey);
     let cancelled = false;
     const requestId = globalThis.crypto.randomUUID();
     void window.tvApp.fetchRemoteText(epgUrl, undefined, requestId).then(response => {
