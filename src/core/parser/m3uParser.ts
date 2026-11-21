@@ -164,7 +164,9 @@ export function parseJsonPlaylist(input: unknown, baseUrl?: string): Channel[] {
     const name = String(row.name ?? row.title ?? row.channel ?? row.tvgName ?? row.tvg_name ?? `Channel ${index + 1}`);
     const drmInput = row.drm && typeof row.drm === "object" ? row.drm as Record<string, unknown> : {};
     const license = row.licenseKey ?? row.license_key ?? row.drmLicense ?? row.drm_license ?? drmInput.clearKeys ?? drmInput.keys;
-    const licenseUrl = String(row.licenseUrl ?? row.license_url ?? drmInput.licenseUrl ?? drmInput.license_url ?? "");
+    const licenseUrl = String(row.licenseUrl ?? row.license_url ?? drmInput.licenseUrl ?? drmInput.license_url ?? drmInput.licenseServer ?? drmInput.license_server ?? "");
+    const licenseHeaderInput = row.licenseHeaders ?? row.license_headers ?? drmInput.licenseHeaders ?? drmInput.license_headers ?? drmInput.headers;
+    const licenseHeaders = safeHeaders(licenseHeaderInput);
     const scheme = String(row.drmScheme ?? row.drm_scheme ?? drmInput.scheme ?? drmInput.type ?? (licenseUrl ? "clearkey" : ""));
     const normalizedScheme = scheme.toLowerCase();
     let drm = typeof license === "string" ? createClearKeyDrm(scheme || "clearkey", license) : scheme ? createClearKeyDrm(scheme, undefined) : undefined;
@@ -181,6 +183,7 @@ export function parseJsonPlaylist(input: unknown, baseUrl?: string): Channel[] {
         drm = { scheme: "clearkey", licenseUrl, clearKeys: drm?.scheme === "clearkey" ? drm.clearKeys : undefined };
       } else drm = undefined;
     }
+    if (drm && Object.keys(licenseHeaders).length) drm = { ...drm, licenseHeaders };
     const type = String(row.manifestType ?? row.manifest_type ?? row.type ?? row.protocol ?? "");
     const rawAttrs = row.attributes && typeof row.attributes === "object" ? row.attributes as Record<string, string> : {};
     return [{
