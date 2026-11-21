@@ -36,6 +36,25 @@ function parseExtHttp(value: string): StreamHeaders {
     return separator > 0 ? { [value.slice(0, separator).trim()]: unescapeValue(value.slice(separator + 1).trim()) } : {};
   }
 }
+
+function parseLicenseValue(value: string): { license: string; headers: StreamHeaders } {
+  const separator = value.indexOf("|");
+  if (separator < 0) return { license: value.trim(), headers: {} };
+  const license = value.slice(0, separator).trim();
+  let suffix = value.slice(separator + 1).trim();
+  if (suffix.startsWith("R{") && suffix.endsWith("}")) suffix = suffix.slice(2, -1);
+  try {
+    const parsed = JSON.parse(suffix);
+    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+      return { license, headers: safeHeaders(parsed) };
+    }
+  } catch { /* Kodi also supports URL-encoded header pairs after the pipe. */ }
+  const headers: StreamHeaders = {};
+  for (const [name, raw] of new URLSearchParams(suffix.replace(/&amp;/g, "&"))) {
+    if (name.trim()) headers[name.trim()] = raw;
+  }
+  return { license, headers };
+}
 function streamLine(raw: string): { url: string; headers: StreamHeaders; drmType?: string; drmLicense?: string } {
   const separator = raw.indexOf("|");
   if (separator < 0) return { url: unescapeValue(raw.trim()), headers: {} };
@@ -67,8 +86,9 @@ export function parseM3U(source: string, baseUrl?: string): Channel[] {
   let pending: Partial<Channel> | null = null;
   let pendingHeaders: StreamHeaders = {};
   let licenseType: string | undefined, licenseKey: string | undefined, manifestType: string | undefined;
+  let licenseHeaders: StreamHeaders = {};
   let currentGroup = "";
-  const reset = () => { pending = null; pendingHeaders = {}; licenseType = undefined; licenseKey = undefined; manifestType = undefined; };
+  const reset = () => { pending = null; pendingHeaders = {}; licenseType = undefined; licenseKey = undefined; manifestType = undefined; licenseHeaders = {}; };
   for (const rawLine of lines) {
     const line = rawLine.trim();
     if (!line) continue;
@@ -105,15 +125,18 @@ export function parseM3U(source: string, baseUrl?: string): Channel[] {
         const key = unescapeValue(prop.slice(0, index).trim()).toLowerCase();
         const value = unescapeValue(prop.slice(index + 1).trim());
         if (key.endsWith("license_type")) licenseType = value;
-        else if (key.endsWith("license_key")) licenseKey = value;
-        else if (key.endsWith("manifest_type")) manifestType = value;
-        else if (key.endsWith("license_key") && value.startsWith("{")) licenseKey = value;
+        else if (key.endsWith("license_key")) {
+          const parsed = parseLicenseValue(value);
+          licenseKey = parsed.license;
+          licenseHeaders = { ...licenseHeaders, ...parsed.headers };
+        } else if (key.endsWith("manifest_type")) manifestType = value;
       }
     } else if (!line.startsWith("#") && pending) {
       try {
         const stream = streamLine(line);
         const url = resolveUrl(stream.url, baseUrl);
-        const drm = createClearKeyDrm(stream.drmType ?? licenseType, stream.drmLicense ?? licenseKey);
+        let drm = createClearKeyDrm(stream.drmType ?? licenseType, stream.drmLicense ?? licenseKey);
+        if (drm && Object.keys(licenseHeaders).length) drm = { ...drm, licenseHeaders };
         const channel = {
           ...(pending as Channel), url, headers: { ...pendingHeaders, ...stream.headers },
           drm, manifestType: inferType(url, manifestType)
