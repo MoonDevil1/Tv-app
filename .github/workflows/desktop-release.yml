@@ -33,12 +33,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event_name == 'workflow_dispatch' && 'feat/electron-cinema-iptv' || github.ref }}
+          ref: ${{ github.ref }}
       - uses: actions/setup-node@v4
         with:
           node-version: 22
       - name: Set app version from release ref
-        if: (startsWith(github.ref, 'refs/tags/v') || startsWith(github.ref, 'refs/heads/release/v')) && (github.event_name != 'create' || github.event.ref_type == 'branch')
+        if: startsWith(github.ref, 'refs/tags/v') || startsWith(github.ref, 'refs/heads/release/v')
         shell: bash
         run: |
           if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
@@ -101,7 +101,7 @@ jobs:
 
   draft-release:
     name: Publish GitHub release
-    if: startsWith(github.ref, 'refs/tags/v') || startsWith(github.ref, 'refs/heads/release/v')
+    if: startsWith(github.ref, 'refs/tags/v') || startsWith(github.ref, 'refs/heads/release/v') || (github.event_name == 'create' && github.event.ref_type == 'branch' && startsWith(github.event.ref, 'release/v'))
     needs: package
     runs-on: ubuntu-latest
     steps:

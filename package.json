@@ -1,18 +1,86 @@
 {
-  "name": "tg-iptv-desktop",
-  "version": "1.0.0",
+  "name": "tg-iptv-cinema",
+  "version": "2.0.1",
   "private": true,
   "type": "module",
+  "main": "out/main/index.js",
   "scripts": {
-    "dev": "vite --host 0.0.0.0",
-    "build": "vite build",
-    "tauri": "tauri"
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
+    "typecheck": "tsc --noEmit",
+    "dist": "npm run build && electron-builder --publish never",
+    "dist:win": "npm run build && electron-builder --win --publish never",
+    "dist:mac": "npm run build && electron-builder --mac --publish never",
+    "dist:linux": "npm run build && electron-builder --linux --publish never",
+    "test": "tsx --test tests/core.test.ts tests/electron-security.test.ts"
   },
   "dependencies": {
-    "shaka-player": "^4.12.8"
+    "hls.js": "1.7.4",
+    "lucide-react": "^0.468.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "shaka-player": "4.16.58",
+    "zustand": "^5.0.3",
+    "electron-updater": "6.8.12"
   },
   "devDependencies": {
+    "@tailwindcss/vite": "^4.0.0",
+    "@types/node": "^22.13.4",
+    "@types/react": "^19.0.8",
+    "@types/react-dom": "^19.0.3",
+    "@vitejs/plugin-react": "^4.3.4",
+    "electron": "45.4.1",
+    "electron-builder": "26.18.1",
+    "electron-vite": "^3.0.0",
+    "tailwindcss": "^4.0.0",
+    "typescript": "^5.7.3",
     "vite": "^6.1.0",
-    "@tauri-apps/cli": "^2.0.0"
-  }
+    "tsx": "^4.19.2"
+  },
+  "build": {
+    "appId": "com.moondevil.tgiptv",
+    "productName": "TG IPTV",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "out/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        "nsis",
+        "portable"
+      ]
+    },
+    "mac": {
+      "target": [
+        "dmg",
+        "zip"
+      ]
+    },
+    "linux": {
+      "target": [
+        "AppImage"
+      ]
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "MoonDevil1",
+        "repo": "Tv-app",
+        "releaseType": "release"
+      }
+    ],
+    "compression": "maximum",
+    "electronLanguages": [
+      "en-US"
+    ]
+  },
+  "packageManager": "npm@10.9.9",
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "description": "Cross-platform IPTV desktop player built with Electron.",
+  "author": "MoonDevil1"
 }
