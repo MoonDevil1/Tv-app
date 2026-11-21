@@ -132,9 +132,24 @@ export class StreamEngine {
   }
 
   private async playHls(video: HTMLVideoElement, channel: Channel, generation: number, signal: AbortSignal): Promise<void> {
+    if (channel.drm && !channel.drm.licenseUrl) {
+      throw new Error("Encrypted HLS requires a license-server URL. Inline ClearKey keys are supported with DASH/MPD streams.");
+    }
     if (Hls.isSupported()) {
+      const drmSystems = channel.drm?.licenseUrl
+        ? channel.drm.scheme === "widevine"
+          ? { "com.widevine.alpha": { licenseUrl: channel.drm.licenseUrl } }
+          : { "org.w3.clearkey": { licenseUrl: channel.drm.licenseUrl } }
+        : undefined;
       const hls = new Hls({
         enableWorker: true,
+        emeEnabled: Boolean(channel.drm),
+        drmSystems,
+        licenseXhrSetup: (xhr, url) => {
+          for (const [name, value] of Object.entries(licenseHeadersForRequest(channel.drm, url))) {
+            xhr.setRequestHeader(name, value);
+          }
+        },
         lowLatencyMode: false,
         capLevelToPlayerSize: true,
         maxBufferLength: 20,
