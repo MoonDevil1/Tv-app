@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { parseM3U, parseJsonPlaylist, parsePlaylist } from "../src/core/parser/m3uParser";
 import { clearKeyJwk, hexToBase64Url, parseClearKeys, createClearKeyDrm } from "../src/core/parser/clearKeyUtils";
 import { PlaylistManager } from "../src/core/parser/playlistManager";
-import { parseXmltvDate, currentAndNext } from "../src/core/epg/xmltv";
+import { parseXmltvDate, currentAndNext, parseLiveTgGuide } from "../src/core/epg/xmltv";
 import { waitForMediaEvent } from "../src/core/player/mediaEvents";
 import { describeShakaError } from "../src/core/player/shakaErrors";
 
@@ -265,4 +265,19 @@ test("explains Shaka DRM key-system failures with actionable guidance", () => {
   assert.match(describeShakaError(6020).message, /Encrypted Media Extensions/i);
   assert.match(describeShakaError(6000).message, /does not identify a DRM system/i);
   assert.match(describeShakaError(7000).message, /Shaka playback error 7000/i);
+});
+
+
+test("parses LiveTGTV current, next and upcoming guide data with Unix-second timestamps", () => {
+  const programs = parseLiveTgGuide({
+    nowPlaying: { title: "Current", start: 1_800_000_000, stop: 1_800_000_600, desc: "On now" },
+    upNext: { title: "Next", start: 1_800_000_600, stop: 1_800_001_200 },
+    upcoming: [{ title: "Later", start: 1_800_001_200, stop: 1_800_001_800 }]
+  }, "144");
+  assert.equal(programs.length, 3);
+  assert.equal(programs[0].channelId, "144");
+  assert.equal(programs[0].start, 1_800_000_000_000);
+  assert.equal(programs[0].description, "On now");
+  assert.equal(programs[2].title, "Later");
+  assert.equal(parseLiveTgGuide({ error: "Channel guide unavailable" }, "144").length, 0);
 });
