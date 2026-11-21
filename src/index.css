@@ -35,7 +35,6 @@ h1,h2,p{margin-top:0}.welcome-row h1{font:800 clamp(35px,4vw,49px)/1.13 "Plus Ja
 .playlist-heading{margin-top:33px}.text-action{color:#82bde0}.empty-playlist{width:100%;min-height:83px;display:flex;align-items:center;gap:15px;padding:15px 18px;border:1px dashed #334154;border-radius:12px;background:#101722;text-align:left;color:#e5edf9;}.empty-playlist:hover{border-color:#4f9ac1;background:#131d2b}.empty-icon{width:42px;height:42px;display:grid;place-items:center;border-radius:11px;background:#1c3445;color:#6ac8ee}.empty-playlist b,.empty-playlist span{display:block}.empty-playlist b{font-size:11px}.empty-playlist div:nth-child(2)>span{font-size:10px;color:#7f90a6;margin-top:5px}.empty-cta{margin-left:auto;font-size:10px;color:#85c9e8;white-space:nowrap}.page-footer{display:flex;justify-content:space-between;margin-top:29px;padding:14px 0;color:#56657a;font-size:9px}.page-footer i{font-style:normal;margin:0 6px;color:#354254}
 .modal-backdrop{position:fixed;inset:0;z-index:20;display:grid;place-items:center;background:#03060bc9;padding:20px}.add-modal{position:relative;width:min(450px,100%);padding:29px;border:1px solid #344256;border-radius:18px;background:linear-gradient(145deg,#151f2d,#0d121c);box-shadow:0 30px 100px #000b}.modal-close{position:absolute;top:15px;right:17px;border:0;background:none;color:#8b9ab0;font-size:24px}.modal-icon{width:45px;height:45px;display:grid;place-items:center;border-radius:13px;background:#1a3448;color:#72d2f2;margin-bottom:21px}.add-modal h2{font:700 22px "Plus Jakarta Sans";margin:9px 0}.add-modal>p{font-size:11px;color:#8d9db2;line-height:1.65;margin-bottom:20px}.modal-option{display:flex;align-items:center;gap:11px;padding:13px 0;border-top:1px solid #263243}.option-icon{width:35px;height:35px;border-radius:9px;background:#1b2635;color:#83b9db;display:grid;place-items:center}.modal-option b,.modal-option small{display:block}.modal-option b{font-size:11px}.modal-option small{font-size:9px;color:#8190a4;margin-top:4px}.soon-tag{margin-left:auto;font-size:8px;letter-spacing:1px;color:#6b94b5}.modal-done{width:100%;margin-top:20px}
 @media(max-width:1200px){.sidebar{width:218px}.main-area{margin-left:218px}.page-content{padding:35px 30px 20px}.hero-art{margin-right:0;width:330px}.chip-top{right:-10px}}
-}
 
 
 /* Phase 3 — working channel library */
@@ -114,7 +113,6 @@ h1,h2,p{margin-top:0}.welcome-row h1{font:800 clamp(35px,4vw,49px)/1.13 "Plus Ja
 .modal-footnote{display:block;text-align:center;color:#72839a;font-size:9px;margin-top:13px}
 button:disabled{opacity:.45;cursor:not-allowed;transform:none!important}
 
-}
 @media(max-width:1320px){.channel-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.library-intro .hero-art{width:320px}.page-content{padding-left:30px;padding-right:30px}}
 @media(max-width:1080px){.sidebar{width:205px}.main-area{margin-left:205px}.topbar{padding:0 22px}.search-box{width:200px}.channel-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.library-intro .hero-art{width:270px}.guide-row{grid-template-columns:1fr 1fr}.guide-program.next{grid-column:2}}
 
@@ -170,6 +168,5 @@ button:disabled{opacity:.45;cursor:not-allowed;transform:none!important}
 .mini-mode .player-live-pill{padding:5px 7px;font-size:8px}
 .mini-mode .player-menu{right:10px;bottom:55px;max-height:180px}
 @media(max-width:900px){.player-hud{padding:16px}.player-controls{gap:5px}.volume-control input{width:55px}.player-controls>.hud-icon:nth-of-type(n+5){width:32px;height:32px}.player-title b{font-size:14px}.player-shortcut-hint{display:none}}
-.player-hud,.player-menu{}}
 
 .update-card{display:grid;gap:14px}.update-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:16px}.update-heading>div{display:grid;gap:5px}.update-heading b{font-size:13px}.update-heading span,.update-status{font-size:11px;color:#91a2b7;line-height:1.55}.update-status{display:flex;align-items:center;gap:9px;overflow-wrap:anywhere}.update-indicator{display:grid;place-items:center;color:#72d6b4}.update-indicator.error{color:#ff899b}.update-progress{height:5px;border-radius:10px;overflow:hidden;background:#263345}.update-progress>div{height:100%;border-radius:inherit;background:linear-gradient(90deg,#6bd5ef,#8a88ff);}
