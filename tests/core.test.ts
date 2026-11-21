@@ -5,6 +5,7 @@ import { clearKeyJwk, hexToBase64Url, parseClearKeys, createClearKeyDrm } from "
 import { PlaylistManager } from "../src/core/parser/playlistManager";
 import { parseXmltvDate, currentAndNext } from "../src/core/epg/xmltv";
 import { waitForMediaEvent } from "../src/core/player/mediaEvents";
+import { describeShakaError } from "../src/core/player/shakaErrors";
 
 const KID = "00112233445566778899aabbccddeeff";
 const KEY = "ffeeddccbbaa99887766554433221100";
@@ -255,4 +256,13 @@ test("XMLTV date parser rejects impossible dates and offsets", () => {
   assert.ok(Number.isNaN(parseXmltvDate("20241301120000 +0530")));
   assert.ok(Number.isNaN(parseXmltvDate("20240230120000 +0530")));
   assert.ok(Number.isNaN(parseXmltvDate("20240101120000 +9999")));
+});
+
+
+test("explains Shaka DRM key-system failures with actionable guidance", () => {
+  assert.match(describeShakaError(6001).message, /DRM-protected/i);
+  assert.match(describeShakaError(6001).message, /Widevine\/PlayReady/i);
+  assert.match(describeShakaError(6020).message, /Encrypted Media Extensions/i);
+  assert.match(describeShakaError(6000).message, /does not identify a DRM system/i);
+  assert.match(describeShakaError(7000).message, /Shaka playback error 7000/i);
 });
