@@ -2,7 +2,8 @@ import { app, BrowserWindow, ipcMain, session, shell } from "electron";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { isAllowedNavigation } from "./security/navigation";
-import { writeFileSync, appendFile, mkdir, stat, rename } from "node:fs/promises";
+import { writeFileSync } from "node:fs";
+import { appendFile, mkdir, stat, rename } from "node:fs/promises";
 import { registerHeaderProxy, setActiveStreamContext, type StreamRequestContext } from "./net/headerProxy";
 import { registerAutoUpdates } from "./updater";
 import { fetchRemoteText } from "./net/remoteFetch";
@@ -12,8 +13,8 @@ const MAX_DIAGNOSTIC_BYTES = 2 * 1024 * 1024;
 function sanitizeDiagnostic(input: unknown): string {
   let value = JSON.stringify(input ?? {});
   value = value.slice(0, 12000)
-    .replace(/https?:\\/\\/[^\\s"'<>]+/gi, "[redacted-url]")
-    .replace(/(authorization|cookie|token|secret|key)\\s*[:=]\\s*[^,\\s}]+/gi, "$1=[redacted]");
+    .replace(/https?:\/\/[^\s"'<>]+/gi, "[redacted-url]")
+    .replace(/(authorization|cookie|token|secret|key)\s*[:=]\s*[^,\s}]+/gi, "$1=[redacted]");
   return value;
 }
 async function saveDiagnostic(input: unknown): Promise<void> {
@@ -24,7 +25,7 @@ async function saveDiagnostic(input: unknown): Promise<void> {
     const info = await stat(file);
     if (info.size > MAX_DIAGNOSTIC_BYTES) await rename(file, file + ".1").catch(() => undefined);
   } catch { /* First diagnostic entry. */ }
-  await appendFile(file, JSON.stringify({ timestamp: new Date().toISOString(), report: sanitizeDiagnostic(input) }) + "\\n", "utf8");
+  await appendFile(file, JSON.stringify({ timestamp: new Date().toISOString(), report: sanitizeDiagnostic(input) }) + "\n", "utf8");
 }
 
 let mainWindow: BrowserWindow | null = null;
