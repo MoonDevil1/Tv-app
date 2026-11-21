@@ -1,6 +1,7 @@
 export function describeShakaError(code?: number, data?: unknown[], original?: unknown): Error {
   if (code === 6001) {
-    return new Error("This channel is DRM-protected, but this Windows player runtime cannot access the required DRM key system (Shaka 6001). The required Widevine/PlayReady component may be unavailable, or the playback origin may not meet the browser's secure-origin requirements. Try a supported browser/runtime or a clear (non-DRM) stream. DRM protection cannot be bypassed.");
+    const keySystem = typeof data?.[0] === "string" ? data[0] : "";
+    return new Error("The browser could not create a supported DRM configuration for this stream (Shaka 6001)" + (keySystem ? ": " + keySystem : "") + ". Common causes are an insecure playback origin, an unsupported key system, or DRM requirements the installed browser runtime cannot satisfy. Check the player secure-context and Encrypted Media Extensions support; this is not a stream URL or ClearKey parsing error.");
   }
   if (code === 6020) {
     return new Error("This channel requires Encrypted Media Extensions (EME), which are not available in this player runtime (Shaka 6020). A compatible DRM-enabled runtime is required.");
