@@ -36,11 +36,14 @@ export function Player({ channel, channels, onClose, onChangeChannel, onRecover,
   const [subtitles, setSubtitles] = useState<Option[]>([]);
   const [selectedQuality, setSelectedQuality] = useState(-1);
   const [selectedAudio, setSelectedAudio] = useState(-1);
-  const [selectedSubtitle, setSelectedSubtitle] = useState(-1);\n  const [channelQuery, setChannelQuery] = useState("");
+  const [selectedSubtitle, setSelectedSubtitle] = useState(-1);
+  const [channelQuery, setChannelQuery] = useState("");
   const [epgClock, setEpgClock] = useState(Date.now());
   const epgPrograms = useAppStore(s => s.epgPrograms);
   const setEpgPrograms = useAppStore(s => s.setEpgPrograms);
-  const playlists = useAppStore(s => s.playlists);\n  const favorites = useAppStore(s => s.favorites);\n  const toggleFavorite = useAppStore(s => s.toggleFavorite);
+  const playlists = useAppStore(s => s.playlists);
+  const favorites = useAppStore(s => s.favorites);
+  const toggleFavorite = useAppStore(s => s.toggleFavorite);
   const epgLoadRef = useRef(new Set<string>());
   const reportedErrorsRef = useRef(new Set<string>());
   const channelRef = useRef(channel);
@@ -277,7 +280,11 @@ export function Player({ channel, channels, onClose, onChangeChannel, onRecover,
     engineRef.current?.selectSubtitle(option?.id ?? -1); setSelectedSubtitle(option?.id ?? -1); setMenu(null);
   }
 
-  const guide = channel.tvgId ? currentAndNext(epgPrograms[channel.tvgId] ?? [], epgClock) : {};\n  const ownerPlaylist = playlists.find(item => item.channels.some(itemChannel => itemChannel.id === channel.id));\n  const favoriteKey = ownerPlaylist ? `${ownerPlaylist.id}:${channel.id}` : "";\n  const isFavorite = Boolean(favoriteKey && favorites.includes(favoriteKey));\n  const filteredChannels = channels.filter(item => `${item.name} ${item.group}`.toLowerCase().includes(channelQuery.trim().toLowerCase()));
+  const guide = channel.tvgId ? currentAndNext(epgPrograms[channel.tvgId] ?? [], epgClock) : {};
+  const ownerPlaylist = playlists.find(item => item.channels.some(itemChannel => itemChannel.id === channel.id));
+  const favoriteKey = ownerPlaylist ? `${ownerPlaylist.id}:${channel.id}` : "";
+  const isFavorite = Boolean(favoriteKey && favorites.includes(favoriteKey));
+  const filteredChannels = channels.filter(item => `${item.name} ${item.group}`.toLowerCase().includes(channelQuery.trim().toLowerCase()));
   const currentIndex = channels.findIndex(item => item.id === channel.id);
   const previous = currentIndex > 0;
   const next = currentIndex >= 0 && currentIndex < channels.length - 1;
@@ -320,21 +327,25 @@ export function Player({ channel, channels, onClose, onChangeChannel, onRecover,
               {live && <span className="live-now">● LIVE</span>}
               <div className="control-spacer" />
               <button className="hud-icon" onClick={() => setFit(v => v === "contain" ? "cover" : v === "cover" ? "fill" : "contain")} title={`Fit: ${fit}`}><MonitorPlay /></button>
-              <button className="hud-icon" onClick={() => { refreshTracks(); setMenu(menu === "quality" ? null : "quality"); }} title="Quality"><Settings2 /></button>
-              <button className="hud-icon" onClick={() => { refreshTracks(); setMenu(menu === "audio" ? null : "audio"); }} title="Audio"><AudioLines /></button>
-              <button className="hud-icon" onClick={() => { refreshTracks(); setMenu(menu === "subtitles" ? null : "subtitles"); }} title="Subtitles"><Subtitles /></button>
+              <button className="hud-icon" onClick={() => { refreshTracks(); setMenu(menu === "settings" ? null : "settings"); }} title="Player settings"><Settings2 /></button>
+              <button className="hud-icon" onClick={() => { if (favoriteKey) toggleFavorite(favoriteKey); }} title={isFavorite ? "Remove favorite" : "Add favorite"}><Heart fill={isFavorite ? "currentColor" : "none"} /></button>
               <button className="hud-icon" onClick={() => setMenu(menu === "zap" ? null : "zap")} title="Channel list"><Radio /></button>
               <button className="hud-icon" onClick={() => void togglePip()} title="Picture in picture"><PictureInPicture2 /></button>
               <button className="hud-icon" onClick={() => void toggleFullscreen()} title="Fullscreen"><Maximize /></button>
             </div>
           </div>
         </div>}
-      {menu && <div className={menu === "zap" ? "player-menu zap-menu" : "player-menu"}>
-          <div className="player-menu-head"><b>{menu === "quality" ? "Stream quality" : menu === "audio" ? "Audio track" : menu === "subtitles" ? "Subtitles" : "Channel guide"}</b><button onClick={() => setMenu(null)}><X size={15} /></button></div>
-          {menu === "quality" && <><button className="player-option" onClick={() => { engineRef.current?.setQuality(-1); setSelectedQuality(-1); setMenu(null); }}>Auto {selectedQuality === -1 && <Check size={14} />}</button>{quality.map(option => <button className="player-option" key={option.id} onClick={() => selectQuality(option)}>{option.label}{selectedQuality === option.id && <Check size={14} />}</button>)}</>}
-          {menu === "audio" && (audio.length ? audio.map(option => <button className="player-option" key={option.id} onClick={() => selectAudio(option)}>{option.label}{selectedAudio === option.id && <Check size={14} />}</button>) : <p className="player-empty-option">No alternate audio tracks detected.</p>)}
-          {menu === "subtitles" && <><button className="player-option" onClick={() => selectSubtitle(null)}>Off {selectedSubtitle === -1 && <Check size={14} />}</button>{subtitles.map(option => <button className="player-option" key={option.id} onClick={() => selectSubtitle(option)}>{option.label}{selectedSubtitle === option.id && <Check size={14} />}</button>)}{!subtitles.length && <p className="player-empty-option">No embedded subtitle tracks detected.</p>}</>}
-          {menu === "zap" && <div className="zap-list">{channels.map((item, index) => <button className={item.id === channel.id ? "zap-item active" : "zap-item"} key={item.id} onClick={() => { onChangeChannel(item); setMenu(null); }}><span>{String(index + 1).padStart(2, "0")}</span>{item.logo && <img src={item.logo} alt="" />}<b>{item.name}</b>{item.id === channel.id && <i />}</button>)}</div>}
+      {menu && <div className={menu === "zap" ? "player-menu zap-menu" : "player-menu settings-menu"}>
+          <div className="player-menu-head"><b>{menu === "settings" ? "Player settings" : "Channels"}</b><button onClick={() => setMenu(null)}><X size={15} /></button></div>
+          {menu === "settings" && <div className="player-settings-content">
+            <div className="player-setting-group"><b>Quality</b><button className="player-option" onClick={() => { engineRef.current?.setQuality(-1); setSelectedQuality(-1); setMenu(null); }}>Auto {selectedQuality === -1 && <Check size={14} />}</button>{quality.map(option => <button className="player-option" key={option.id} onClick={() => selectQuality(option)}>{option.label}{selectedQuality === option.id && <Check size={14} />}</button>)}</div>
+            <div className="player-setting-group"><b>Audio language</b>{audio.length ? audio.map(option => <button className="player-option" key={option.id} onClick={() => selectAudio(option)}>{option.label}{selectedAudio === option.id && <Check size={14} />}</button>) : <p className="player-empty-option">No alternate audio tracks.</p>}</div>
+            <div className="player-setting-group"><b>Captions</b><button className="player-option" onClick={() => selectSubtitle(null)}>Off {selectedSubtitle === -1 && <Check size={14} />}</button>{subtitles.map(option => <button className="player-option" key={option.id} onClick={() => selectSubtitle(option)}>{option.label}{selectedSubtitle === option.id && <Check size={14} />}</button>)}</div>
+            <div className="player-setting-group"><b>Aspect ratio</b>{([{id:"contain",label:"Fit to screen"},{id:"cover",label:"Fill screen"},{id:"fill",label:"Stretch"}] as const).map(option => <button className="player-option" key={option.id} onClick={() => { setFit(option.id); setMenu(null); }}>{option.label}{fit === option.id && <Check size={14} />}</button>)}</div>
+            <button className="player-option" onClick={() => void togglePip()}>Picture-in-Picture <PictureInPicture2 size={15} /></button>
+            <button className="player-option" onClick={() => { if (favoriteKey) toggleFavorite(favoriteKey); }}>{isFavorite ? "Remove from favorites" : "Add to favorites"} <Heart size={15} fill={isFavorite ? "currentColor" : "none"} /></button>
+          </div>}
+          {menu === "zap" && <><label className="channel-list-search"><Search size={14}/><input value={channelQuery} onChange={e => setChannelQuery(e.target.value)} placeholder="Search channels..." /></label><div className="zap-list">{filteredChannels.map(item => { const index = channels.findIndex(candidate => candidate.id === item.id); const itemGuide = item.tvgId ? currentAndNext(epgPrograms[item.tvgId] ?? [], epgClock) : {}; return <button className={item.id === channel.id ? "zap-item active" : "zap-item"} key={item.id} onClick={() => { onChangeChannel(item); setMenu(null); }}><span>{String(index + 1).padStart(2, "0")}</span>{item.logo && <img src={item.logo} alt="" />}<div className="zap-item-copy"><b>{item.name}</b><small>{itemGuide.current?.title ?? item.group}</small></div>{item.id === channel.id && <i />}</button>; })}</div></>}
         </div>}
       {!hud && <button className="player-reveal" onClick={showHud} aria-label="Show player controls">Show controls</button>}
       <div className="player-shortcut-hint">Space Play/Pause · ↑↓ Channel · ←→ Seek/Zap · M Mute · F Fullscreen · I PiP · Esc Close</div>
