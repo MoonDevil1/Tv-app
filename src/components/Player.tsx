@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
-import { AudioLines, Check, ChevronLeft, ChevronRight, Expand, Maximize, Minimize, MonitorPlay, Pause, PictureInPicture2, Play, Radio, Settings2, Volume2, VolumeX, X, Subtitles } from "lucide-react";
+import { AudioLines, Check, ChevronLeft, ChevronRight, Maximize, Minimize, MonitorPlay, Pause, PictureInPicture2, Play, Radio, Settings2, Volume2, VolumeX, X, Subtitles } from "lucide-react";
 import type { Channel } from "../core/types";
 import { currentAndNext, parseLiveTgGuide, parseXmltv } from "../core/epg/xmltv";
 import { useAppStore } from "../core/store/appStore";
@@ -38,13 +37,11 @@ export function Player({ channel, channels, onClose, onChangeChannel, onRecover,
   const [selectedQuality, setSelectedQuality] = useState(-1);
   const [selectedAudio, setSelectedAudio] = useState(-1);
   const [selectedSubtitle, setSelectedSubtitle] = useState(-1);
-  const [ambient, setAmbient] = useState(false);
   const [epgClock, setEpgClock] = useState(Date.now());
   const epgPrograms = useAppStore(s => s.epgPrograms);
   const setEpgPrograms = useAppStore(s => s.setEpgPrograms);
   const playlists = useAppStore(s => s.playlists);
   const epgLoadRef = useRef(new Set<string>());
-  const [ambientColor, setAmbientColor] = useState("#1b3045");
 
   const engine = useMemo(() => new StreamEngine({
     onState: (next, err) => { setState(next); if (err) setError(err.message); },
@@ -192,27 +189,6 @@ export function Player({ channel, channels, onClose, onChangeChannel, onRecover,
 
   useEffect(() => () => { if (hideRef.current) window.clearTimeout(hideRef.current); }, []);
 
-  useEffect(() => {
-    if (!ambient) return;
-    const video = videoRef.current;
-    const canvas = document.createElement("canvas");
-    canvas.width = 2; canvas.height = 2;
-    const context = canvas.getContext("2d", { willReadFrequently: true });
-    if (!video || !context) return;
-    const sample = () => {
-      if (video.readyState < 2) return;
-      try {
-        context.drawImage(video, 0, 0, 2, 2);
-        const pixels = context.getImageData(0, 0, 2, 2).data;
-        let red = 0, green = 0, blue = 0;
-        for (let i = 0; i < pixels.length; i += 4) { red += pixels[i]; green += pixels[i + 1]; blue += pixels[i + 2]; }
-        setAmbientColor(`rgb(${Math.round(red / 4)}, ${Math.round(green / 4)}, ${Math.round(blue / 4)})`);
-      } catch { /* Cross-origin video frames may not be readable; keep the last safe ambient color. */ }
-    };
-    const timer = window.setInterval(sample, 1400);
-    sample();
-    return () => window.clearInterval(timer);
-  }, [ambient, channel.id]);
 
   async function togglePlay() {
     const video = videoRef.current;
@@ -259,9 +235,8 @@ export function Player({ channel, channels, onClose, onChangeChannel, onRecover,
 
   return <div className={mini ? "player-overlay mini-mode" : "player-overlay"} onMouseMove={showHud} onMouseEnter={showHud}>
     <div className="player-stage">
-      {ambient && <div className="player-ambient" style={{ backgroundColor: ambientColor, backgroundImage: channel.logo ? `linear-gradient(90deg,${ambientColor}ee,${ambientColor}77),url("${channel.logo}")` : `radial-gradient(ellipse at center, ${ambientColor}aa, transparent 70%)` }} />}
       <video ref={videoRef} className="player-video" style={{ objectFit: fit }} playsInline autoPlay />
-      {(guide.current || guide.next) && <div style={{ position: "absolute", zIndex: 4, top: 72, left: 24, width: "min(390px, 42vw)", padding: "14px 16px", borderRadius: 12, background: "rgba(8, 13, 22, .78)", backdropFilter: "blur(12px)", color: "#fff", pointerEvents: "none" }}>
+      {(guide.current || guide.next) && <div style={{ position: "absolute", zIndex: 4, top: 72, left: 24, width: "min(390px, 42vw)", padding: "14px 16px", borderRadius: 12, background: "rgba(8, 13, 22, .78)", color: "#fff", pointerEvents: "none" }}>
         {guide.current && <div style={{ marginBottom: 10 }}>
           <div style={{ color: "#43e3a0", fontSize: 11, fontWeight: 800, letterSpacing: 1.1 }}>NOW · {new Date(guide.current.start).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} – {new Date(guide.current.stop).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</div>
           <div style={{ fontSize: 17, fontWeight: 750, marginTop: 4 }}>{guide.current.title}</div>
@@ -275,13 +250,11 @@ export function Player({ channel, channels, onClose, onChangeChannel, onRecover,
       </div>}
       {state === "loading" && <div className="player-center-state"><div className="player-spinner" /><span>Connecting to {channel.name}…</span></div>}
       {error && <div className="player-error"><b>Playback problem</b><span>{error}</span><button onClick={() => { setError(""); void engineRef.current?.play(videoRef.current!, channel).catch(e => setError(e.message)); }}>Retry stream</button></div>}
-      <AnimatePresence>
-        {hud && <motion.div className="player-hud" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: .18 }}>
+      {hud && <div className="player-hud">
           <div className="player-topbar">
             <button className="hud-icon" onClick={onClose} aria-label="Close player"><X /></button>
             <div className="player-title"><b>{channel.name}</b><span>{channel.group} · {channel.manifestType?.toUpperCase() ?? "LIVE"}</span></div>
             <span className="player-live-pill"><i /> {live ? "LIVE" : "ON DEMAND"}</span>
-            <button className="hud-icon" onClick={() => setAmbient(v => !v)} title="Ambient backdrop"><Expand /></button>
             <button className="hud-icon" onClick={() => setMini(v => !v)} title="Mini player"><Minimize /></button>
           </div>
           <div className="player-bottom">
@@ -302,17 +275,14 @@ export function Player({ channel, channels, onClose, onChangeChannel, onRecover,
               <button className="hud-icon" onClick={() => void toggleFullscreen()} title="Fullscreen"><Maximize /></button>
             </div>
           </div>
-        </motion.div>}
-      </AnimatePresence>
-      <AnimatePresence>
-        {menu && <motion.div className={menu === "zap" ? "player-menu zap-menu" : "player-menu"} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 8 }}>
+        </div>}
+      {menu && <div className={menu === "zap" ? "player-menu zap-menu" : "player-menu"}>
           <div className="player-menu-head"><b>{menu === "quality" ? "Stream quality" : menu === "audio" ? "Audio track" : menu === "subtitles" ? "Subtitles" : "Channel guide"}</b><button onClick={() => setMenu(null)}><X size={15} /></button></div>
           {menu === "quality" && <><button className="player-option" onClick={() => { engineRef.current?.setQuality(-1); setSelectedQuality(-1); setMenu(null); }}>Auto {selectedQuality === -1 && <Check size={14} />}</button>{quality.map(option => <button className="player-option" key={option.id} onClick={() => selectQuality(option)}>{option.label}{selectedQuality === option.id && <Check size={14} />}</button>)}</>}
           {menu === "audio" && (audio.length ? audio.map(option => <button className="player-option" key={option.id} onClick={() => selectAudio(option)}>{option.label}{selectedAudio === option.id && <Check size={14} />}</button>) : <p className="player-empty-option">No alternate audio tracks detected.</p>)}
           {menu === "subtitles" && <><button className="player-option" onClick={() => selectSubtitle(null)}>Off {selectedSubtitle === -1 && <Check size={14} />}</button>{subtitles.map(option => <button className="player-option" key={option.id} onClick={() => selectSubtitle(option)}>{option.label}{selectedSubtitle === option.id && <Check size={14} />}</button>)}{!subtitles.length && <p className="player-empty-option">No embedded subtitle tracks detected.</p>}</>}
           {menu === "zap" && <div className="zap-list">{channels.map((item, index) => <button className={item.id === channel.id ? "zap-item active" : "zap-item"} key={item.id} onClick={() => { onChangeChannel(item); setMenu(null); }}><span>{String(index + 1).padStart(2, "0")}</span>{item.logo && <img src={item.logo} alt="" />}<b>{item.name}</b>{item.id === channel.id && <i />}</button>)}</div>}
-        </motion.div>}
-      </AnimatePresence>
+        </div>}
       {!hud && <button className="player-reveal" onClick={showHud} aria-label="Show player controls">Show controls</button>}
       <div className="player-shortcut-hint">Space Play/Pause · ↑↓ Channel · ←→ Seek/Zap · M Mute · F Fullscreen · I PiP · Esc Close</div>
     </div>
