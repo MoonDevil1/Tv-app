@@ -85,26 +85,30 @@ export function Player({ channel, channels, onClose, onChangeChannel, onRecover,
     epgLoadRef.current.add(loadKey);
     let cancelled = false;
     const requestId = globalThis.crypto.randomUUID();
-    const guideUrl = `https://livetgtv.lovable.app/api/public/guide/${encodeURIComponent(tvgId)}`;
-    void window.tvApp.fetchRemoteText(guideUrl, undefined, requestId).then(async response => {
-      if (cancelled) return;
-      let liveGuide: EpgProgram[] = [];
-      try { liveGuide = parseLiveTgGuide(JSON.parse(response.text), tvgId); } catch { /* Fall back to XMLTV below. */ }
-      if (liveGuide.length) {
-        setEpgPrograms({ ...useAppStore.getState().epgPrograms, [tvgId]: liveGuide });
-        return;
+    void (async () => {
+      const isLiveTgTv = owner.source.split("?")[0] === "https://livetgtv.lovable.app/api/public/playlist.m3u";
+      if (isLiveTgTv) {
+        try {
+          const response = await window.tvApp!.fetchRemoteText(`https://livetgtv.lovable.app/api/public/guide/${encodeURIComponent(tvgId)}`, undefined, requestId);
+          if (cancelled) return;
+          const liveGuide = parseLiveTgGuide(JSON.parse(response.text), tvgId);
+          if (liveGuide.length) {
+            setEpgPrograms({ ...useAppStore.getState().epgPrograms, [tvgId]: liveGuide });
+            return;
+          }
+        } catch { /* Use the playlist XMLTV source as a fallback when the LiveTGTV guide is unavailable. */ }
       }
       const epgUrl = owner.epgUrls[0];
       if (!epgUrl) return;
       const fallbackId = globalThis.crypto.randomUUID();
       try {
-        const fallback = await window.tvApp.fetchRemoteText(epgUrl, undefined, fallbackId);
+        const fallback = await window.tvApp!.fetchRemoteText(epgUrl, undefined, fallbackId);
         if (cancelled) return;
         const parsed = parseXmltv(fallback.text);
         if (Object.keys(parsed).length) setEpgPrograms({ ...useAppStore.getState().epgPrograms, ...parsed });
       } catch { /* EPG is optional; guide failures must never interrupt video playback. */ }
       finally { void window.tvApp?.cancelRemoteText(fallbackId); }
-    }).catch(() => {
+    })().catch(() => {
       // EPG is optional; a failed guide request must never interrupt video playback.
     });
     return () => { cancelled = true; void window.tvApp?.cancelRemoteText(requestId); };
