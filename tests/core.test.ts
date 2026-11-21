@@ -145,7 +145,7 @@ test("parses XMLTV timestamps with timezone offsets and selects now/next program
 });
 
 
-import { headersForRequestUris, licenseHeadersForRequest, shakaDrmConfiguration, streamHeadersForRequest } from "../src/core/player/streamPolicy";
+import { headersForRequestUris, hlsDrmConfiguration, licenseHeadersForRequest, shakaDrmConfiguration, streamHeadersForRequest } from "../src/core/player/streamPolicy";
 
 test("playback request policy scopes stream headers to the manifest origin", () => {
   const channel = {
@@ -186,6 +186,17 @@ test("license headers are sent only to the configured license server", () => {
   });
   assert.deepEqual(licenseHeadersForRequest(drm, "https://cdn.example/wv"), {});
   assert.deepEqual(licenseHeadersForRequest(drm, "https://license.example.evil.test/wv"), {});
+});
+
+test("builds HLS EME configuration and requires a remote license endpoint", () => {
+  assert.deepEqual(hlsDrmConfiguration(undefined), { emeEnabled: false });
+  assert.deepEqual(hlsDrmConfiguration({ scheme: "widevine", licenseUrl: "https://license.example/wv" }), {
+    emeEnabled: true, drmSystems: { "com.widevine.alpha": { licenseUrl: "https://license.example/wv" } }
+  });
+  assert.deepEqual(hlsDrmConfiguration({ scheme: "clearkey", licenseUrl: "https://license.example/ck" }), {
+    emeEnabled: true, drmSystems: { "org.w3.clearkey": { licenseUrl: "https://license.example/ck" } }
+  });
+  assert.throws(() => hlsDrmConfiguration({ scheme: "clearkey", clearKeys: {} }), /requires a license-server URL/);
 });
 
 test("builds ClearKey and Widevine Shaka DRM configurations", () => {
