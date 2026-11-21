@@ -61,3 +61,22 @@ export function shakaDrmConfiguration(drm: DrmConfig | undefined): { drm?: { cle
   }
   return { drm: { servers: { "com.widevine.alpha": license.toString() } } };
 }
+
+
+export function hlsDrmConfiguration(drm: DrmConfig | undefined): {
+  emeEnabled: boolean;
+  drmSystems?: Record<string, { licenseUrl: string }>;
+} {
+  if (!drm) return { emeEnabled: false };
+  if (!drm.licenseUrl) {
+    throw new TypeError("Encrypted HLS requires a license-server URL. Inline ClearKey keys are supported with DASH/MPD streams.");
+  }
+  let license: URL;
+  try { license = new URL(drm.licenseUrl); }
+  catch { throw new TypeError("DRM license URL must be a valid HTTP(S) URL."); }
+  if (license.protocol !== "http:" && license.protocol !== "https:") {
+    throw new TypeError("DRM license URL must use HTTP or HTTPS.");
+  }
+  const keySystem = drm.scheme === "widevine" ? "com.widevine.alpha" : "org.w3.clearkey";
+  return { emeEnabled: true, drmSystems: { [keySystem]: { licenseUrl: license.toString() } } };
+}
