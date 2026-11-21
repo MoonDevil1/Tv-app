@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { AudioLines, Check, ChevronLeft, ChevronRight, Expand, Maximize, Minimize, MonitorPlay, Pause, PictureInPicture2, Play, Radio, Settings2, Volume2, VolumeX, X, Subtitles } from "lucide-react";
 import type { Channel } from "../core/types";
+import { currentAndNext, parseXmltv } from "../core/epg/xmltv";
+import { useAppStore } from "../core/store/appStore";
 import { StreamEngine, type PlaybackState } from "../core/player/StreamEngine";
 
 type Props = {
@@ -35,7 +37,11 @@ export function Player({ channel, channels, onClose, onChangeChannel, onRecover 
   const [selectedQuality, setSelectedQuality] = useState(-1);
   const [selectedAudio, setSelectedAudio] = useState(-1);
   const [selectedSubtitle, setSelectedSubtitle] = useState(-1);
-  const [ambient, setAmbient] = useState(true);
+  const [ambient, setAmbient] = useState(false);
+  const [epgClock, setEpgClock] = useState(Date.now());
+  const epgPrograms = useAppStore(s => s.epgPrograms);
+  const setEpgPrograms = useAppStore(s => s.setEpgPrograms);
+  const playlists = useAppStore(s => s.playlists);
   const [ambientColor, setAmbientColor] = useState("#1b3045");
 
   const engine = useMemo(() => new StreamEngine({
@@ -60,6 +66,29 @@ export function Player({ channel, channels, onClose, onChangeChannel, onRecover 
     }).catch(err => setError(err instanceof Error ? err.message : String(err)));
     return () => { void engine.destroy(); engineRef.current = null; };
   }, [engine, channel.id, channel.url]);
+
+  useEffect(() => {
+    const tvgId = channel.tvgId;
+    if (!tvgId || epgPrograms[tvgId]?.length) return;
+    const owner = playlists.find(item => item.channels.some(candidate => candidate.id === channel.id));
+    const epgUrl = owner?.epgUrls[0];
+    if (!epgUrl || !window.tvApp?.fetchRemoteText) return;
+    let cancelled = false;
+    const requestId = globalThis.crypto.randomUUID();
+    void window.tvApp.fetchRemoteText(epgUrl, undefined, requestId).then(response => {
+      if (cancelled) return;
+      const parsed = parseXmltv(response.text);
+      if (Object.keys(parsed).length) setEpgPrograms({ ...useAppStore.getState().epgPrograms, ...parsed });
+    }).catch(() => {
+      // EPG is optional; a failed guide request must never interrupt video playback.
+    });
+    return () => { cancelled = true; void window.tvApp?.cancelRemoteText(requestId); };
+  }, [channel.id, channel.tvgId, epgPrograms, playlists, setEpgPrograms]);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setEpgClock(Date.now()), 30_000);
+    return () => window.clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     const video = videoRef.current;
@@ -187,6 +216,7 @@ export function Player({ channel, channels, onClose, onChangeChannel, onRecover 
     engineRef.current?.selectSubtitle(option?.id ?? -1); setSelectedSubtitle(option?.id ?? -1); setMenu(null);
   }
 
+  const guide = channel.tvgId ? currentAndNext(epgPrograms[channel.tvgId] ?? [], epgClock) : {};
   const currentIndex = channels.findIndex(item => item.id === channel.id);
   const previous = currentIndex > 0;
   const next = currentIndex >= 0 && currentIndex < channels.length - 1;
@@ -199,6 +229,18 @@ export function Player({ channel, channels, onClose, onChangeChannel, onRecover 
     <div className="player-stage">
       {ambient && <div className="player-ambient" style={{ backgroundColor: ambientColor, backgroundImage: channel.logo ? `linear-gradient(90deg,${ambientColor}ee,${ambientColor}77),url("${channel.logo}")` : `radial-gradient(ellipse at center, ${ambientColor}aa, transparent 70%)` }} />}
       <video ref={videoRef} className="player-video" style={{ objectFit: fit }} playsInline autoPlay />
+      {(guide.current || guide.next) && <div style={{ position: "absolute", zIndex: 4, top: 72, left: 24, width: "min(390px, 42vw)", padding: "14px 16px", borderRadius: 12, background: "rgba(8, 13, 22, .78)", backdropFilter: "blur(12px)", color: "#fff", pointerEvents: "none" }}>
+        {guide.current && <div style={{ marginBottom: 10 }}>
+          <div style={{ color: "#43e3a0", fontSize: 11, fontWeight: 800, letterSpacing: 1.1 }}>NOW · {new Date(guide.current.start).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} – {new Date(guide.current.stop).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</div>
+          <div style={{ fontSize: 17, fontWeight: 750, marginTop: 4 }}>{guide.current.title}</div>
+          {guide.current.description && <div style={{ fontSize: 12, opacity: .78, marginTop: 4, lineHeight: 1.4 }}>{guide.current.description}</div>}
+        </div>}
+        {guide.next && <div>
+          <div style={{ color: "#43e3a0", fontSize: 11, fontWeight: 800, letterSpacing: 1.1 }}>NEXT · {new Date(guide.next.start).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</div>
+          <div style={{ fontSize: 15, fontWeight: 700, marginTop: 4 }}>{guide.next.title}</div>
+          {guide.next.description && <div style={{ fontSize: 12, opacity: .78, marginTop: 4, lineHeight: 1.4 }}>{guide.next.description}</div>}
+        </div>}
+      </div>}
       {state === "loading" && <div className="player-center-state"><div className="player-spinner" /><span>Connecting to {channel.name}…</span></div>}
       {error && <div className="player-error"><b>Playback problem</b><span>{error}</span><button onClick={() => { setError(""); void engineRef.current?.play(videoRef.current!, channel).catch(e => setError(e.message)); }}>Retry stream</button></div>}
       <AnimatePresence>
