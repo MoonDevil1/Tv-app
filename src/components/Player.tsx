@@ -70,7 +70,7 @@ export function Player({ channel, channels, onClose, onChangeChannel, onRecover,
       setQuality(engine.getQualityOptions());
       setAudio(engine.getAudioOptions());
       setSubtitles(engine.getSubtitleOptions());
-      setLive(!(playable.manifestType === "progressive" || /\\.(?:mp4|m4v|mkv|webm)(?:$|[?#])/i.test(playable.url)));
+      setLive(!(playable.manifestType === "progressive" || /\.(?:mp4|m4v|mkv|webm)(?:$|[?#])/i.test(playable.url)));
     })().catch(err => { if (!cancelled) setError(err instanceof Error ? err.message : String(err)); });
     return () => { void engine.destroy(); engineRef.current = null; };
   }, [engine, channel.id, channel.url, onResolve]);
