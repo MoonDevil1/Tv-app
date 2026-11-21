@@ -104,7 +104,7 @@ app.whenReady().then(() => {
   });
   ipcMain.handle("app:open-feedback-report", async (event, report: unknown) => {
     if (event.senderFrame !== event.sender.mainFrame) throw new Error("Feedback is only available to the main application frame.");
-    const body = "TG IPTV playback report\\n\\n" + sanitizeDiagnostic(report);
+    const body = "TG IPTV playback report\n\n" + sanitizeDiagnostic(report);
     const url = "https://github.com/MoonDevil1/Tv-app/issues/new?title=" + encodeURIComponent("Playback problem report") + "&body=" + encodeURIComponent(body);
     await shell.openExternal(url);
     return { opened: true };
