@@ -1,7 +1,7 @@
 export function describeShakaError(code?: number, data?: unknown[], original?: unknown): Error {
   if (code === 6001) {
     const keySystem = typeof data?.[0] === "string" ? data[0] : "";
-    return new Error("The browser could not create a supported DRM configuration for this stream (Shaka 6001)" + (keySystem ? ": " + keySystem : "") + ". Common causes are an insecure playback origin, an unsupported key system, or DRM requirements the installed browser runtime cannot satisfy. Check the player secure-context and Encrypted Media Extensions support; this is not a stream URL or ClearKey parsing error.");
+    return new Error("The browser could not create a supported DRM configuration for this stream (Shaka 6001)" + (keySystem ? ": " + keySystem : "") + ". Widevine requires a compatible CDM in the installed Electron/Chromium runtime; the app cannot bundle Google's proprietary CDM. Also check the secure playback context and the device's DRM capabilities.");
   }
   if (code === 6020) {
     return new Error("This channel requires Encrypted Media Extensions (EME), which are not available in this player runtime (Shaka 6020). A compatible DRM-enabled runtime is required.");
