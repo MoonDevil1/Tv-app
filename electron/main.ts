@@ -57,7 +57,7 @@ function createWindow(): void {
   });
 
   mainWindow.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
-  mainWindow.webContents.on("render-process-gone", (_event, details) => { void saveDiagnostic({ type: "renderer-crash", details }); });
+  mainWindow.webContents.on("render-process-gone", (_event, details) => { void saveDiagnostic({ type: "renderer-crash", details }).catch(() => undefined); });
   if (smokeTest) {
     mainWindow.webContents.on("did-fail-load", (_event, errorCode, errorDescription, _validatedURL, isMainFrame) => {
       if (isMainFrame) finishSmokeTest(false, `Renderer load failed (${errorCode}): ${errorDescription}`);
@@ -84,8 +84,8 @@ function createWindow(): void {
   mainWindow.on("closed", () => { mainWindow = null; });
 }
 
-process.on("uncaughtExceptionMonitor", error => { void saveDiagnostic({ type: "main-process-exception", name: error.name, message: error.message, stack: error.stack }); });
-process.on("unhandledRejection", reason => { void saveDiagnostic({ type: "main-process-unhandled-rejection", message: reason instanceof Error ? reason.message : String(reason) }); });
+process.on("uncaughtExceptionMonitor", error => { void saveDiagnostic({ type: "main-process-exception", name: error.name, message: error.message, stack: error.stack }).catch(() => undefined); });
+process.on("unhandledRejection", reason => { void saveDiagnostic({ type: "main-process-unhandled-rejection", message: reason instanceof Error ? reason.message : String(reason) }).catch(() => undefined); });
 
 app.whenReady().then(() => {
   registerHeaderProxy(session.defaultSession);
