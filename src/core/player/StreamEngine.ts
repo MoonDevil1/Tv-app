@@ -2,7 +2,7 @@ import Hls from "hls.js";
 import shaka from "shaka-player";
 import type { Channel } from "../types";
 import { waitForMediaEvent } from "./mediaEvents";
-import { headersForRequestUris, licenseHeadersForRequest, shakaDrmConfiguration, streamHeadersForRequest } from "./streamPolicy";
+import { headersForRequestUris, hlsDrmConfiguration, licenseHeadersForRequest, shakaDrmConfiguration, streamHeadersForRequest } from "./streamPolicy";
 import { describeShakaError } from "./shakaErrors";
 
 
@@ -32,8 +32,11 @@ export class StreamEngine {
     this.options.onState?.("loading");
     try {
       await window.tvApp?.setStreamRequestContext({ originUrl: channel.url, headers: channel.headers });
-      if (channel.manifestType === "dash" || /\.mpd(?:$|[?#])/i.test(channel.url)) await this.playDash(video, channel, generation, abortController.signal);
-      else if (channel.manifestType === "progressive" || /\.(?:mp4|m4v|webm|ogg)(?:$|[?#])/i.test(channel.url)) await this.playProgressive(video, channel, abortController.signal);
+      const isDash = channel.manifestType === "dash" || /\.mpd(?:$|[?#])/i.test(channel.url);
+      const isProgressive = channel.manifestType === "progressive" || /\.(?:mp4|m4v|webm|ogg)(?:$|[?#])/i.test(channel.url);
+      if (channel.drm && isProgressive) throw new Error("DRM-protected progressive files are not supported; use an HLS or DASH manifest.");
+      if (isDash) await this.playDash(video, channel, generation, abortController.signal);
+      else if (isProgressive) await this.playProgressive(video, channel, abortController.signal);
       else await this.playHls(video, channel, generation, abortController.signal);
       if (generation !== this.generation) return;
       await video.play();
@@ -132,19 +135,11 @@ export class StreamEngine {
   }
 
   private async playHls(video: HTMLVideoElement, channel: Channel, generation: number, signal: AbortSignal): Promise<void> {
-    if (channel.drm && !channel.drm.licenseUrl) {
-      throw new Error("Encrypted HLS requires a license-server URL. Inline ClearKey keys are supported with DASH/MPD streams.");
-    }
+    const drmConfiguration = hlsDrmConfiguration(channel.drm);
     if (Hls.isSupported()) {
-      const drmSystems = channel.drm?.licenseUrl
-        ? channel.drm.scheme === "widevine"
-          ? { "com.widevine.alpha": { licenseUrl: channel.drm.licenseUrl } }
-          : { "org.w3.clearkey": { licenseUrl: channel.drm.licenseUrl } }
-        : undefined;
       const hls = new Hls({
         enableWorker: true,
-        emeEnabled: Boolean(channel.drm),
-        drmSystems,
+        ...drmConfiguration,
         licenseXhrSetup: (xhr, url) => {
           for (const [name, value] of Object.entries(licenseHeadersForRequest(channel.drm, url))) {
             xhr.setRequestHeader(name, value);
