@@ -2,33 +2,33 @@
 
 A cross-platform desktop IPTV player built with Electron, React 19, TypeScript, Shaka Player and hls.js.
 
-## Downloads — v2.0.1
+## Downloads — v2.0.2
 
-Choose the download for your operating system. All installers below are attached to the [published v2.0.1 GitHub release](https://github.com/MoonDevil1/Tv-app/releases/tag/v2.0.1).
+Choose the download for your operating system. All installers below are attached to the [published v2.0.2 GitHub release](https://github.com/MoonDevil1/Tv-app/releases/tag/v2.0.2).
 
 ### Windows
 
 | Package | Download | Notes |
 |---|---|---|
-| Windows Installer (x64) | [Download `.exe` — 135.9 MB](https://github.com/MoonDevil1/Tv-app/releases/download/v2.0.1/TG.IPTV.Setup.2.0.1.exe) | Recommended; installs the app and supports the configured updater |
-| Portable (x64) | [Download `.exe` — 112.8 MB](https://github.com/MoonDevil1/Tv-app/releases/download/v2.0.1/TG.IPTV.2.0.1.exe) | Run without installation; update manually |
+| Windows Installer (x64) | [Download `.exe`](https://github.com/MoonDevil1/Tv-app/releases/download/v2.0.2/TG.IPTV.Setup.2.0.2.exe) | Recommended; installs the app and supports the configured updater |
+| Portable (x64) | [Download `.exe`](https://github.com/MoonDevil1/Tv-app/releases/download/v2.0.2/TG.IPTV.2.0.2.exe) | Run without installation; update manually |
 
 ### macOS
 
 | Package | Download | Notes |
 |---|---|---|
-| Apple Silicon DMG (ARM64) | [Download `.dmg` — 133.7 MB](https://github.com/MoonDevil1/Tv-app/releases/download/v2.0.1/TG.IPTV-2.0.1-arm64.dmg) | For Apple Silicon Macs (M1, M2, M3, M4) |
-| Apple Silicon ZIP (ARM64) | [Download `.zip` — 143.8 MB](https://github.com/MoonDevil1/Tv-app/releases/download/v2.0.1/TG.IPTV-2.0.1-arm64-mac.zip) | ZIP distribution for Apple Silicon Macs |
+| Apple Silicon DMG (ARM64) | [Download `.dmg`](https://github.com/MoonDevil1/Tv-app/releases/download/v2.0.2/TG.IPTV-2.0.2-arm64.dmg) | For Apple Silicon Macs (M1, M2, M3, M4) |
+| Apple Silicon ZIP (ARM64) | [Download `.zip`](https://github.com/MoonDevil1/Tv-app/releases/download/v2.0.2/TG.IPTV-2.0.2-arm64-mac.zip) | ZIP distribution for Apple Silicon Macs |
 
-> Intel Mac (x64) builds are not included in v2.0.1. macOS automatic updates require a Developer ID-signed and notarized build.
+> Intel Mac (x64) builds are not included in v2.0.2. macOS automatic updates require a Developer ID-signed and notarized build.
 
 ### Linux
 
 | Package | Download | Notes |
 |---|---|---|
-| AppImage (x64) | [Download `.AppImage` — 123.5 MB](https://github.com/MoonDevil1/Tv-app/releases/download/v2.0.1/TG.IPTV-2.0.1.AppImage) | Portable Linux application image; mark it executable before launching |
+| AppImage (x64) | [Download `.AppImage`](https://github.com/MoonDevil1/Tv-app/releases/download/v2.0.2/TG.IPTV-2.0.2.AppImage) | Portable Linux application image; mark it executable before launching |
 
-For checksums, update metadata and any additional release files, see the [complete v2.0.1 release](https://github.com/MoonDevil1/Tv-app/releases/tag/v2.0.1).
+For checksums, update metadata and any additional release files, see the [complete v2.0.2 release](https://github.com/MoonDevil1/Tv-app/releases/tag/v2.0.2).
 
 ---
 
@@ -73,7 +73,7 @@ npm run dist:linux
 
 Installers are written to `release/`. Published GitHub releases provide update metadata and binaries; the updater intentionally ignores draft releases. Windows NSIS-installed, macOS ZIP and Linux AppImage builds are update targets; the portable Windows executable must be updated manually. macOS updates require a Developer ID-signed and notarized build.
 
-GitHub Actions can build Windows, macOS and Linux installers from **Actions → Desktop Release → Run workflow**. To publish a release, create a version tag such as `v2.0.1` only after the feature branch has passed the full CI matrix. The release workflow stamps the tag version into the app, builds and smoke-tests each platform, then publishes the GitHub release with all generated installers attached.
+GitHub Actions can build Windows, macOS and Linux installers from **Actions → Desktop Release → Run workflow**. To publish a release, create a version tag such as `v2.0.2` only after the feature branch has passed the full CI matrix. The release workflow stamps the tag version into the app, builds and smoke-tests each platform, then publishes the GitHub release with all generated installers attached.
 
 ## Continuous integration
 
