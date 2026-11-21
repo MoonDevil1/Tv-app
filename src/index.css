@@ -170,3 +170,18 @@ button:disabled{opacity:.45;cursor:not-allowed;transform:none!important}
 @media(max-width:900px){.player-hud{padding:16px}.player-controls{gap:5px}.volume-control input{width:55px}.player-controls>.hud-icon:nth-of-type(n+5){width:32px;height:32px}.player-title b{font-size:14px}.player-shortcut-hint{display:none}}
 
 .update-card{display:grid;gap:14px}.update-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:16px}.update-heading>div{display:grid;gap:5px}.update-heading b{font-size:13px}.update-heading span,.update-status{font-size:11px;color:#91a2b7;line-height:1.55}.update-status{display:flex;align-items:center;gap:9px;overflow-wrap:anywhere}.update-indicator{display:grid;place-items:center;color:#72d6b4}.update-indicator.error{color:#ff899b}.update-progress{height:5px;border-radius:10px;overflow:hidden;background:#263345}.update-progress>div{height:100%;border-radius:inherit;background:linear-gradient(90deg,#6bd5ef,#8a88ff);}
+
+
+/* Lightweight desktop layout: no remote fonts, decorative hero art or motion. */
+:root{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;font-optical-sizing:auto}
+.library-intro.simple-intro{min-height:0;padding:12px 4px 8px}
+.library-intro.simple-intro h1{font:600 28px/1.2 system-ui,-apple-system,"Segoe UI",sans-serif;letter-spacing:-.6px;margin:8px 0;color:#edf2fb}
+.library-intro.simple-intro h1 span{color:inherit}
+.hero-art{display:none!important}
+.brand-mark,.add-button,.primary-button,.play-toggle{background:#287da0;box-shadow:none}
+.nav-item.active{background:#172b38;box-shadow:inset 2px 0 #52c9f2}
+.channel-card,.stat-card{background:#111720;box-shadow:none}
+.add-modal{background:#111720;box-shadow:none}
+.player-menu{box-shadow:none}
+button:hover{transform:none!important;filter:none!important}
+*,*::before,*::after{animation:none!important;transition:none!important}
