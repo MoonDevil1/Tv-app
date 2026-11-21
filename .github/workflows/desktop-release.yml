@@ -1,4 +1,4 @@
-name: Desktop Release
+name: Windows Release
 
 on:
   workflow_dispatch:
@@ -15,21 +15,8 @@ permissions:
 jobs:
   package:
     if: github.event_name != 'create' || (github.event.ref_type == 'branch' && startsWith(github.event.ref, 'release/v'))
-    name: Package (${{ matrix.platform }})
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - platform: windows
-            os: windows-latest
-            command: npm run dist:win
-          - platform: macos
-            os: macos-latest
-            command: npm run dist:mac
-          - platform: linux
-            os: ubuntu-latest
-            command: npm run dist:linux
-    runs-on: ${{ matrix.os }}
+    name: Build Windows release
+    runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
         with:
@@ -39,17 +26,14 @@ jobs:
           node-version: 22
       - name: Set app version from release ref
         if: startsWith(github.ref, 'refs/tags/v') || startsWith(github.ref, 'refs/heads/release/v')
-        shell: bash
+        shell: pwsh
         run: |
-          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
-            VERSION="${GITHUB_REF_NAME#v}"
-          else
-            VERSION="${GITHUB_REF_NAME#release/v}"
-          fi
-          npm version "$VERSION" --no-git-tag-version --allow-same-version
-      - name: Install Linux packaging dependencies
-        if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y libnss3 libatk-bridge2.0-0 libgtk-3-0 libgbm1 libasound2t64 libfuse2t64 xvfb
+          if ($env:GITHUB_REF -like "refs/tags/v*") {
+            $version = $env:GITHUB_REF_NAME.Substring(1)
+          } else {
+            $version = $env:GITHUB_REF_NAME.Substring("release/v".Length)
+          }
+          npm version $version --no-git-tag-version --allow-same-version
       - name: Install dependencies
         run: npm ci --no-fund
       - name: Dependency security audit
@@ -61,39 +45,18 @@ jobs:
       - name: Build renderer and Electron processes
         run: npm run build
       - name: Build unpacked Windows app
-        if: runner.os == 'Windows'
         run: npx electron-builder --win --dir --publish never
       - name: Smoke test packaged Windows app
-        if: runner.os == 'Windows'
         shell: pwsh
         run: ./scripts/smoke-test-windows.ps1
       - name: Build Windows installers
-        if: runner.os == 'Windows'
         run: npx electron-builder --win --publish never
-      - name: Build unpacked macOS app
-        if: matrix.platform == 'macos'
-        run: npx electron-builder --mac --dir --publish never
-      - name: Smoke test packaged macOS app
-        if: matrix.platform == 'macos'
-        run: ./scripts/smoke-test-unix.sh mac
-      - name: Build unpacked Linux app
-        if: matrix.platform == 'linux'
-        run: npx electron-builder --linux --dir --publish never
-      - name: Smoke test packaged Linux app
-        if: matrix.platform == 'linux'
-        run: xvfb-run -a ./scripts/smoke-test-unix.sh linux
-      - name: Build macOS/Linux installer
-        if: runner.os != 'Windows'
-        run: ${{ matrix.command }}
-      - name: Upload installer artifact
+      - name: Upload Windows installer artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: TG-IPTV-${{ matrix.platform }}
+          name: TG-IPTV-Windows-x64
           path: |
             release/*.exe
-            release/*.dmg
-            release/*.zip
-            release/*.AppImage
             release/*.yml
             release/*.blockmap
           if-no-files-found: error
@@ -103,7 +66,7 @@ jobs:
     name: Publish GitHub release
     if: startsWith(github.ref, 'refs/tags/v') || startsWith(github.ref, 'refs/heads/release/v') || (github.event_name == 'create' && github.event.ref_type == 'branch' && startsWith(github.event.ref, 'release/v'))
     needs: package
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
     steps:
       - uses: actions/download-artifact@v4
         with:
@@ -111,13 +74,13 @@ jobs:
           merge-multiple: true
       - name: Resolve release tag
         id: release_meta
-        shell: bash
+        shell: pwsh
         run: |
-          if [[ "$GITHUB_REF" == refs/heads/release/v* ]]; then
-            echo "tag=v${GITHUB_REF_NAME#release/v}" >> "$GITHUB_OUTPUT"
-          else
-            echo "tag=$GITHUB_REF_NAME" >> "$GITHUB_OUTPUT"
-          fi
+          if ($env:GITHUB_REF -like "refs/heads/release/v*") {
+            "tag=v$($env:GITHUB_REF_NAME.Substring('release/v'.Length))" >> $env:GITHUB_OUTPUT
+          } else {
+            "tag=$env:GITHUB_REF_NAME" >> $env:GITHUB_OUTPUT
+          }
       - name: Publish release
         uses: softprops/action-gh-release@v2
         with:
