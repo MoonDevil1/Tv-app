@@ -93,7 +93,10 @@ export function Player({ channel, channels, onClose, onChangeChannel, onRecover 
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
-    const update = () => {
+    let lastUiUpdate = 0;
+    const update = (event?: Event) => {
+      if (event?.type === "timeupdate" && Date.now() - lastUiUpdate < 500) return;
+      lastUiUpdate = Date.now();
       setCurrentTime(video.currentTime || 0);
       setDuration(Number.isFinite(video.duration) ? video.duration : 0);
       setPlaying(!video.paused);
