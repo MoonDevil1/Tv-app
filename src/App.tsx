@@ -3,6 +3,7 @@ import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { Activity, AudioLines, Check, ChevronDown, CircleHelp, Command, Compass, FileUp, Heart, History, LayoutGrid, ListVideo, LoaderCircle, Plus, Radio, RefreshCw, Search, Settings2, Signal, Sparkles, Trash2, Tv2, Wifi, X, Clock3, PlayCircle, Download, CheckCircle2, AlertCircle, RotateCw } from "lucide-react";
 import type { Channel, Playlist, DesktopUpdateState } from "./core/types";
 import { PlaylistManager } from "./core/parser/playlistManager";
+import { parseClearKeys } from "./core/parser/clearKeyUtils";
 import { parseXmltv, currentAndNext } from "./core/epg/xmltv";
 import { useAppStore } from "./core/store/appStore";
 import { Player } from "./components/Player";
@@ -143,7 +144,29 @@ export default function App() {
     finally { setEpgBusy(false); }
   }
   function selectChannel(playlistId: string, channel: Channel) { setSelectedChannel({ playlistId, channel }); recordWatch(playlistId, channel); }
+  const resolveLiveTgChannel = useCallback(async (channel: Channel): Promise<Channel | null> => {
+    const ownerId = selectedPlaylistIdRef.current;
+    const owner = playlistsRef.current.find(item => item.id === ownerId && item.channels.some(candidate => candidate.id === channel.id));
+    if (!owner || owner.source.split("?")[0] !== LIVE_TGTV_URL || !channel.tvgId || !/^\\d+$/.test(channel.tvgId)) return null;
+    if (!window.tvApp?.fetchRemoteText) return null;
+    const requestId = globalThis.crypto.randomUUID();
+    try {
+      const response = await window.tvApp.fetchRemoteText("https://livetgtv.lovable.app/api/public/channels/" + encodeURIComponent(channel.tvgId), undefined, requestId);
+      if (response.status < 200 || response.status >= 300) throw new Error("LiveTGTV returned HTTP " + response.status);
+      const payload = JSON.parse(response.text) as { sources?: unknown; drm?: { type?: string; keyId?: string; key?: string } };
+      const source = Array.isArray(payload.sources) ? payload.sources.find((item): item is string => typeof item === "string" && /^https?:\\/\\//i.test(item)) : undefined;
+      if (!source) return null;
+      const clearKeys = payload.drm?.type?.toLowerCase() === "clearkey" && payload.drm.keyId && payload.drm.key
+        ? parseClearKeys({ [payload.drm.keyId]: payload.drm.key }) : undefined;
+      return { ...channel, url: source, headers: {},
+        manifestType: /\\.mpd(?:$|[?#])/i.test(source) ? "dash" : /\\.m3u8(?:$|[?#])/i.test(source) ? "hls" : channel.manifestType,
+        drm: clearKeys ? { scheme: "clearkey", clearKeys } : undefined };
+    } catch { return null; }
+    finally { void window.tvApp?.cancelRemoteText(requestId); }
+  }, []);
   const recoverChannel = useCallback(async (channel: Channel) => {
+    const resolved = await resolveLiveTgChannel(channel);
+    if (resolved) return resolved;
     const ownerId = selectedPlaylistIdRef.current;
     const owner = playlistsRef.current.find(item => item.id === ownerId && item.channels.some(candidate => candidate.id === channel.id));
     if (!owner) return null;
@@ -152,7 +175,7 @@ export default function App() {
       replacePlaylist(refreshed);
       return refreshed.channels.find(candidate => candidate.id === channel.id) ?? null;
     } catch { return null; }
-  }, [manager, replacePlaylist]);
+  }, [manager, replacePlaylist, resolveLiveTgChannel]);
   const playerChannels = selectedChannel
     ? playlists.find(item => item.id === selectedChannel.playlistId)?.channels ?? []
     : [];
@@ -199,7 +222,7 @@ export default function App() {
         <footer className="page-footer"><span>TG IPTV <i>·</i> Built for the big screen</span><span><kbd>?</kbd> Keyboard shortcuts <i>·</i> Version 2.0.1</span></footer>
       </section>
     </main>
-    {selectedChannel && <Player channel={selectedChannel.channel} channels={playerChannels} onClose={() => setSelectedChannel(null)} onChangeChannel={next => { setSelectedChannel({ playlistId: selectedChannel.playlistId, channel: next }); recordWatch(selectedChannel.playlistId, next); }} onRecover={recoverChannel} />}
+    {selectedChannel && <Player channel={selectedChannel.channel} channels={playerChannels} onClose={() => setSelectedChannel(null)} onChangeChannel={next => { setSelectedChannel({ playlistId: selectedChannel.playlistId, channel: next }); recordWatch(selectedChannel.playlistId, next); }} onRecover={recoverChannel} onResolve={resolveLiveTgChannel} />}
     <input ref={fileInput} type="file" accept=".m3u,.m3u8,.txt,.json,application/json,audio/x-mpegurl,application/vnd.apple.mpegurl" hidden onChange={onFileChange} />
     <AnimatePresence>{showAdd && <motion.div className="modal-backdrop" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onMouseDown={e => { if (e.target === e.currentTarget && !busy) setShowAdd(false); }}>
       <motion.div className="add-modal" initial={reduceMotion ? false : { opacity: 0, y: 18, scale: .98 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 10, scale: .98 }} transition={{ type: "spring", stiffness: 320, damping: 30 }}>
