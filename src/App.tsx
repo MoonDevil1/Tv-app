@@ -1,5 +1,5 @@
 import { ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Activity, AudioLines, Check, ChevronDown, CircleHelp, Command, Compass, FileUp, Heart, History, LayoutGrid, ListVideo, LoaderCircle, Plus, Radio, RefreshCw, Search, Settings2, Trash2, Tv2, Wifi, X, Clock3, PlayCircle, Download, CheckCircle2, AlertCircle, RotateCw } from "lucide-react";
+import { Activity, AudioLines, Check, CircleHelp, Command, Compass, FileUp, Heart, History, LayoutGrid, ListVideo, LoaderCircle, Plus, Radio, RefreshCw, Search, Settings2, Trash2, Tv2, Wifi, X, Clock3, PlayCircle, Download, CheckCircle2, AlertCircle, RotateCw } from "lucide-react";
 import type { Channel, Playlist, DesktopUpdateState } from "./core/types";
 import { PlaylistManager } from "./core/parser/playlistManager";
 import { parseClearKeys } from "./core/parser/clearKeyUtils";
@@ -114,8 +114,7 @@ export default function App() {
     return rows;
   }, [allChannels, active, favorites, recentlyWatched, selectedPlaylist, selectedGroup, query]);
   const groups = useMemo(() => ["All", ...new Set((selectedPlaylist?.channels ?? []).map(channel => channel.group).filter(Boolean))], [selectedPlaylist]);
-  const statChannels = playlists.reduce((sum, item) => sum + item.channels.length, 0);
-  const guideRows = (selectedPlaylist?.channels ?? []).map(channel => ({ channel, programs: epgPrograms[channel.tvgId ?? ""] ?? [] }));
+    const guideRows = (selectedPlaylist?.channels ?? []).map(channel => ({ channel, programs: epgPrograms[channel.tvgId ?? ""] ?? [] }));
 
   async function addSource(source: string, name: string, file?: File) {
     setBusy(true); setError(""); setNotice("");
@@ -198,10 +197,9 @@ export default function App() {
   return <div className="app-shell">
     <aside className="sidebar">
       <div className="brand"><div className="brand-mark"><Tv2 size={22} /></div><div><strong>TG IPTV</strong><span>LIVE ENTERTAINMENT</span></div></div>
-      <div className="workspace"><div className="workspace-icon">T</div><div><b>My library</b><small>{playlists.length} connected source{playlists.length === 1 ? "" : "s"}</small></div><ChevronDown size={15} /></div>
       <div className="nav-label">YOUR SPACE</div><nav>{navItems.map(({ label, icon: Icon }) => <button key={label} className={active === label ? "nav-item active" : "nav-item"} onClick={() => { setActive(label); setSelectedGroup("All"); }}><Icon size={18} /><span>{label}</span>{label === "Favorites" && <span className="nav-count">{favorites.length}</span>}</button>)}</nav>
       <div className="nav-label library-label">MANAGE</div><nav>{managementItems.map(({ label, icon: Icon }) => <button key={label} className={active === label ? "nav-item active" : "nav-item"} onClick={() => setActive(label)}><Icon size={18} /><span>{label}</span></button>)}</nav>
-      <div className="sidebar-bottom"><div className="connection"><span className="status-dot" /><div><b>{statChannels ? `${statChannels.toLocaleString()} channels ready` : "Player ready"}</b><small>{playlists.length ? "Library is on this device" : "Waiting for a playlist"}</small></div></div><button className="help-link" onClick={() => setNotice("Shortcuts: Ctrl/⌘+K or / to search; Space/K to play; arrows to zap or seek; M mute; F fullscreen; I picture-in-picture.")}><CircleHelp size={17} /> Help & shortcuts</button><div className="profile"><div className="avatar">N</div><div><b>Local profile</b><small>On this device</small></div><Settings2 size={16} /></div></div>
+      <div className="sidebar-bottom"><button className="help-link" onClick={() => setNotice("Shortcuts: Ctrl/⌘+K or / to search; Space/K to play; arrows to zap or seek; M mute; F fullscreen; I picture-in-picture.")}><CircleHelp size={17} /> Shortcuts</button></div>
     </aside>
     <main className="main-area">
       <header className="topbar"><div className="breadcrumbs"><span>YOUR LIBRARY</span><span className="crumb-slash">/</span><b>{active}</b></div><div className="topbar-actions"><label className="search-box"><Search size={17} /><input ref={searchRef} value={query} onChange={e => setQuery(e.target.value)} placeholder="Search channels, groups…" /><kbd><Command size={11} /> K</kbd></label><button className="icon-button" aria-label="Refresh playlist" onClick={() => selectedPlaylist && void refreshPlaylist(selectedPlaylist)} disabled={!selectedPlaylist}><Activity size={18} /></button><button className="add-button" onClick={() => setShowAdd(true)}><Plus size={17} /> Add playlist</button></div></header>
