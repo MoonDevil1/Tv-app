@@ -2,6 +2,7 @@ name: Desktop Release
 
 on:
   workflow_dispatch:
+  create:
   push:
     branches:
       - "release/v*"
@@ -13,6 +14,7 @@ permissions:
 
 jobs:
   package:
+    if: github.event_name != 'create' || (github.event.ref_type == 'branch' && startsWith(github.event.ref, 'release/v'))
     name: Package (${{ matrix.platform }})
     strategy:
       fail-fast: false
@@ -31,7 +33,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event_name == 'workflow_dispatch' && 'feat/electron-cinema-iptv' || github.ref }}
+          ref: ${{ github.ref }}
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -99,7 +101,7 @@ jobs:
 
   draft-release:
     name: Publish GitHub release
-    if: startsWith(github.ref, 'refs/tags/v') || startsWith(github.ref, 'refs/heads/release/v')
+    if: startsWith(github.ref, 'refs/tags/v') || startsWith(github.ref, 'refs/heads/release/v') || (github.event_name == 'create' && github.event.ref_type == 'branch' && startsWith(github.event.ref, 'release/v'))
     needs: package
     runs-on: ubuntu-latest
     steps:
@@ -120,7 +122,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.release_meta.outputs.tag }}
-          target_commitish: ${{ github.ref_name }}
+          target_commitish: ${{ github.sha }}
           name: TG IPTV ${{ steps.release_meta.outputs.tag }}
           draft: false
           prerelease: false
