@@ -1,11 +1,31 @@
-import { app, BrowserWindow, ipcMain, session } from "electron";
+import { app, BrowserWindow, ipcMain, session, shell } from "electron";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { isAllowedNavigation } from "./security/navigation";
-import { writeFileSync } from "node:fs";
+import { writeFileSync, appendFile, mkdir, stat, rename } from "node:fs/promises";
 import { registerHeaderProxy, setActiveStreamContext, type StreamRequestContext } from "./net/headerProxy";
 import { registerAutoUpdates } from "./updater";
 import { fetchRemoteText } from "./net/remoteFetch";
+
+
+const MAX_DIAGNOSTIC_BYTES = 2 * 1024 * 1024;
+function sanitizeDiagnostic(input: unknown): string {
+  let value = JSON.stringify(input ?? {});
+  value = value.slice(0, 12000)
+    .replace(/https?:\\/\\/[^\\s"'<>]+/gi, "[redacted-url]")
+    .replace(/(authorization|cookie|token|secret|key)\\s*[:=]\\s*[^,\\s}]+/gi, "$1=[redacted]");
+  return value;
+}
+async function saveDiagnostic(input: unknown): Promise<void> {
+  const folder = join(app.getPath("userData"), "logs");
+  const file = join(folder, "diagnostics.log");
+  await mkdir(folder, { recursive: true });
+  try {
+    const info = await stat(file);
+    if (info.size > MAX_DIAGNOSTIC_BYTES) await rename(file, file + ".1").catch(() => undefined);
+  } catch { /* First diagnostic entry. */ }
+  await appendFile(file, JSON.stringify({ timestamp: new Date().toISOString(), report: sanitizeDiagnostic(input) }) + "\\n", "utf8");
+}
 
 let mainWindow: BrowserWindow | null = null;
 const remoteRequests = new Map<string, AbortController>();
@@ -36,6 +56,7 @@ function createWindow(): void {
   });
 
   mainWindow.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
+  mainWindow.webContents.on("render-process-gone", (_event, details) => { void saveDiagnostic({ type: "renderer-crash", details }); });
   if (smokeTest) {
     mainWindow.webContents.on("did-fail-load", (_event, errorCode, errorDescription, _validatedURL, isMainFrame) => {
       if (isMainFrame) finishSmokeTest(false, `Renderer load failed (${errorCode}): ${errorDescription}`);
@@ -62,6 +83,9 @@ function createWindow(): void {
   mainWindow.on("closed", () => { mainWindow = null; });
 }
 
+process.on("uncaughtExceptionMonitor", error => { void saveDiagnostic({ type: "main-process-exception", name: error.name, message: error.message, stack: error.stack }); });
+process.on("unhandledRejection", reason => { void saveDiagnostic({ type: "main-process-unhandled-rejection", message: reason instanceof Error ? reason.message : String(reason) }); });
+
 app.whenReady().then(() => {
   registerHeaderProxy(session.defaultSession);
   registerAutoUpdates();
@@ -71,6 +95,19 @@ app.whenReady().then(() => {
     return { active: context !== null };
   });
   ipcMain.handle("app:get-platform", () => process.platform);
+  ipcMain.handle("app:report-diagnostic", async (event, report: unknown) => {
+    if (event.senderFrame !== event.sender.mainFrame) throw new Error("Diagnostics are only accepted from the main application frame.");
+    if (!report || typeof report !== "object" || Array.isArray(report)) throw new TypeError("Invalid diagnostic report.");
+    await saveDiagnostic(report);
+    return { saved: true };
+  });
+  ipcMain.handle("app:open-feedback-report", async (event, report: unknown) => {
+    if (event.senderFrame !== event.sender.mainFrame) throw new Error("Feedback is only available to the main application frame.");
+    const body = "TG IPTV playback report\\n\\n" + sanitizeDiagnostic(report);
+    const url = "https://github.com/MoonDevil1/Tv-app/issues/new?title=" + encodeURIComponent("Playback problem report") + "&body=" + encodeURIComponent(body);
+    await shell.openExternal(url);
+    return { opened: true };
+  });
   ipcMain.handle("net:fetch-remote-text", async (event, input: unknown, headers?: unknown, requestId?: unknown) => {
     if (event.senderFrame !== event.sender.mainFrame) throw new Error("Remote downloads are only available to the main application frame.");
     if (typeof input !== "string" || input.length > 8192) throw new TypeError("Invalid remote URL.");
