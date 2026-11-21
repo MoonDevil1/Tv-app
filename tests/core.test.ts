@@ -260,7 +260,8 @@ test("XMLTV date parser rejects impossible dates and offsets", () => {
 
 
 test("explains Shaka DRM key-system failures with actionable guidance", () => {
-  assert.match(describeShakaError(6001).message, /DRM-protected/i);
+  assert.match(describeShakaError(6001).message, /secure-context/i);
+  assert.match(describeShakaError(6001, ["org.w3.clearkey"]).message, /org.w3.clearkey/);
   assert.match(describeShakaError(6001).message, /Widevine\/PlayReady/i);
   assert.match(describeShakaError(6020).message, /Encrypted Media Extensions/i);
   assert.match(describeShakaError(6000).message, /does not identify a DRM system/i);
