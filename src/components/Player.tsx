@@ -44,6 +44,7 @@ export function Player({ channel, channels, onClose, onChangeChannel, onRecover,
   const epgLoadRef = useRef(new Set<string>());
   const reportedErrorsRef = useRef(new Set<string>());
   const channelRef = useRef(channel);
+  const lastStallReportRef = useRef(0);
   channelRef.current = channel;
   const [reporting, setReporting] = useState(false);
 
@@ -145,6 +146,22 @@ export function Player({ channel, channels, onClose, onChangeChannel, onRecover,
       else if (video.duration === Infinity) setLive(true);
     };
     const volumeChange = () => { setMuted(video.muted); setVolume(video.volume); };
+    const reportStall = () => {
+      const now = Date.now();
+      if (now - lastStallReportRef.current < 15000) return;
+      lastStallReportRef.current = now;
+      const activeChannel = channelRef.current;
+      const quality = video.getVideoPlaybackQuality?.();
+      const buffered = video.buffered.length ? Math.max(0, video.buffered.end(video.buffered.length - 1) - video.currentTime) : 0;
+      void window.tvApp?.reportDiagnostic({
+        type: "playback-stall", channelId: activeChannel.id, channelName: activeChannel.name,
+        manifestType: activeChannel.manifestType ?? "unknown", readyState: video.readyState,
+        networkState: video.networkState, width: video.videoWidth, height: video.videoHeight,
+        bufferedAheadSeconds: Math.round(buffered * 10) / 10,
+        droppedFrames: quality?.droppedVideoFrames, totalFrames: quality?.totalVideoFrames,
+        mediaErrorCode: video.error?.code
+      }).catch(() => undefined);
+    };
     video.volume = 0.85;
     video.addEventListener("loadedmetadata", update);
     video.addEventListener("timeupdate", update);
@@ -152,6 +169,8 @@ export function Player({ channel, channels, onClose, onChangeChannel, onRecover,
     video.addEventListener("play", update);
     video.addEventListener("pause", update);
     video.addEventListener("volumechange", volumeChange);
+    video.addEventListener("waiting", reportStall);
+    video.addEventListener("stalled", reportStall);
     return () => {
       video.removeEventListener("loadedmetadata", update);
       video.removeEventListener("timeupdate", update);
@@ -159,6 +178,8 @@ export function Player({ channel, channels, onClose, onChangeChannel, onRecover,
       video.removeEventListener("play", update);
       video.removeEventListener("pause", update);
       video.removeEventListener("volumechange", volumeChange);
+      video.removeEventListener("waiting", reportStall);
+      video.removeEventListener("stalled", reportStall);
     };
   }, []);
 
