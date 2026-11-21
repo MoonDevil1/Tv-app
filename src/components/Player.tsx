@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type WheelEvent } from "react";
 import { AudioLines, Check, ChevronLeft, ChevronRight, Maximize, Minimize, MonitorPlay, Pause, PictureInPicture2, Play, Radio, Settings2, Volume2, VolumeX, X, Subtitles } from "lucide-react";
 import type { Channel } from "../core/types";
 import { currentAndNext, parseLiveTgGuide, parseXmltv } from "../core/epg/xmltv";
@@ -233,7 +233,7 @@ export function Player({ channel, channels, onClose, onChangeChannel, onRecover,
     try { if (document.pictureInPictureElement) await document.exitPictureInPicture(); else await video.requestPictureInPicture(); }
     catch (e) { setError(e instanceof Error ? e.message : "Picture-in-picture is unavailable."); }
   }
-  function handleWheelVolume(event: React.WheelEvent<HTMLDivElement>) {
+  function handleWheelVolume(event: WheelEvent<HTMLDivElement>) {
     if (menu) return;
     event.preventDefault();
     const current = videoRef.current?.volume ?? volume;
