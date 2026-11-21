@@ -198,6 +198,8 @@ test("builds ClearKey and Widevine Shaka DRM configurations", () => {
     drm: { servers: { "com.widevine.alpha": "https://license.example/wv" } }
   });
   assert.deepEqual(shakaDrmConfiguration(undefined), {});
+  assert.throws(() => shakaDrmConfiguration({ scheme: "widevine" }), /requires inline keys or an HTTP/);
+  assert.throws(() => shakaDrmConfiguration({ scheme: "widevine", licenseUrl: "file:///license" }), /HTTP or HTTPS/);
 });
 
 
