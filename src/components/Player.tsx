@@ -42,9 +42,21 @@ export function Player({ channel, channels, onClose, onChangeChannel, onRecover,
   const setEpgPrograms = useAppStore(s => s.setEpgPrograms);
   const playlists = useAppStore(s => s.playlists);
   const epgLoadRef = useRef(new Set<string>());
+  const reportedErrorsRef = useRef(new Set<string>());
+  const [reporting, setReporting] = useState(false);
 
   const engine = useMemo(() => new StreamEngine({
-    onState: (next, err) => { setState(next); if (err) setError(err.message); },
+    onState: (next, err) => {
+      setState(next);
+      if (err) {
+        setError(err.message);
+        const key = `${channel.id}:${err.name}:${err.message}`;
+        if (next === "error" && !reportedErrorsRef.current.has(key)) {
+          reportedErrorsRef.current.add(key);
+          void window.tvApp?.reportDiagnostic({ type: "playback-error", channelId: channel.id, channelName: channel.name, manifestType: channel.manifestType ?? "unknown", errorName: err.name, message: err.message, appVersion: "2.0.1" }).catch(() => undefined);
+        }
+      }
+    },
     onRecover
   }), [onRecover]);
 
@@ -190,6 +202,16 @@ export function Player({ channel, channels, onClose, onChangeChannel, onRecover,
   useEffect(() => () => { if (hideRef.current) window.clearTimeout(hideRef.current); }, []);
 
 
+  async function reportPlaybackProblem() {
+    setReporting(true);
+    const report = { type: "playback-error", channelId: channel.id, channelName: channel.name, manifestType: channel.manifestType ?? "unknown", errorName: "PlaybackError", message: error, appVersion: "2.0.1", timestamp: new Date().toISOString() };
+    try {
+      await window.tvApp?.reportDiagnostic(report);
+      await window.tvApp?.openFeedbackReport(report);
+    } catch { setError(`${error} (Could not open the feedback form. The diagnostic was saved locally if the app bridge is available.)`); }
+    finally { setReporting(false); }
+  }
+
   async function togglePlay() {
     const video = videoRef.current;
     if (!video) return;
@@ -249,7 +271,7 @@ export function Player({ channel, channels, onClose, onChangeChannel, onRecover,
         </div>}
       </div>}
       {state === "loading" && <div className="player-center-state"><div className="player-spinner" /><span>Connecting to {channel.name}…</span></div>}
-      {error && <div className="player-error"><b>Playback problem</b><span>{error}</span><button onClick={() => { setError(""); void engineRef.current?.play(videoRef.current!, channel).catch(e => setError(e.message)); }}>Retry stream</button></div>}
+      {error && <div className="player-error"><b>Playback problem</b><span>{error}</span><div className="player-error-actions"><button onClick={() => { setError(""); void engineRef.current?.play(videoRef.current!, channel).catch(e => setError(e.message)); }}>Retry stream</button><button onClick={() => void reportPlaybackProblem()} disabled={reporting}>{reporting ? "Opening…" : "Report problem"}</button></div></div>}
       {hud && <div className="player-hud">
           <div className="player-topbar">
             <button className="hud-icon" onClick={onClose} aria-label="Close player"><X /></button>
