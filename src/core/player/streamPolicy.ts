@@ -47,11 +47,17 @@ export function shakaDrmConfiguration(drm: DrmConfig | undefined): { drm?: { cle
   if (drm.scheme === "clearkey" && drm.clearKeys && Object.keys(drm.clearKeys).length) {
     return { drm: { clearKeys: drm.clearKeys } };
   }
-  if (drm.scheme === "clearkey" && drm.licenseUrl) {
-    return { drm: { servers: { "org.w3.clearkey": drm.licenseUrl } } };
+  if (!drm.licenseUrl) {
+    throw new TypeError(`${drm.scheme === "widevine" ? "Widevine" : "ClearKey"} DRM requires inline keys or an HTTP(S) license URL.`);
   }
-  if (drm.scheme === "widevine" && drm.licenseUrl) {
-    return { drm: { servers: { "com.widevine.alpha": drm.licenseUrl } } };
+  let license: URL;
+  try { license = new URL(drm.licenseUrl); }
+  catch { throw new TypeError("DRM license URL must be a valid HTTP(S) URL."); }
+  if (license.protocol !== "http:" && license.protocol !== "https:") {
+    throw new TypeError("DRM license URL must use HTTP or HTTPS.");
   }
-  return {};
+  if (drm.scheme === "clearkey") {
+    return { drm: { servers: { "org.w3.clearkey": license.toString() } } };
+  }
+  return { drm: { servers: { "com.widevine.alpha": license.toString() } } };
 }
