@@ -163,7 +163,11 @@ export class StreamEngine {
           void this.tryRecover(channel, generation, error).then(recovered => {
             if (!recovered && generation === this.generation) this.options.onState?.("error", error);
           });
-        } else this.options.onState?.("error", new Error(data.details));
+        } else {
+          const status = Number(data.response?.code);
+          const detail = "HLS " + data.type + ": " + data.details + (status ? " (HTTP " + status + ")" : "");
+          this.options.onState?.("error", new Error(detail));
+        }
       });
       const manifestReady = new Promise<void>((resolve, reject) => {
         let timeout: number | undefined;
