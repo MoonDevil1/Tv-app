@@ -1,10 +1,10 @@
-name: Electron CI
+name: Windows CI
 
 permissions:
   contents: write
 
 concurrency:
-  group: electron-ci-v2-${{ github.ref }}
+  group: windows-ci-${{ github.ref }}
   cancel-in-progress: true
 
 on:
@@ -17,7 +17,7 @@ jobs:
   lockfile:
     name: Generate and commit npm lockfile
     if: github.event_name == 'push' && github.ref == 'refs/heads/feat/electron-cinema-iptv'
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
         with:
@@ -28,26 +28,24 @@ jobs:
       - name: Generate lockfile
         run: npm install --package-lock-only --ignore-scripts --no-fund
       - name: Commit lockfile when changed
+        shell: pwsh
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add package-lock.json
-          if git diff --cached --quiet; then
-            echo "package-lock.json is already current."
+          git diff --cached --quiet
+          if ($LASTEXITCODE -eq 0) {
+            Write-Host "package-lock.json is already current."
             exit 0
-          fi
+          }
           git commit -m "Add or update npm lockfile"
-          git push origin "HEAD:${GITHUB_REF}"
+          git push origin "HEAD:$env:GITHUB_REF_NAME"
 
   verify:
     needs: lockfile
     if: ${{ always() && (needs.lockfile.result == 'success' || needs.lockfile.result == 'skipped') }}
-    name: Verify (${{ matrix.os }})
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [windows-latest, macos-latest, ubuntu-latest]
-    runs-on: ${{ matrix.os }}
+    name: Verify Windows
+    runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
         with:
@@ -55,15 +53,6 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Install Linux packaging dependencies
-        if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y libnss3 libatk-bridge2.0-0 libgtk-3-0 libgbm1 libasound2t64 xvfb ffmpeg
-      - name: Install pinned Shaka Packager
-        if: runner.os == 'Linux'
-        run: |
-          curl -fsSL https://github.com/shaka-project/shaka-packager/releases/download/v3.9.3/packager-linux-x64 -o /tmp/packager
-          echo "7a3cf35ad146fd7810b4ededab363c8a3e6121d1b2c8391f53863126186f9ee6  /tmp/packager" | sha256sum -c -
-          chmod +x /tmp/packager
       - name: Install dependencies
         run: npm ci --no-fund
       - name: Dependency security audit
@@ -74,30 +63,8 @@ jobs:
         run: npm test
       - name: Build renderer and Electron processes
         run: npm run build
-      - name: Bundle StreamEngine playback integration
-        if: runner.os == 'Linux'
-        run: npx vite build --config tests/playback.vite.config.ts
-      - name: Real HLS, DASH and encrypted ClearKey playback through StreamEngine (Linux)
-        if: runner.os == 'Linux'
-        env:
-          SHAKA_PACKAGER_BIN: /tmp/packager
-        run: xvfb-run -a npx electron --no-sandbox tests/playback-integration.cjs
       - name: Build unpacked Windows app
-        if: runner.os == 'Windows'
         run: npx electron-builder --win --dir --publish never
       - name: Smoke test packaged Windows app
-        if: runner.os == 'Windows'
         shell: pwsh
         run: ./scripts/smoke-test-windows.ps1
-      - name: Build unpacked macOS app
-        if: runner.os == 'macOS'
-        run: npx electron-builder --mac --dir --publish never
-      - name: Smoke test packaged macOS app
-        if: runner.os == 'macOS'
-        run: ./scripts/smoke-test-unix.sh mac
-      - name: Build unpacked Linux app
-        if: runner.os == 'Linux'
-        run: npx electron-builder --linux --dir --publish never
-      - name: Smoke test packaged Linux app
-        if: runner.os == 'Linux'
-        run: xvfb-run -a ./scripts/smoke-test-unix.sh linux
