@@ -38,3 +38,41 @@ export function currentAndNext(programs: EpgProgram[] = [], now = Date.now()): {
     next: programs.find(program => program.start > now)
   };
 }
+
+
+type LiveTgProgramme = {
+  title?: unknown;
+  start?: unknown;
+  stop?: unknown;
+  startTime?: unknown;
+  stopTime?: unknown;
+  desc?: unknown;
+  description?: unknown;
+};
+
+function guideTimestamp(value: unknown): number {
+  if (typeof value === "number" && Number.isFinite(value)) return value < 1e12 ? value * 1000 : value;
+  if (typeof value === "string" && value.trim()) {
+    const numeric = Number(value);
+    if (Number.isFinite(numeric)) return numeric < 1e12 ? numeric * 1000 : numeric;
+    const parsed = Date.parse(value);
+    if (Number.isFinite(parsed)) return parsed;
+  }
+  return Number.NaN;
+}
+
+export function parseLiveTgGuide(payload: unknown, channelId: string): EpgProgram[] {
+  if (!payload || typeof payload !== "object" || !channelId) return [];
+  const data = payload as { nowPlaying?: LiveTgProgramme | null; upNext?: LiveTgProgramme | null; upcoming?: LiveTgProgramme[]; guide?: LiveTgProgramme[] };
+  const entries = [...(Array.isArray(data.guide) ? data.guide : []), ...(Array.isArray(data.upcoming) ? data.upcoming : []), data.nowPlaying, data.upNext].filter((item): item is LiveTgProgramme => !!item && typeof item === "object");
+  const unique = new Map<string, EpgProgram>();
+  for (const item of entries) {
+    const title = typeof item.title === "string" ? item.title.trim() : "";
+    const start = guideTimestamp(item.start ?? item.startTime);
+    const stop = guideTimestamp(item.stop ?? item.stopTime);
+    if (!title || !Number.isFinite(start) || !Number.isFinite(stop) || stop <= start) continue;
+    const program: EpgProgram = { channelId, title, description: typeof (item.desc ?? item.description) === "string" ? String(item.desc ?? item.description).trim() || undefined : undefined, start, stop };
+    unique.set(`${start}:${stop}:${title}`, program);
+  }
+  return [...unique.values()].sort((a, b) => a.start - b.start);
+}
