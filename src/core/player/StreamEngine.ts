@@ -93,6 +93,7 @@ export class StreamEngine {
     this.shakaPlayer = player;
     await player.attach(video);
     const drmConfiguration = shakaDrmConfiguration(channel.drm);
+    player.configure({ streaming: { bufferingGoal: 20, rebufferingGoal: 2, bufferBehind: 10, lowLatencyMode: false }, abr: { enabled: true } });
     if (drmConfiguration.drm) player.configure(drmConfiguration);
     player.getNetworkingEngine()?.registerRequestFilter((type, request) => {
       if (generation !== this.generation) return;
@@ -132,7 +133,14 @@ export class StreamEngine {
 
   private async playHls(video: HTMLVideoElement, channel: Channel, generation: number, signal: AbortSignal): Promise<void> {
     if (Hls.isSupported()) {
-      const hls = new Hls({ xhrSetup: (xhr, url) => {
+      const hls = new Hls({
+        enableWorker: true,
+        lowLatencyMode: false,
+        capLevelToPlayerSize: true,
+        maxBufferLength: 20,
+        maxMaxBufferLength: 30,
+        backBufferLength: 10,
+        xhrSetup: (xhr, url) => {
         for (const [name, value] of Object.entries(streamHeadersForRequest(channel, url))) {
           xhr.setRequestHeader(name, value);
         }
