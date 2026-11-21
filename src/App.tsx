@@ -27,11 +27,11 @@ function ChannelCard({ channel, favorite, selected, onSelect, onFavorite }: { ch
 export default function App() {
   useEffect(() => {
     const onError = (event: ErrorEvent) => {
-      void window.tvApp?.reportDiagnostic({ type: "renderer-error", message: event.message, source: event.filename ? event.filename.split("/").pop() : undefined, line: event.lineno });
+      void window.tvApp?.reportDiagnostic({ type: "renderer-error", message: event.message, source: event.filename ? event.filename.split("/").pop() : undefined, line: event.lineno }).catch(() => undefined);
     };
     const onRejection = (event: PromiseRejectionEvent) => {
       const reason = event.reason;
-      void window.tvApp?.reportDiagnostic({ type: "renderer-unhandled-rejection", message: reason instanceof Error ? reason.message : String(reason).slice(0, 1000) });
+      void window.tvApp?.reportDiagnostic({ type: "renderer-unhandled-rejection", message: reason instanceof Error ? reason.message : String(reason).slice(0, 1000) }).catch(() => undefined);
     };
     window.addEventListener("error", onError);
     window.addEventListener("unhandledrejection", onRejection);
