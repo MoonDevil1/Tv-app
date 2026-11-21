@@ -2,7 +2,6 @@ name: Desktop Release
 
 on:
   workflow_dispatch:
-  create:
   push:
     branches:
       - "release/v*"
@@ -14,7 +13,6 @@ permissions:
 
 jobs:
   package:
-    if: github.event_name != 'create' || (github.event.ref_type == 'branch' && startsWith(github.event.ref, 'release/v'))
     name: Package (${{ matrix.platform }})
     strategy:
       fail-fast: false
@@ -101,7 +99,7 @@ jobs:
 
   draft-release:
     name: Publish GitHub release
-    if: startsWith(github.ref, 'refs/tags/v') || startsWith(github.ref, 'refs/heads/release/v') || (github.event_name == 'create' && github.event.ref_type == 'branch' && startsWith(github.event.ref, 'release/v'))
+    if: startsWith(github.ref, 'refs/tags/v') || startsWith(github.ref, 'refs/heads/release/v')
     needs: package
     runs-on: ubuntu-latest
     steps:
