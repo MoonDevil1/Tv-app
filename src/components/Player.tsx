@@ -233,6 +233,13 @@ export function Player({ channel, channels, onClose, onChangeChannel, onRecover,
     try { if (document.pictureInPictureElement) await document.exitPictureInPicture(); else await video.requestPictureInPicture(); }
     catch (e) { setError(e instanceof Error ? e.message : "Picture-in-picture is unavailable."); }
   }
+  function handleWheelVolume(event: React.WheelEvent<HTMLDivElement>) {
+    if (menu) return;
+    event.preventDefault();
+    const current = videoRef.current?.volume ?? volume;
+    setVolumeValue(Math.min(1, Math.max(0, current + (event.deltaY < 0 ? 0.05 : -0.05))));
+  }
+
   function setVolumeValue(value: number) {
     if (!videoRef.current) return;
     videoRef.current.volume = value;
@@ -259,7 +266,7 @@ export function Player({ channel, channels, onClose, onChangeChannel, onRecover,
   };
 
   return <div className={mini ? "player-overlay mini-mode" : "player-overlay"} onMouseMove={showHud} onMouseEnter={showHud}>
-    <div className="player-stage">
+    <div className="player-stage" onWheel={handleWheelVolume}>
       <video ref={videoRef} className="player-video" style={{ objectFit: fit }} playsInline autoPlay />
       {(guide.current || guide.next) && <div style={{ position: "absolute", zIndex: 4, top: 72, left: 24, width: "min(390px, 42vw)", padding: "14px 16px", borderRadius: 12, background: "rgba(8, 13, 22, .78)", color: "#fff", pointerEvents: "none" }}>
         {guide.current && <div style={{ marginBottom: 10 }}>
