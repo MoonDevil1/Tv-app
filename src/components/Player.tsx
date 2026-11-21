@@ -43,6 +43,8 @@ export function Player({ channel, channels, onClose, onChangeChannel, onRecover,
   const playlists = useAppStore(s => s.playlists);
   const epgLoadRef = useRef(new Set<string>());
   const reportedErrorsRef = useRef(new Set<string>());
+  const channelRef = useRef(channel);
+  channelRef.current = channel;
   const [reporting, setReporting] = useState(false);
 
   const engine = useMemo(() => new StreamEngine({
@@ -50,10 +52,11 @@ export function Player({ channel, channels, onClose, onChangeChannel, onRecover,
       setState(next);
       if (err) {
         setError(err.message);
-        const key = `${channel.id}:${err.name}:${err.message}`;
+        const activeChannel = channelRef.current;
+        const key = `${activeChannel.id}:${err.name}:${err.message}`;
         if (next === "error" && !reportedErrorsRef.current.has(key)) {
           reportedErrorsRef.current.add(key);
-          void window.tvApp?.reportDiagnostic({ type: "playback-error", channelId: channel.id, channelName: channel.name, manifestType: channel.manifestType ?? "unknown", errorName: err.name, message: err.message, appVersion: "2.0.1" }).catch(() => undefined);
+          void window.tvApp?.reportDiagnostic({ type: "playback-error", channelId: activeChannel.id, channelName: activeChannel.name, manifestType: activeChannel.manifestType ?? "unknown", errorName: err.name, message: err.message, appVersion: "2.0.1" }).catch(() => undefined);
         }
       }
     },
