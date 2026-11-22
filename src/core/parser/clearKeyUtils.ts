@@ -81,7 +81,7 @@ export function normalizeDrmScheme(type?: string, license?: string): DrmScheme |
   if (value.includes("playready")) return "playready";
   if (value.includes("fairplay") || value.includes("com.apple.fps")) return "fairplay";
   if (value.includes("clearkey") || value.includes("clear-key") || value === "org.w3.clearkey") return "clearkey";
-  if (!value && license && /^https?:\/\//i.test(license.trim())) return "clearkey";
+  if (!value && license?.trim()) return "clearkey";
   return undefined;
 }
 
