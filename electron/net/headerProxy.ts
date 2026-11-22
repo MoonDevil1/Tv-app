@@ -3,6 +3,8 @@ import type { Session } from "electron";
 export interface StreamRequestContext {
   originUrl: string;
   headers: Record<string, string>;
+  licenseUrl?: string;
+  licenseHeaders?: Record<string, string>;
 }
 
 let activeContext: { origins: Map<string, Record<string, string>> } | null = null;
@@ -31,9 +33,7 @@ export function setActiveStreamContext(context: StreamRequestContext | null): vo
   for (const [rawName, rawValue] of Object.entries(context.headers)) {
     const name = rawName.trim();
     const value = String(rawValue).trim();
-    if (!name || name.length > 128 || value.length > 8192 || /[\r
-:]/.test(name) || /[\r
-]/.test(value)) continue;
+    if (!name || name.length > 128 || value.length > 8192 || /[\\r\\n:]/.test(name) || /[\\r\\n]/.test(value)) continue;
     if (BLOCKED_HEADERS.has(name.toLowerCase()) || /^proxy-|^sec-/i.test(name)) continue;
     headers[name] = value;
   }
@@ -57,12 +57,11 @@ export function registerHeaderProxy(targetSession: Session): void {
       try { requestOrigin = new URL(details.url).origin.toLowerCase(); } catch {
         return callback({ requestHeaders: details.requestHeaders });
       }
-      if (!context.origins.has(requestOrigin)) {
-        return callback({ requestHeaders: details.requestHeaders });
-      }
+      const selectedHeaders = context.origins.get(requestOrigin);
+      if (!selectedHeaders) return callback({ requestHeaders: details.requestHeaders });
 
       const requestHeaders = { ...details.requestHeaders };
-      for (const [name, value] of Object.entries(context.headers)) {
+      for (const [name, value] of Object.entries(selectedHeaders)) {
         const existing = Object.keys(requestHeaders).find(key => key.toLowerCase() === name.toLowerCase());
         if (existing) delete requestHeaders[existing];
         requestHeaders[name] = value;
