@@ -30,7 +30,7 @@ function drmFrom(value: ApiDetails["drm"]): DrmConfiguration | undefined {
     return { scheme: type as DrmConfiguration["scheme"], licenseUrl, licenseHeaders: headersFrom(value.headers), multiDrm: !!value.multiDrm, contentId: value.contentId, certificateUrl: value.certificateUrl, base64Certificate: !!value.base64Certificate };
   }
 }
-function manifest(url: string): ChannelSource["type"] {
+function manifest(url: string, fallback: ChannelSource["type"] = "unknown"): ChannelSource["type"] {
   const u = url.toLowerCase();
   if (/\.mpd(?:$|[?#])/.test(u)) return "dash";
   if (/\.m3u8(?:$|[?#])/.test(u)) return "hls";
@@ -47,7 +47,7 @@ export async function resolveLiveTgTvChannel(channel: TvChannel): Promise<TvChan
     const urls = Array.isArray(details.sources) ? details.sources.map(v => typeof v === "string" ? v.trim() : "").filter(v => /^https?:\/\//i.test(v)) : [];
     const drm = drmFrom(details.drm);
     const mediaHeaders = headersFrom(channel.sources[0]?.headers, details.headers);
-    const sources = urls.map((url,index) => ({ url, type: manifest(url), headers: mediaHeaders, ...(drm ? { drm } : {}), label: urls.length > 1 ? "LiveTGTV " + (index + 1) : "LiveTGTV" })).filter(s => s.type !== "unknown");
+    const sources = urls.map((url,index) => ({ url, type: manifest(url, channel.sources[0]?.type ?? "unknown"), headers: mediaHeaders, ...(drm ? { drm } : {}), label: urls.length > 1 ? "LiveTGTV " + (index + 1) : "LiveTGTV" })).filter(s => s.type !== "unknown");
     return sources.length ? { ...channel, sources } : channel;
   } catch { return channel; }
 }
