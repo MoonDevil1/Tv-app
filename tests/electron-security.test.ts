@@ -53,6 +53,26 @@ test("Electron stream headers are limited to the active stream host", () => {
   assert.deepEqual(cleared, { Accept: "*/*" });
 });
 
+test("DRM license headers are scoped to the license host and do not inherit media credentials", () => {
+  let listener: ((details: { url: string; requestHeaders: Record<string, string> }, callback: (result: { requestHeaders: Record<string, string> }) => void) => void) | undefined;
+  registerHeaderProxy({ webRequest: { onBeforeSendHeaders: (_filter: unknown, callback: typeof listener) => { listener = callback; } } } as never);
+  setActiveStreamContext({
+    originUrl: "https://media.example/manifest.mpd",
+    headers: { Cookie: "media-session=private", "User-Agent": "TG IPTV" },
+    licenseUrl: "https://license.example/wv",
+    licenseHeaders: { Authorization: "Bearer license-only" }
+  });
+  let media: Record<string,string> = {};
+  let license: Record<string,string> = {};
+  listener!({ url: "https://media.example/segment.m4s", requestHeaders: {} }, result => { media = result.requestHeaders; });
+  listener!({ url: "https://license.example/wv", requestHeaders: {} }, result => { license = result.requestHeaders; });
+  assert.equal(media.Cookie, "media-session=private");
+  assert.equal(license.Authorization, "Bearer license-only");
+  assert.equal(license.Cookie, undefined);
+  assert.equal(license["User-Agent"], undefined);
+  setActiveStreamContext(null);
+});
+
 test("Electron stream context rejects non-HTTP origins and sanitizes header injection", () => {
   assert.throws(() => setActiveStreamContext({ originUrl: "file:///tmp/video.m3u8", headers: {} }), /HTTP or HTTPS/);
   setActiveStreamContext({
