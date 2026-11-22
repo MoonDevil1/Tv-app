@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
-import { CalendarDays, ChevronRight, CircleHelp, Clock3, FileUp, Heart, History, ListVideo, Menu, Moon, Radio, RefreshCw, Search, Settings, Sun, Trash2, Tv2, Upload } from "lucide-react";
+import { CalendarDays, ChevronRight, CircleHelp, Clock3, FileUp, Heart, History, ListVideo, Menu, Moon, Play, Radio, RefreshCw, Search, Settings, Sun, Trash2, Tv2, Upload } from "lucide-react";
 import { useAppStore, channelKey } from "./app/store";
 import type { AppSection, AppSettings, Playlist, ThemeMode } from "./app/models";
-import { addLiveTgTvFallbacks, fetchPlaylistText, LIVE_TGTV_SOURCE, parsePlaylistText } from "./core/playlist/parser";
+import { addLiveTgTvFallbacks, fetchPlaylistText, LIVE_TGTV_SOURCE, parsePlaylistText } from "./core/playlist/parser";\nimport LivePlayer from "./components/LivePlayer";
 
 const navigation: Array<{ section: AppSection; icon: typeof Tv2; group: "watch" | "manage" }> = [
   { section: "Home", icon: Tv2, group: "watch" }, { section: "Live TV", icon: Radio, group: "watch" },
@@ -100,7 +100,7 @@ function PlaylistManager() {
     </section>
   </>;
 }
-function ChannelLibrary({ mode }: { mode: "all" | "favorites" }) {
+function ChannelLibrary({ mode, onPlay }: { mode: "all" | "favorites"; onPlay: (playlist: Playlist, channel: import("./app/models").TvChannel) => void }) {
   const playlists=useAppStore(state=>state.playlists), favorites=useAppStore(state=>state.favorites);
   const toggleFavorite=useAppStore(state=>state.toggleFavorite);
   const [query,setQuery]=useState(""),[group,setGroup]=useState("All groups"),[source,setSource]=useState("All playlists");
@@ -108,13 +108,13 @@ function ChannelLibrary({ mode }: { mode: "all" | "favorites" }) {
   const groups=useMemo(()=>["All groups",...new Set(entries.map(x=>x.channel.group).filter(Boolean))],[entries]);
   const filtered=entries.filter(({playlist,channel})=>(mode==="all"||favorites.includes(channelKey(playlist.id,channel.id))) && (source==="All playlists"||playlist.id===source) && (group==="All groups"||channel.group===group) && (!query||channel.name.toLowerCase().includes(query.toLowerCase())||channel.group.toLowerCase().includes(query.toLowerCase())));
   return <div className="channel-library"><div className="channel-toolbar"><label className="channel-search"><Search size={16}/><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Search channels…"/></label><select value={source} onChange={e=>setSource(e.target.value)}><option>All playlists</option>{playlists.map(p=><option value={p.id} key={p.id}>{p.name}</option>)}</select><select value={group} onChange={e=>setGroup(e.target.value)}>{groups.map(g=><option key={g}>{g}</option>)}</select><span>{filtered.length} channels</span></div>
-    {filtered.length===0 ? <EmptyState icon={mode==="all"?Radio:Heart} title={mode==="all"?"No channels found":"No favorite channels yet"} detail={mode==="all"?"Add a playlist or adjust your search and filters.":"Use the star on a channel to save it here."}/> : <div className="channel-grid">{filtered.map(({playlist,channel})=><article className="channel-card" key={playlist.id+":"+channel.id}><div className="channel-logo">{channel.logo ? <img src={channel.logo} alt="" loading="lazy" onError={e=>{e.currentTarget.style.display="none";}}/> : <Tv2 size={22}/>}</div><div className="channel-card-info"><b>{channel.name}</b><small>{channel.group} · {playlist.name}</small><small>{channel.sources[0]?.type.toUpperCase() ?? "STREAM"}</small></div><button className={favorites.includes(channelKey(playlist.id,channel.id))?"favorite-button selected":"favorite-button"} aria-label="Toggle favorite" onClick={()=>toggleFavorite(playlist.id,channel.id)}><Heart size={17} fill={favorites.includes(channelKey(playlist.id,channel.id))?"currentColor":"none"}/></button></article>)}</div>}
+    {filtered.length===0 ? <EmptyState icon={mode==="all"?Radio:Heart} title={mode==="all"?"No channels found":"No favorite channels yet"} detail={mode==="all"?"Add a playlist or adjust your search and filters.":"Use the star on a channel to save it here."}/> : <div className="channel-grid">{filtered.map(({playlist,channel})=><article className="channel-card" key={playlist.id+":"+channel.id}><div className="channel-logo">{channel.logo ? <img src={channel.logo} alt="" loading="lazy" onError={e=>{e.currentTarget.style.display="none";}}/> : <Tv2 size={22}/>}</div><div className="channel-card-info"><b>{channel.name}</b><small>{channel.group} · {playlist.name}</small><small>{channel.sources[0]?.type.toUpperCase() ?? "STREAM"}</small></div><button className="channel-play-button" onClick={()=>onPlay(playlist,channel)} aria-label={"Play " + channel.name}><Play size={14}/></button><button className={favorites.includes(channelKey(playlist.id,channel.id))?"favorite-button selected":"favorite-button"} aria-label="Toggle favorite" onClick={()=>toggleFavorite(playlist.id,channel.id)}><Heart size={17} fill={favorites.includes(channelKey(playlist.id,channel.id))?"currentColor":"none"}/></button></article>)}</div>}
   </div>;
 }
 function App() {
   const activeSection=useAppStore(state=>state.activeSection),setActiveSection=useAppStore(state=>state.setActiveSection);
   const settings=useAppStore(state=>state.settings),playlists=useAppStore(state=>state.playlists),favorites=useAppStore(state=>state.favorites);
-  const [navigationOpen,setNavigationOpen]=useState(false);
+  const [navigationOpen,setNavigationOpen]=useState(false);\n  const [activePlayback,setActivePlayback]=useState<{playlistId:string;channelId:string}|null>(null);\n  const selectedPlaylist=activePlayback ? playlists.find(item=>item.id===activePlayback.playlistId) : undefined;\n  const selectedChannel=selectedPlaylist?.channels.find(item=>item.id===activePlayback?.channelId);\n  const openPlayer=(playlist:Playlist,channel:import("./app/models").TvChannel)=>setActivePlayback({playlistId:playlist.id,channelId:channel.id});
   useEffect(()=>{document.documentElement.dataset.theme=settings.theme;},[settings.theme]);
   useEffect(()=>{const close=(e:KeyboardEvent)=>{if(e.key==="Escape")setNavigationOpen(false);};window.addEventListener("keydown",close);return()=>window.removeEventListener("keydown",close);},[]);
   const channelsCount=playlists.reduce((total,p)=>total+p.channels.length,0);
@@ -134,13 +134,13 @@ function App() {
           <button className="overview-card" onClick={()=>openSection("Playlists")}><span className="overview-icon"><ListVideo size={21}/></span><b>{playlists.length}</b><small>Connected playlists</small><span className="card-link">Manage playlists <ChevronRight size={15}/></span></button>
           <button className="overview-card" onClick={()=>openSection("Favorites")}><span className="overview-icon"><Heart size={21}/></span><b>{favorites.length}</b><small>Favorite channels</small><span className="card-link">View favorites <ChevronRight size={15}/></span></button>
         </div><div className="home-content-grid"><section className="welcome-panel"><p className="eyebrow">YOUR ENTERTAINMENT HUB</p><h2>All your channels.<br/><span>One simple player.</span></h2><p>Connect a playlist to browse channels and build your TV library. The player and programme guide follow in the next phases.</p><button className="primary-button" onClick={()=>openSection("Playlists")}>Open playlist manager <ChevronRight size={16}/></button></section><section className="quick-links"><h2>Quick access</h2><button onClick={()=>openSection("Guide")}><CalendarDays size={19}/><span><b>Programme guide</b><small>See what's on now and next</small></span><ChevronRight size={17}/></button><button onClick={()=>openSection("History")}><Clock3 size={19}/><span><b>Recently watched</b><small>Return to your last channels</small></span><ChevronRight size={17}/></button></section></div></>}
-        {activeSection==="Live TV"&&<><PageHeading title="Live TV" subtitle="Browse all channels across your connected playlists."/><ChannelLibrary mode="all"/></>}
+        {activeSection==="Live TV"&&<><PageHeading title="Live TV" subtitle="Browse all channels across your connected playlists."/><ChannelLibrary mode="all" onPlay={openPlayer}/></>}
         {activeSection==="Guide"&&<><PageHeading title="TV Guide" subtitle="Programme schedules, now playing and what's coming next."/><EmptyState icon={CalendarDays} title="Programme guide is Phase 4" detail="XMLTV and LiveTGTV EPG data will populate Now and Next programme information here."/></>}
-        {activeSection==="Favorites"&&<><PageHeading title="Favorites" subtitle="Your saved channels in one place."/><ChannelLibrary mode="favorites"/></>}
+        {activeSection==="Favorites"&&<><PageHeading title="Favorites" subtitle="Your saved channels in one place."/><ChannelLibrary mode="favorites" onPlay={openPlayer}/></>}
         {activeSection==="History"&&<><PageHeading title="Recently watched" subtitle="Quickly return to the channels you watched recently."/><EmptyState icon={History} title="Viewing history is part of the player phase" detail="Recently played channels will appear here after playback is implemented."/></>}
         {activeSection==="Playlists"&&<PlaylistManager/>}
         {activeSection==="Settings"&&<SettingsPage/>}
-      </main><footer className="app-footer"><span>TG IPTV Desktop</span><span>Windows edition <i>•</i> Phase 2 playlist engine</span></footer>
+      </main><footer className="app-footer"><span>TG IPTV Desktop</span><span>Windows edition <i>•</i> Live player</span></footer>
     </div>
   </div>;
 }
