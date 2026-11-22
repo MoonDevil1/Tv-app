@@ -6,6 +6,7 @@ import { PlaylistManager } from "../src/core/parser/playlistManager";
 import { parseXmltvDate, currentAndNext, parseLiveTgGuide } from "../src/core/epg/xmltv";
 import { waitForMediaEvent } from "../src/core/player/mediaEvents";
 import { describeShakaError } from "../src/core/player/shakaErrors";
+import { resolveLiveTgTvChannel } from "../src/core/player/liveTgTvResolver";
 
 const KID = "00112233445566778899aabbccddeeff";
 const KEY = "ffeeddccbbaa99887766554433221100";
@@ -62,6 +63,55 @@ https://cdn.example/bpk-tv/AndPicturesHD_BTS/WDVLive/index.mpd`;
   assert.equal(Object.keys(channels[0].drm?.clearKeys ?? {}).length, 5);
   assert.equal(channels[1].name, "&Pictures HD");
   assert.equal(channels[1].tvgId, "1839");
+});
+
+test("resolves LiveTGTV API streams with all ClearKey pairs and preserves playlist headers", async () => {
+  const source = [
+    "#EXTM3U",
+    '#EXTINF:-1 tvg-id="165" tvg-name="Zee Cinema HD" group-title="Movies",Zee Cinema HD',
+    "#KODIPROP:inputstream.adaptive.manifest_type=mpd",
+    "#KODIPROP:inputstream.adaptive.license_type=clearkey",
+    "#KODIPROP:inputstream.adaptive.license_key=" + KID + ":" + KEY,
+    "#EXTVLCOPT:http-user-agent=LiveTGTV-Test/1.0",
+    '#EXTHTTP:{"cookie":"session=synthetic"}',
+    "https://playlist.example/zee/index.mpd",
+    '#EXTINF:-1 tvg-id="1839" tvg-name="&Pictures HD" group-title="Movies",&Pictures HD',
+    "#KODIPROP:inputstream.adaptive.manifest_type=mpd",
+    "#KODIPROP:inputstream.adaptive.license_type=clearkey",
+    "#KODIPROP:inputstream.adaptive.license_key=" + KID + ":" + KEY,
+    "#EXTVLCOPT:http-user-agent=LiveTGTV-Test/1.0",
+    '#EXTHTTP:{"cookie":"session=synthetic"}',
+    "https://playlist.example/pictures/index.mpd"
+  ].join("\n");
+  const channels = parseM3U(source, "https://livetgtv.lovable.app/api/public/playlist.m3u");
+  const apiKeys = {
+    "00112233445566778899aabbccddeeff": "ffeeddccbbaa99887766554433221100",
+    "11223344556677889900aabbccddeeff": "0011aabbccddeeff0011aabbccddeeff",
+    "223344556677889900aabbccddeeff11": "11223344556677889900aabbccddeeff",
+    "3344556677889900aabbccddeeff1122": "223344556677889900aabbccddeeff11",
+    "44556677889900aabbccddeeff112233": "3344556677889900aabbccddeeff1122"
+  };
+  for (const channel of channels) {
+    let requested = ""; let cancelled = "";
+    const resolved = await resolveLiveTgTvChannel(channel, async url => {
+      requested = url;
+      return { status: 200, url, text: JSON.stringify({
+        sources: ["https://cdn.example/" + channel.tvgId + "/index.mpd?token=rotated"],
+        headers: { "X-Channel": "livetgtv" },
+        drm: { type: "clearkey", clearKeys: apiKeys, headers: { "X-License": "license-only" } }
+      }) };
+    }, async requestId => { cancelled = requestId; });
+    assert.ok(resolved);
+    assert.equal(requested, "https://livetgtv.lovable.app/api/public/channels/" + channel.tvgId);
+    assert.ok(cancelled);
+    assert.equal(resolved.manifestType, "dash");
+    assert.equal(resolved.headers["User-Agent"], "LiveTGTV-Test/1.0");
+    assert.equal(resolved.headers.cookie, "session=synthetic");
+    assert.equal(resolved.headers["X-Channel"], "livetgtv");
+    assert.deepEqual(resolved.drm?.clearKeys, parseClearKeys(apiKeys));
+    assert.equal(Object.keys(resolved.drm?.clearKeys ?? {}).length, 5);
+    assert.deepEqual(resolved.drm?.licenseHeaders, { "X-License": "license-only" });
+  }
 });
 
 test("converts 128-bit hex values and round-trips ClearKey JWK", () => {
