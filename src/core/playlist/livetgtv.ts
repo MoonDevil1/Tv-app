@@ -31,12 +31,12 @@ function drmFrom(value: ApiDetails["drm"]): DrmConfiguration | undefined {
   }
 }
 function manifest(url: string, fallback: ChannelSource["type"] = "unknown"): ChannelSource["type"] {
-  const u = url.toLowerCase();
-  if (/\.mpd(?:$|[?#])/.test(u)) return "dash";
-  if (/\.m3u8(?:$|[?#])/.test(u)) return "hls";
-  if (/\.(?:mp4|m4v)(?:$|[?#])/.test(u)) return "progressive";
-  try { const nested = new URL(url).searchParams.get("url"); if (nested) return manifest(nested); } catch {}
-  return "unknown";
+  const value = url.toLowerCase();
+  if (/\\.mpd(?:$|[?#])/.test(value)) return "dash";
+  if (/\\.m3u8(?:$|[?#])/.test(value)) return "hls";
+  if (/\\.(?:mp4|m4v)(?:$|[?#])/.test(value)) return "progressive";
+  try { const nested = new URL(url).searchParams.get("url"); if (nested) return manifest(nested, fallback); } catch {}
+  return fallback;
 }
 export async function resolveLiveTgTvChannel(channel: TvChannel): Promise<TvChannel> {
   const id = (channel.id.match(/^(?:liveid|tvg):(.+)$/)?.[1] ?? channel.tvgId ?? "").trim();
