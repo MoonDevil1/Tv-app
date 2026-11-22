@@ -16,7 +16,7 @@ test("Electron stream headers are limited to the active stream host", () => {
     originUrl: "https://stream.example/live.m3u8",
     headers: {
       Authorization: "Bearer test",
-      Referer: "https://provider.example/",
+      Referer: "https://provider.example/",\n      Origin: "https://provider.example",
       Host: "attacker.example",
       "X-Test": "safe",
       Cookie: "session=abc",
@@ -27,7 +27,7 @@ test("Electron stream headers are limited to the active stream host", () => {
   let sameHost: Record<string, string> = {};
   listener!({ url: "https://stream.example/segment.ts", requestHeaders: { Accept: "*/*" } }, result => { sameHost = result.requestHeaders; });
   assert.equal(sameHost.Authorization, "Bearer test");
-  assert.equal(sameHost.Referer, "https://provider.example/");
+  assert.equal(sameHost.Referer, "https://provider.example/");\n  assert.equal(sameHost.Origin, "https://provider.example");
   assert.equal(sameHost["X-Test"], "safe");
   assert.equal(sameHost.Cookie, "session=abc");
   assert.equal(sameHost["User-Agent"], "IPTV Player");
@@ -75,19 +75,19 @@ import { fetchRemoteText } from "../electron/net/remoteFetch";
 import { isAllowedNavigation } from "../electron/security/navigation";
 
 test("remote fetch accepts HTTP(S), follows safe redirects and strips credentials across origins", async () => {
-  const requests: Array<{ url: string; authorization: string | null }> = [];
+  const requests: Array<{ url: string; authorization: string | null; origin: string | null }> = [];
   const result = await fetchRemoteText("https://provider.example/list.m3u", {
-    headers: { Authorization: "Bearer private", Referer: "https://provider.example/" }
+    headers: { Authorization: "Bearer private", Referer: "https://provider.example/", Origin: "https://provider.example" }
   }, async (url, init) => {
     const headers = new Headers(init.headers);
-    requests.push({ url, authorization: headers.get("authorization") });
+    requests.push({ url, authorization: headers.get("authorization"), origin: headers.get("origin") });
     if (requests.length === 1) return new Response(null, { status: 302, headers: { location: "https://cdn.example/final.m3u" } });
     return new Response("#EXTM3U\\n#EXTINF:-1,News\\nhttps://cdn.example/news.m3u8", { status: 200 });
   });
   assert.equal(result.url, "https://cdn.example/final.m3u");
   assert.match(result.text, /News/);
-  assert.equal(requests[0].authorization, "Bearer private");
-  assert.equal(requests[1].authorization, null);
+  assert.equal(requests[0].authorization, "Bearer private");\n  assert.equal(requests[0].origin, "https://provider.example");
+  assert.equal(requests[1].authorization, null);\n  assert.equal(requests[1].origin, null);
 });
 
 test("remote fetch rejects unsafe schemes, excessive redirects and oversized responses", async () => {
