@@ -116,7 +116,8 @@ function ChannelLibrary({ mode, onPlay }: { mode: "all" | "favorites" | "recent"
 }
 function programmeTime(value: number): string { return new Date(value).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }); }
 function GuidePage({ playlists, onPlay, status, refreshedAt }: { playlists: Playlist[]; onPlay: (playlist: Playlist, channel: TvChannel) => void; status: string; refreshedAt: number }) {
-  const guide = useAppStore(state => state.guide); const [query, setQuery] = useState(""); const [, setClock] = useState(Date.now()); const now = Date.now();\n  useEffect(() => { const timer = window.setInterval(() => setClock(Date.now()), 30000); return () => window.clearInterval(timer); }, []);
+  const guide = useAppStore(state => state.guide); const [query, setQuery] = useState(""); const [, setClock] = useState(Date.now()); const now = Date.now();
+  useEffect(() => { const timer = window.setInterval(() => setClock(Date.now()), 30000); return () => window.clearInterval(timer); }, []);
   const entries = playlists.flatMap(playlist => playlist.channels.map(channel => { const programmes = guide[channel.tvgId ?? ""] ?? guide[channel.id] ?? []; return { playlist, channel, current: programmes.find(item => item.start <= now && item.stop > now), next: programmes.find(item => item.start > now) }; })).filter(item => item.current || item.next).filter(item => !query || item.channel.name.toLowerCase().includes(query.toLowerCase()) || item.current?.title.toLowerCase().includes(query.toLowerCase()) || item.next?.title.toLowerCase().includes(query.toLowerCase()));
   const feedCount = new Set(playlists.flatMap(item => item.epgUrls)).size;
   return <><PageHeading title="TV Guide" subtitle="Live programmes and what is coming up next." action={<span className="guide-updated">{refreshedAt ? "Updated " + new Date(refreshedAt).toLocaleTimeString([], {hour:"2-digit",minute:"2-digit"}) : status}</span>} />
