@@ -20,6 +20,18 @@ https://cdn.example/live/index.mpd
 #EXTINF:-1 tvg-name="Radio" group-title="Audio",Radio
 https://cdn.example/radio/index.m3u8|Referer=https://provider.example`;
 
+test("keeps EXTHTTP headers before EXTINF and parses Kodi stream_headers", () => {
+  const source = `#EXTM3U
+#EXTHTTP:cookie=SESSIONID=abc123
+#EXTINF:-1,Protected channel
+#KODIPROP:inputstream.adaptive.stream_headers=User-Agent=VegaTest%2F1.0&Referer=https%3A%2F%2Fprovider.example%2F
+https://cdn.example/live/channel.mpd`;
+  const [channel] = parseM3U(source);
+  assert.equal(channel.headers.cookie, "SESSIONID=abc123");
+  assert.equal(channel.headers["User-Agent"], "VegaTest/1.0");
+  assert.equal(channel.headers.Referer, "https://provider.example/");
+});
+
 test("parses Kodi Widevine license URLs and keeps license headers separate from stream headers", () => {
   const source = `#EXTM3U
 #EXTINF:-1,Protected channel
