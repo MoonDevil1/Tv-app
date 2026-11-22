@@ -1,9 +1,15 @@
 export type StreamHeaders = Record<string, string>;
+export type DrmScheme = "clearkey" | "widevine" | "playready" | "fairplay";
 export type DrmConfig = {
-  scheme: "clearkey" | "widevine";
+  scheme: DrmScheme;
   licenseUrl?: string;
   clearKeys?: Record<string, string>;
+  /** Credentials for the license endpoint; never reused for media requests. */
   licenseHeaders?: StreamHeaders;
+  certificateUrl?: string;
+  contentId?: string;
+  base64Certificate?: boolean;
+  multiDrm?: boolean;
   rawLicenseKey?: string;
 };
 export interface Channel {
