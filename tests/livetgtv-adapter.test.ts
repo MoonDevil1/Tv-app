@@ -33,6 +33,6 @@ test("LiveTGTV adapter loads all API sources, every ClearKey pair and playlist h
     assert.equal(Object.keys(resolved.sources[0].drm?.clearKeys ?? {}).length, 5);
   } finally {
     if (original) Object.defineProperty(globalThis, "window", original);
-    else delete (globalThis as typeof globalThis & { window?: Window }).window;
+    else Reflect.deleteProperty(globalThis, "window");
   }
 });
