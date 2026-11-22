@@ -198,7 +198,7 @@ test("playback request policy scopes stream headers to the manifest origin", () 
     rawAttributes: {}
   };
   assert.deepEqual(streamHeadersForRequest(channel, "https://origin.example/live/segment.ts"), {
-    Authorization: "Bearer stream", Referer: "https://origin.example/", "X-Token": "abc", Cookie: "sid=secret"
+    Authorization: "Bearer stream", "X-Token": "abc"
   });
   assert.deepEqual(streamHeadersForRequest(channel, "https://cdn.example/segment.ts"), {});
   assert.deepEqual(streamHeadersForRequest(channel, "http://origin.example/segment.ts"), {});
@@ -234,7 +234,7 @@ test("license headers are sent only to the configured license server", () => {
 
 test("builds ClearKey and Widevine Shaka DRM configurations", () => {
   const keys = { "ABEiM0RVZneImaq7zN3u_w": "ABEiM0RVZneImaq7zN3u_w" };
-  assert.deepEqual(shakaDrmConfiguration({ scheme: "clearkey", clearKeys: keys }), { drm: { clearKeys: keys } });
+  assert.deepEqual(shakaDrmConfiguration({ scheme: "clearkey", clearKeys: keys }), { drm: { preferredKeySystems: ["org.w3.clearkey"], clearKeys: keys } });
   assert.deepEqual(shakaDrmConfiguration({ scheme: "clearkey", licenseUrl: "https://license.example/ck" }), {
     drm: { servers: { "org.w3.clearkey": "https://license.example/ck" } }
   });
@@ -293,7 +293,8 @@ test("JSON DRM metadata preserves Widevine and ignores unsupported PlayReady", (
     name: "PlayReady", url: "https://stream.example/pr.mpd",
     drm: { scheme: "playready", licenseUrl: "https://license.example/pr" }
   }] })[0];
-  assert.equal(playready.drm, undefined);
+  assert.equal(playready.drm?.scheme, "playready");
+  assert.equal(playready.drm?.licenseUrl, "https://license.example/pr");
 });
 
 test("XMLTV date parser rejects impossible dates and offsets", () => {
