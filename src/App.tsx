@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { CalendarDays, ChevronRight, CircleHelp, Clock3, FileUp, Heart, History, ListVideo, Menu, Moon, Radio, RefreshCw, Search, Settings, Sun, Trash2, Tv2, Upload } from "lucide-react";
 import { useAppStore, channelKey } from "./app/store";
-import type { AppSection, AppSettings, Playlist, ThemeMode, TvChannel } from "./app/models";
+import type { AppSection, AppSettings, Playlist, ThemeMode } from "./app/models";
 import { addLiveTgTvFallbacks, fetchPlaylistText, LIVE_TGTV_SOURCE, parsePlaylistText } from "./core/playlist/parser";
 
 const navigation: Array<{ section: AppSection; icon: typeof Tv2; group: "watch" | "manage" }> = [
