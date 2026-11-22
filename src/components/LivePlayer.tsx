@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";\nimport type { WheelEvent } from "react";
 import { ArrowLeft, Captions, ChevronDown, ChevronLeft, ChevronRight, Expand, Heart, Maximize, Monitor, Pause, PictureInPicture, Play, Settings2, Volume2, VolumeX } from "lucide-react";
 import type { Playlist, TvChannel, EpgProgramme } from "../app/models";
 import { useAppStore, channelKey } from "../app/store";
@@ -165,7 +165,7 @@ export default function LivePlayer({ playlist, channel: initialChannel, onClose,
     const generation = ++generationRef.current;
     sourceIndexRef.current = 0;
     void playSource(0, generation);
-    return () => { void cleanup(); };
+    return () => { generationRef.current++; void cleanup(); };
   }, [channel.id, playlist.id]);
 
   useEffect(() => {
@@ -203,7 +203,7 @@ export default function LivePlayer({ playlist, channel: initialChannel, onClose,
     setVolumeVisible(true);
     window.setTimeout(() => setVolumeVisible(false), 1200);
   };
-  const onWheel = (event: React.WheelEvent) => { event.preventDefault(); changeVolume(event.deltaY < 0 ? 0.05 : -0.05); };
+  const onWheel = (event: WheelEvent) => { event.preventDefault(); changeVolume(event.deltaY < 0 ? 0.05 : -0.05); };
   const setQuality = (id: string) => {
     if (shakaRef.current) {
       if (id === "auto") shakaRef.current.configure({ abr: { enabled: true } });
