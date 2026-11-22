@@ -34,3 +34,10 @@ jobs:
       - name: Smoke test Windows application
         shell: pwsh
         run: ./scripts/smoke-test-windows.ps1
+      - name: Upload Windows test build
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-test-build-${{ github.run_number }}
+          path: release/win-unpacked/
+          if-no-files-found: error
+          retention-days: 7
