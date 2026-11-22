@@ -53,7 +53,7 @@ export default function LivePlayer({ playlist, channel: initialChannel, onClose,
 
   const cleanup = useCallback(async () => {
     generationRef.current++;
-    try { await shakaRef.current?.destroy(); } catch {}
+    videoRef.current?.pause();\n    try { await shakaRef.current?.destroy(); } catch {}
     shakaRef.current = null;
     try { hlsRef.current?.destroy(); } catch {}
     hlsRef.current = null;
