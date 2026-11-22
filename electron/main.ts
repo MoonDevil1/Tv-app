@@ -44,7 +44,7 @@ function createWindow(): void {
     height: 940,
     minWidth: 1024,
     minHeight: 680,
-    backgroundColor: "#090b10",
+    backgroundColor: "#f5f7fb",
     title: "TG IPTV",
     autoHideMenuBar: true,
     webPreferences: {
