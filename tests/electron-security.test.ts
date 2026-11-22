@@ -14,6 +14,8 @@ test("Electron stream headers are limited to the active stream host", () => {
 
   setActiveStreamContext({
     originUrl: "https://stream.example/live.m3u8",
+    licenseUrl: "https://license.example/wv",
+    licenseHeaders: { Cookie: "license-session=abc", "User-Agent": "DRM Agent" },
     headers: {
       Authorization: "Bearer test",
       Referer: "https://provider.example/",
@@ -33,6 +35,11 @@ test("Electron stream headers are limited to the active stream host", () => {
   assert.equal(sameHost.Cookie, "session=abc");
   assert.equal(sameHost["User-Agent"], "IPTV Player");
   assert.equal(sameHost.Origin, "https://provider.example");
+
+  let licenseHost: Record<string, string> = {};
+  listener!({ url: "https://license.example/wv?token=1", requestHeaders: {} }, result => { licenseHost = result.requestHeaders; });
+  assert.equal(licenseHost.Cookie, "license-session=abc");
+  assert.equal(licenseHost["User-Agent"], "DRM Agent");
   assert.equal(sameHost.Host, undefined);
 
   let otherHost: Record<string, string> = {};
