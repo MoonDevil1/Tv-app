@@ -126,7 +126,7 @@ export default function LivePlayer({ playlist, channel: initialChannel, onClose,
         const module = await import("hls.js");
         const Hls = module.default;
         if (Hls.isSupported()) {
-          const hls = new Hls({ enableWorker: true, lowLatencyMode: false, backBufferLength: 20, maxBufferLength: 18, xhrSetup: (xhr: XMLHttpRequest) => { for (const [key, value] of Object.entries(source.headers)) xhr.setRequestHeader(key, value); } });
+          const hls = new Hls({ enableWorker: true, lowLatencyMode: false, backBufferLength: 20, maxBufferLength: 18, xhrSetup: (xhr: XMLHttpRequest, requestUrl: string) => { let sameOrigin = false; try { sameOrigin = new URL(requestUrl).origin === new URL(source.url).origin; } catch {} if (sameOrigin) for (const [key, value] of Object.entries(source.headers)) if (!/^(?:cookie|host|origin|referer|authorization)$/i.test(key)) xhr.setRequestHeader(key, value); } });
           hlsRef.current = hls;
           hls.on(Hls.Events.MANIFEST_PARSED, () => { if (generation === generationRef.current) { engineRef.current = "hls"; updateTracks(); void mediaVideo.play().catch(() => undefined); } });
           hls.on(Hls.Events.ERROR, (_: unknown, data: any) => { if (data.fatal && generation === generationRef.current) void advanceRef.current(data.details ?? "HLS playback failed."); });
@@ -224,7 +224,7 @@ export default function LivePlayer({ playlist, channel: initialChannel, onClose,
     setMenu(null);
   };
   const setCaption = (id: string) => {
-    if (shakaRef.current) shakaRef.current.selectTextTrack(shakaRef.current.getTextTracks().find((item: any) => String(item.id) === id));
+    if (shakaRef.current) { if (id === "off") shakaRef.current.setTextTrackVisibility(false); else { const track = shakaRef.current.getTextTracks().find((item: any) => String(item.id) === id); if (track) { shakaRef.current.selectTextTrack(track); shakaRef.current.setTextTrackVisibility(true); } } }
     else if (hlsRef.current) hlsRef.current.subtitleTrack = id === "off" ? -1 : Number(id);
     if (videoRef.current && !shakaRef.current) for (const track of Array.from(videoRef.current.textTracks)) track.mode = id === "off" ? "disabled" : "showing";
     setMenu(null);
