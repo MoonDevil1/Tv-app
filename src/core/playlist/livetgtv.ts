@@ -48,8 +48,10 @@ export async function resolveLiveTgTvChannel(channel: TvChannel): Promise<TvChan
     const details = JSON.parse(text) as ApiDetails;
     const urls = Array.isArray(details.sources) ? details.sources.map(v => typeof v === "string" ? v.trim() : "").filter(v => /^https?:\/\//i.test(v)) : [];
     const drm = drmFrom(details.drm);
+    if (channel.requiresDrm && !drm) return { ...channel, sources: [] };
     const mediaHeaders = headersFrom(channel.sources[0]?.headers, details.headers);
     const sources = urls.map((url,index) => ({ url, type: manifest(url, channel.sources[0]?.type ?? "unknown"), headers: mediaHeaders, ...(drm ? { drm } : {}), label: urls.length > 1 ? "LiveTGTV " + (index + 1) : "LiveTGTV" })).filter(s => s.type !== "unknown");
-    return sources.length ? { ...channel, sources } : channel;
+    const fallbacks = channel.sources.filter(source => source.label === "LiveTGTV backup");
+    return sources.length ? { ...channel, sources: [...sources, ...fallbacks] } : channel;
   } catch { return channel; }
 }
