@@ -104,8 +104,6 @@ export function parseM3U(source: string, baseUrl?: string): Channel[] {
         catchupDays: Number(attrs["catchup-days"]) || undefined, catchupSource: attrs["catchup-source"],
         rawAttributes: attrs, headers: {}
       };
-      pendingHeaders = { ...leadingHeaders };
-      leadingHeaders = {};
       licenseType = attrs["drm-scheme"] ?? attrs["license-type"];
       licenseKey = attrs["license-url"] ?? attrs["license_url"] ?? attrs["drm-license"];
       manifestType = attrs["manifest-type"];
