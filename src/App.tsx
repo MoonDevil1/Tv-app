@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { CalendarDays, Check, ChevronDown, ChevronRight, CircleHelp, Clock3, FileUp, Heart, History, ListVideo, Menu, Moon, Radio, RefreshCw, Search, Settings, Sun, Trash2, Tv2, Upload, X } from "lucide-react";
+import type { ReactNode } from "react";
+import { CalendarDays, ChevronRight, CircleHelp, Clock3, FileUp, Heart, History, ListVideo, Menu, Moon, Radio, RefreshCw, Search, Settings, Sun, Trash2, Tv2, Upload } from "lucide-react";
 import { useAppStore, channelKey } from "./app/store";
 import type { AppSection, AppSettings, Playlist, ThemeMode, TvChannel } from "./app/models";
 import { fetchPlaylistText, LIVE_TGTV_SOURCE, parsePlaylistText } from "./core/playlist/parser";
@@ -11,7 +12,7 @@ const navigation: Array<{ section: AppSection; icon: typeof Tv2; group: "watch" 
   { section: "Settings", icon: Settings, group: "manage" }
 ];
 const refreshOptions = [{ label: "Manual", value: 0 }, { label: "Every 1 minute", value: 60000 }, { label: "Every 5 minutes", value: 300000 }, { label: "Every 15 minutes", value: 900000 }, { label: "Every hour", value: 3600000 }];
-function PageHeading({ title, subtitle, action }: { title: string; subtitle: string; action?: React.ReactNode }) {
+function PageHeading({ title, subtitle, action }: { title: string; subtitle: string; action?: ReactNode }) {
   return <div className="page-heading"><div><p className="eyebrow">TG IPTV DESKTOP</p><h1>{title}</h1><p className="page-subtitle">{subtitle}</p></div>{action}</div>;
 }
 function EmptyState({ icon: Icon, title, detail, action, onAction }: { icon: typeof Tv2; title: string; detail: string; action?: string; onAction?: () => void }) {
