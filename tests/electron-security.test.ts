@@ -16,7 +16,8 @@ test("Electron stream headers are limited to the active stream host", () => {
     originUrl: "https://stream.example/live.m3u8",
     headers: {
       Authorization: "Bearer test",
-      Referer: "https://provider.example/",\n      Origin: "https://provider.example",
+      Referer: "https://provider.example/",
+      Origin: "https://provider.example",
       Host: "attacker.example",
       "X-Test": "safe",
       Cookie: "session=abc",
@@ -27,7 +28,8 @@ test("Electron stream headers are limited to the active stream host", () => {
   let sameHost: Record<string, string> = {};
   listener!({ url: "https://stream.example/segment.ts", requestHeaders: { Accept: "*/*" } }, result => { sameHost = result.requestHeaders; });
   assert.equal(sameHost.Authorization, "Bearer test");
-  assert.equal(sameHost.Referer, "https://provider.example/");\n  assert.equal(sameHost.Origin, "https://provider.example");
+  assert.equal(sameHost.Referer, "https://provider.example/");
+  assert.equal(sameHost.Origin, "https://provider.example");
   assert.equal(sameHost["X-Test"], "safe");
   assert.equal(sameHost.Cookie, "session=abc");
   assert.equal(sameHost["User-Agent"], "IPTV Player");
@@ -86,8 +88,10 @@ test("remote fetch accepts HTTP(S), follows safe redirects and strips credential
   });
   assert.equal(result.url, "https://cdn.example/final.m3u");
   assert.match(result.text, /News/);
-  assert.equal(requests[0].authorization, "Bearer private");\n  assert.equal(requests[0].origin, "https://provider.example");
-  assert.equal(requests[1].authorization, null);\n  assert.equal(requests[1].origin, null);
+  assert.equal(requests[0].authorization, "Bearer private");
+  assert.equal(requests[0].origin, "https://provider.example");
+  assert.equal(requests[1].authorization, null);
+  assert.equal(requests[1].origin, null);
 });
 
 test("remote fetch rejects unsafe schemes, excessive redirects and oversized responses", async () => {
