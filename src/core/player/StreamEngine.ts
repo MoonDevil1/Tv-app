@@ -1,6 +1,7 @@
 import Hls from "hls.js";
 import shaka from "shaka-player";
 import type { Channel } from "../types";
+import { normalizeClearKeyLicenseResponse } from "../parser/clearKeyUtils";
 import { waitForMediaEvent } from "./mediaEvents";
 import { headersForRequestUris, licenseHeadersForRequest, shakaDrmConfiguration, streamHeadersForRequest } from "./streamPolicy";
 import { describeShakaError } from "./shakaErrors";
@@ -103,6 +104,11 @@ export class StreamEngine {
         const licenseHeaders = headersForRequestUris(request.uris, uri => licenseHeadersForRequest(channel.drm, uri));
         Object.assign(request.headers, licenseHeaders);
       }
+    });
+    player.getNetworkingEngine()?.registerResponseFilter((type, response) => {
+      if (type !== shaka.net.NetworkingEngine.RequestType.LICENSE || channel.drm?.scheme !== "clearkey" || !channel.drm.licenseUrl) return;
+      const normalized = normalizeClearKeyLicenseResponse(response.data);
+      if (normalized) response.data = normalized;
     });
     player.addEventListener("error", event => {
       if (generation !== this.generation) return;
