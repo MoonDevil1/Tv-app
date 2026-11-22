@@ -1,5 +1,5 @@
 import type { Channel, StreamHeaders } from "../types";
-import { createDrmConfig, normalizeDrmScheme, parseClearKeys } from "./clearKeyUtils";
+import { createDrmConfig, parseClearKeys } from "./clearKeyUtils";
 
 const ATTR = /([\w-]+)\s*=\s*(?:"((?:\\.|[^"])*)"|'((?:\\.|[^'])*)'|([^\s,]+))/g;
 const unescapeValue = (value: string) => value.replace(/\\_/g, "_").replace(/\\(["'\\])/g, "$1");
