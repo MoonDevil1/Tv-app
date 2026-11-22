@@ -26,6 +26,7 @@ export default function LivePlayer({ playlist, channel: initialChannel, onClose,
   const sourceIndexRef = useRef(0);
   const resolvedChannelRef = useRef<TvChannel>(initialChannel);
   const generationRef = useRef(0);
+  const advanceRef = useRef<(reason: string) => void>(() => undefined);
   const channels = playlist.channels;
   const [channel, setChannel] = useState(initialChannel);
   const [playing, setPlaying] = useState(false);
@@ -106,11 +107,12 @@ export default function LivePlayer({ playlist, channel: initialChannel, onClose,
           abr: { enabled: preferredQuality === "auto" },
           drm: source.drm?.scheme === "clearkey" ? { clearKeys: source.drm.clearKeys ?? {} } : source.drm?.licenseUrl ? { servers: { [source.drm.scheme === "widevine" ? "com.widevine.alpha" : source.drm.scheme]: source.drm.licenseUrl } } : {}
         });
-        player.getNetworkingEngine()?.registerRequestFilter((_type: number, request: any) => {
-          for (const [key, value] of Object.entries(source.headers)) request.headers[key] = value;
-          if (source.drm?.licenseHeaders && request.uris?.some((uri: string) => uri === source.drm?.licenseUrl)) for (const [key, value] of Object.entries(source.drm.licenseHeaders)) request.headers[key] = value;
+        player.getNetworkingEngine()?.registerRequestFilter((type: number, request: any) => {
+          const isLicense = type === shaka.net.NetworkingEngine.RequestType.LICENSE;
+          const requestHeaders = isLicense ? source.drm?.licenseHeaders ?? {} : source.headers;
+          for (const [key, value] of Object.entries(requestHeaders)) request.headers[key] = value;
         });
-        player.addEventListener("error", (event: any) => { if (generation === generationRef.current) void advance(event.detail?.message ?? "DASH playback failed."); });
+        player.addEventListener("error", (event: any) => { if (generation === generationRef.current) void advanceRef.current(event.detail?.message ?? "DASH playback failed."); });
         player.addEventListener("trackschanged", updateTracks);
         player.addEventListener("adaptation", updateTracks);
         await player.load(source.url);
@@ -127,7 +129,7 @@ export default function LivePlayer({ playlist, channel: initialChannel, onClose,
           const hls = new Hls({ enableWorker: true, lowLatencyMode: false, backBufferLength: 20, maxBufferLength: 18, xhrSetup: (xhr: XMLHttpRequest) => { for (const [key, value] of Object.entries(source.headers)) xhr.setRequestHeader(key, value); } });
           hlsRef.current = hls;
           hls.on(Hls.Events.MANIFEST_PARSED, () => { if (generation === generationRef.current) { engineRef.current = "hls"; updateTracks(); void mediaVideo.play().catch(() => undefined); } });
-          hls.on(Hls.Events.ERROR, (_: unknown, data: any) => { if (data.fatal && generation === generationRef.current) void advance(data.details ?? "HLS playback failed."); });
+          hls.on(Hls.Events.ERROR, (_: unknown, data: any) => { if (data.fatal && generation === generationRef.current) void advanceRef.current(data.details ?? "HLS playback failed."); });
           hls.on(Hls.Events.LEVEL_SWITCHED, updateTracks);
           hls.loadSource(source.url); hls.attachMedia(mediaVideo);
         } else if (mediaVideo.canPlayType("application/vnd.apple.mpegurl")) {
@@ -145,7 +147,7 @@ export default function LivePlayer({ playlist, channel: initialChannel, onClose,
       }
     } catch (cause) {
       if (generation !== generationRef.current) return;
-      await advance(cause instanceof Error ? cause.message : "Could not start this stream.");
+      await advanceRef.current(cause instanceof Error ? cause.message : "Could not start this stream.");
     }
   }, [channel, cleanup, playlist.id, preferredQuality, recordRecentChannel, updateTracks]);
 
@@ -159,7 +161,8 @@ export default function LivePlayer({ playlist, channel: initialChannel, onClose,
       setError(reason || "All available streams failed.");
       await cleanup();
     }
-  }, [channel.sources.length, cleanup, playSource]);
+  }, [cleanup, playSource]);
+  advanceRef.current = advance;
 
   useEffect(() => {
     setChannel(initialChannel);
@@ -235,7 +238,7 @@ export default function LivePlayer({ playlist, channel: initialChannel, onClose,
     <div className="live-player-layout">
       <div className="live-player-main">
         <div className="live-player-stage" onWheel={onWheel}>
-          <video ref={videoRef} playsInline autoPlay onPlay={() => setPlaying(true)} onPause={() => setPlaying(false)} onWaiting={() => setLoading(true)} onPlaying={() => setLoading(false)} onError={() => { if (engineRef.current === "native") void advance("The stream could not be decoded."); }} style={{ objectFit: aspect as "contain" | "cover" | "fill" }}/>
+          <video ref={videoRef} playsInline autoPlay onPlay={() => setPlaying(true)} onPause={() => setPlaying(false)} onWaiting={() => setLoading(true)} onPlaying={() => setLoading(false)} onError={() => { if (engineRef.current === "native") void advanceRef.current("The stream could not be decoded."); }} style={{ objectFit: aspect as "contain" | "cover" | "fill" }}/>
           {loading && !error && <div className="player-loading"><span className="player-spinner"/><small>Connecting to stream…</small></div>}
           {error && <div className="player-error"><b>Playback issue</b><span>{error}</span><button onClick={() => { sourceIndexRef.current = -1; void playSource(0, generationRef.current); }}>Retry channel</button></div>}
           <div className="programme-overlay now"><b>Now: {nowNext.now?.title ?? "Live television"}</b>{nowNext.now?.description && <span>{nowNext.now.description}</span>}{nowNext.now && <div className="programme-progress"><i style={{ width: Math.max(0,Math.min(100,(Date.now()-nowNext.now.start)/(nowNext.now.stop-nowNext.now.start)*100))+"%" }}/></div>}</div>
