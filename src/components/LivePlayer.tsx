@@ -83,6 +83,7 @@ export default function LivePlayer({ playlist, channel: initialChannel, onClose,
     const video = videoRef.current;
     if (!video || generation !== generationRef.current) return;
     const resolved = playlist.source.includes("livetgtv.lovable.app/api/public/playlist.m3u") ? await resolveLiveTgTvChannel(channel) : channel;
+    if (generation !== generationRef.current) return;
     resolvedChannelRef.current = resolved;
     const source = resolved.sources[sourceIndex];
     if (!source) throw new Error("No playable stream source is available for this channel.");
