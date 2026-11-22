@@ -20,7 +20,8 @@ test("Electron stream headers are limited to the active stream host", () => {
       Host: "attacker.example",
       "X-Test": "safe",
       Cookie: "session=abc",
-      "User-Agent": "IPTV Player"
+      "User-Agent": "IPTV Player",
+      Origin: "https://provider.example"
     }
   });
 
@@ -31,6 +32,7 @@ test("Electron stream headers are limited to the active stream host", () => {
   assert.equal(sameHost["X-Test"], "safe");
   assert.equal(sameHost.Cookie, "session=abc");
   assert.equal(sameHost["User-Agent"], "IPTV Player");
+  assert.equal(sameHost.Origin, "https://provider.example");
   assert.equal(sameHost.Host, undefined);
 
   let otherHost: Record<string, string> = {};
