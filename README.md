@@ -8,13 +8,13 @@ A Windows desktop IPTV player rebuild. The application is being recreated in pha
 |---|---|---|
 | 1 | New application foundation, navigation, responsive Material-style shell, saved settings and Windows CI | In progress |
 | 2 | Multi-playlist library, M3U/M3U8 and JSON import, custom playlist headers, edit/remove/refresh, LiveTGTV-compatible source resolution | Planned |
-| 3 | Full-screen player, HLS/DASH playback, ClearKey handling, audio/subtitle/quality controls, channel switching and stream fallback | Planned |
+| 3 | Screenshot-matched player: video left, channel list right, Now/Next overlays, settings popover, mouse-wheel volume, HLS/DASH/DRM and channel switching | Next |
 | 4 | XMLTV and LiveTGTV EPG, current/next programme, channel guide and programme browsing | Planned |
 | 5 | Preferences, diagnostics, Windows packaging, end-to-end playback verification and release | Planned |
 
 ## Target functionality
 
-The rebuilt application is intended to provide the complete desktop-player workflow: multiple playlists, search and categories, channel logos, favourites, viewing history, playlist refresh, custom headers/User-Agent, EPG now/next, a full-screen player, channel zapping, audio/subtitle/quality controls, keyboard shortcuts, and configurable appearance.
+Phase 2 implements multiple M3U/M3U8 and JSON playlists, local file and URL import, paste import, channel groups/search/logos, favorites, saved playlists, custom per-playlist request headers and manual refresh. The LiveTGTV adapter follows the Vega provider's M3U parsing and channel-detail API flow, retaining all API ClearKey pairs and request headers and matching optional backup playlist sources. The screenshot-matched player and mouse-wheel volume are scheduled for Phase 3.
 
 LiveTGTV will be treated as a normal playlist source with a provider-specific adapter. The adapter will follow the same channel-detail API used by the Vega LiveTGTV provider, preserving the complete ClearKey map, per-channel headers and fresh media sources instead of reducing a channel to a single raw URL.
 
