@@ -78,3 +78,34 @@ export function createClearKeyDrm(type: string | undefined, license: string | un
 export function clearKeyJwk(keys: Record<string, string>): string {
   return JSON.stringify({ keys: Object.entries(keys).map(([kid, k]) => ({ kty: "oct", kid, k, alg: "A128KW" })), type: "temporary" });
 }
+
+/** Convert non-standard ClearKey license bodies into the JWK response Shaka expects. */
+export function normalizeClearKeyLicenseResponse(data: Uint8Array): Uint8Array | null {
+  const raw = new TextDecoder().decode(data).trim();
+  if (!raw) return null;
+  let input: string | Record<string, string> = raw;
+  try {
+    const parsed = JSON.parse(raw) as Record<string, unknown> | string | unknown[];
+    if (typeof parsed === "string") input = parsed;
+    else if (Array.isArray(parsed)) {
+      const entries = parsed.filter((item): item is Record<string, unknown> => !!item && typeof item === "object");
+      input = Object.fromEntries(entries.map(item => [
+        String(item.kid ?? item.keyId ?? item.key_id ?? ""),
+        String(item.k ?? item.key ?? "")
+      ]));
+    } else if (parsed && typeof parsed === "object") {
+      if (Array.isArray(parsed.keys)) input = raw;
+      else if (parsed.keys && typeof parsed.keys === "object") input = parsed.keys as Record<string, string>;
+      else if ((parsed.keyId ?? parsed.kid) && (parsed.key ?? parsed.k)) {
+        input = { [String(parsed.keyId ?? parsed.kid)]: String(parsed.key ?? parsed.k) };
+      } else if (typeof parsed.license === "string") input = parsed.license;
+      else if (typeof parsed.data === "string") input = parsed.data;
+      else input = parsed as Record<string, string>;
+    }
+    const keys = typeof input === "string" ? parseClearKeys(input) : parseClearKeys(input);
+    if (!Object.keys(keys).length) return null;
+    return new TextEncoder().encode(clearKeyJwk(keys));
+  } catch {
+    return null;
+  }
+}
