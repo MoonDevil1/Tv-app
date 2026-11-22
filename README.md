@@ -89,7 +89,11 @@ Every feature-branch push runs type-checking, the unit suite and the Electron pr
 
 ## Security and playback
 
-Chromium web security remains enabled. The app does not disable CORS globally or bypass DRM. Custom request headers are scoped to the selected stream host. DRM playback requires a compatible runtime, valid license/key material and authorization from the content provider. Some providers restrict cross-origin EPG or stream requests; those restrictions are surfaced as errors rather than bypassed.
+Chromium web security remains enabled. The app does not disable CORS globally or bypass DRM. Playlist media headers are scoped to the stream origin; DRM license headers are kept separate and sent only to the configured license endpoint.
+
+M3U parsing accepts `#EXTHTTP` headers before `#EXTINF`, `#EXTVLCOPT` request headers, Kodi `inputstream.adaptive.stream_headers`, inline `LicenseURL`, and `drmScheme` / `drmLicense` URL metadata. ClearKey JWK and `keyId:key` mappings are normalized for Shaka. DRM-tagged HLS streams are routed through Shaka/EME rather than the unencrypted HLS.js path.
+
+Widevine, PlayReady and FairPlay metadata can be represented in the player configuration, but actual key-system availability depends on the operating system and Electron build. Electron documents Widevine CDM loading as experimental and requires a Widevine-enabled build (`enable_widevine = true`), a compatible CDM and provider-authorized license response. The stock app build has not been verified with a production Widevine CDM; no CDM or license credentials are bundled. See the [Electron Widevine CDM documentation](https://github.com/electron/electron/blob/main/docs/api/command-line-switches.md#--widevine-cdm-pathpath) before relying on Widevine playback. DRM is not bypassed. Some providers restrict cross-origin EPG or stream requests; those restrictions are surfaced as errors rather than bypassed.
 
 ## Playlist compatibility
 
