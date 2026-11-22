@@ -98,7 +98,7 @@ function streamLine(raw: string): StreamLine {
   for (const [rawKey, value] of new URLSearchParams(raw.slice(separator + 1).replace(/&amp;/g, "&"))) {
     const key = rawKey.trim().toLowerCase();
     if (["drmscheme", "drm_scheme", "drmtype", "drm_type", "license_type"].includes(key)) drmType = value;
-    else if (["drml License".toLowerCase(), "drmlicense", "drm_license", "license_key", "licensekey"].includes(key)) {
+    else if (["drmlicense", "drm_license", "license_key", "licensekey"].includes(key)) {
       const parsed = splitLicenseValue(value);
       drmLicense = parsed.license;
       Object.assign(licenseHeaders, parsed.headers);
@@ -270,7 +270,7 @@ export function parseJsonPlaylist(input: unknown, baseUrl?: string): Channel[] {
         if (drm) drm = { ...drm, clearKeys: keys };
       } catch { drm = undefined; }
     } else if (typeof licenseValue === "string" && licenseValue.trim()) {
-      try { drm = createDrmConfig(drmType || (licenseUrl ? "clearkey" : undefined), licenseValue, licenseHeaders, extras); }
+      try { drm = createDrmConfig(drmType || "clearkey", licenseValue, licenseHeaders, extras); }
       catch { drm = undefined; }
     } else if (licenseUrl) {
       try { drm = createDrmConfig(drmType || "clearkey", licenseUrl, licenseHeaders, extras); }
