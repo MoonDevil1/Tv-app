@@ -2,9 +2,10 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { CalendarDays, ChevronRight, CircleHelp, Clock3, FileUp, Heart, History, ListVideo, Menu, Moon, Play, Radio, RefreshCw, Search, Settings, Sun, Trash2, Tv2, Upload } from "lucide-react";
 import { useAppStore, channelKey } from "./app/store";
-import type { AppSection, AppSettings, Playlist, ThemeMode } from "./app/models";
+import type { AppSection, AppSettings, EpgProgramme, Playlist, ThemeMode, TvChannel } from "./app/models";
 import { addLiveTgTvFallbacks, fetchPlaylistText, LIVE_TGTV_SOURCE, parsePlaylistText } from "./core/playlist/parser";
 import LivePlayer from "./components/LivePlayer";
+import { parseXmltv } from "./core/epg/xmltv";
 
 const navigation: Array<{ section: AppSection; icon: typeof Tv2; group: "watch" | "manage" }> = [
   { section: "Home", icon: Tv2, group: "watch" }, { section: "Live TV", icon: Radio, group: "watch" },
@@ -113,14 +114,46 @@ function ChannelLibrary({ mode, onPlay }: { mode: "all" | "favorites" | "recent"
     {filtered.length===0 ? <EmptyState icon={mode==="all"?Radio:Heart} title={mode==="all"?"No channels found":mode==="favorites"?"No favorite channels yet":"No viewing history yet"} detail={mode==="all"?"Add a playlist or adjust your search and filters.":mode==="favorites"?"Use the star on a channel to save it here.":"Channels you play will appear here."}/> : <div className="channel-grid">{filtered.map(({playlist,channel})=><article className="channel-card" key={playlist.id+":"+channel.id}><div className="channel-logo">{channel.logo ? <img src={channel.logo} alt="" loading="lazy" onError={e=>{e.currentTarget.style.display="none";}}/> : <Tv2 size={22}/>}</div><div className="channel-card-info"><b>{channel.name}</b><small>{channel.group} · {playlist.name}</small><small>{channel.sources[0]?.type.toUpperCase() ?? "STREAM"}</small></div><button className="channel-play-button" onClick={()=>onPlay(playlist,channel)} aria-label={"Play " + channel.name}><Play size={14}/></button><button className={favorites.includes(channelKey(playlist.id,channel.id))?"favorite-button selected":"favorite-button"} aria-label="Toggle favorite" onClick={()=>toggleFavorite(playlist.id,channel.id)}><Heart size={17} fill={favorites.includes(channelKey(playlist.id,channel.id))?"currentColor":"none"}/></button></article>)}</div>}
   </div>;
 }
+function programmeTime(value: number): string { return new Date(value).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }); }
+function GuidePage({ playlists, onPlay, status, refreshedAt }: { playlists: Playlist[]; onPlay: (playlist: Playlist, channel: TvChannel) => void; status: string; refreshedAt: number }) {
+  const guide = useAppStore(state => state.guide); const [query, setQuery] = useState(""); const now = Date.now();
+  const entries = playlists.flatMap(playlist => playlist.channels.map(channel => { const programmes = guide[channel.tvgId ?? ""] ?? guide[channel.id] ?? []; return { playlist, channel, current: programmes.find(item => item.start <= now && item.stop > now), next: programmes.find(item => item.start > now) }; })).filter(item => item.current || item.next).filter(item => !query || item.channel.name.toLowerCase().includes(query.toLowerCase()) || item.current?.title.toLowerCase().includes(query.toLowerCase()) || item.next?.title.toLowerCase().includes(query.toLowerCase()));
+  const feedCount = new Set(playlists.flatMap(item => item.epgUrls)).size;
+  return <><PageHeading title="TV Guide" subtitle="Live programmes and what is coming up next." action={<span className="guide-updated">{refreshedAt ? "Updated " + new Date(refreshedAt).toLocaleTimeString([], {hour:"2-digit",minute:"2-digit"}) : status}</span>} />
+    <label className="channel-search guide-search"><Search size={16}/><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Search channels or programmes…"/></label>{status && <p className="guide-status" role="status">{status}</p>}
+    {entries.length ? <div className="guide-list">{entries.map(({playlist,channel,current,next})=><article className="guide-row" key={playlist.id+":"+channel.id}>
+      <button className="guide-channel" onClick={()=>onPlay(playlist,channel)}><span className="guide-logo">{channel.logo ? <img src={channel.logo} alt="" loading="lazy"/> : <Tv2 size={20}/>}</span><span><b>{channel.name}</b><small>{channel.group}</small></span></button>
+      <div className="guide-programmes"><div className="guide-programme current"><span className="guide-time">{current ? programmeTime(current.start)+" – "+programmeTime(current.stop) : "NOW"}</span><div><b>{current?.title ?? "No current programme data"}</b>{current?.description && <p>{current.description}</p>}</div>{current && <span className="guide-live">LIVE</span>}</div>
+        <div className="guide-programme"><span className="guide-time">{next ? programmeTime(next.start)+" – "+programmeTime(next.stop) : "NEXT"}</span><div><b>{next?.title ?? "Schedule unavailable"}</b>{next?.description && <p>{next.description}</p>}</div></div></div>
+      <button className="guide-play" onClick={()=>onPlay(playlist,channel)} aria-label={"Watch "+channel.name}><Play size={16}/></button></article>)}</div> : <EmptyState icon={CalendarDays} title={feedCount ? "No matching programme data" : "No programme guide connected"} detail={feedCount ? "The connected EPG feeds did not provide current or upcoming schedules for these channels." : "Add a playlist containing an XMLTV URL (url-tvg, x-tvg-url or epg_url) to load programme schedules."} action="Manage playlists" onAction={()=>useAppStore.getState().setActiveSection("Playlists")}/>}</>;
+}
 function App() {
   const activeSection=useAppStore(state=>state.activeSection),setActiveSection=useAppStore(state=>state.setActiveSection);
   const settings=useAppStore(state=>state.settings),playlists=useAppStore(state=>state.playlists),favorites=useAppStore(state=>state.favorites);
+  const setGuide=useAppStore(state=>state.setGuide);
+  const [guideStatus,setGuideStatus]=useState(""),[guideRefreshedAt,setGuideRefreshedAt]=useState(0);
   const [navigationOpen,setNavigationOpen]=useState(false);
   const [activePlayback,setActivePlayback]=useState<{playlistId:string;channelId:string}|null>(null);
   const selectedPlaylist=activePlayback ? playlists.find(item=>item.id===activePlayback.playlistId) : undefined;
   const selectedChannel=selectedPlaylist?.channels.find(item=>item.id===activePlayback?.channelId);
   const openPlayer=(playlist:Playlist,channel:import("./app/models").TvChannel)=>setActivePlayback({playlistId:playlist.id,channelId:channel.id});
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      const sources = playlists.flatMap(playlist => playlist.epgUrls.map(url => ({ playlist, url })));
+      if (!sources.length) { setGuide({}); setGuideStatus(""); setGuideRefreshedAt(0); return; }
+      setGuideStatus("Updating programme schedules…");
+      const results = await Promise.allSettled(sources.map(async ({playlist,url}) => { const response = await fetchPlaylistText(url, playlist.requestHeaders); return parseXmltv(response.text, playlist.channels); }));
+      if (cancelled) return;
+      const merged: Record<string, EpgProgramme[]> = {}; let successful = 0;
+      for (const result of results) if (result.status === "fulfilled") { successful++; for (const [id, programmes] of Object.entries(result.value)) merged[id] = [...(merged[id] ?? []), ...programmes]; }
+      for (const items of Object.values(merged)) { const unique = new Map(items.map(item => [item.channelId + ":" + item.start, item])); items.splice(0, items.length, ...[...unique.values()].sort((a,b)=>a.start-b.start)); }
+      setGuide(merged); setGuideRefreshedAt(Date.now());
+      setGuideStatus(successful ? "Loaded schedules from " + successful + " of " + sources.length + " EPG feeds." : "Could not load the configured EPG feeds. Check the feed URL and request headers.");
+    };
+    void load(); const timer = window.setInterval(() => void load(), 30 * 60 * 1000);
+    return () => { cancelled = true; window.clearInterval(timer); };
+  }, [playlists, setGuide]);
   useEffect(()=>{document.documentElement.dataset.theme=settings.theme;},[settings.theme]);
   useEffect(()=>{const close=(e:KeyboardEvent)=>{if(e.key==="Escape")setNavigationOpen(false);};window.addEventListener("keydown",close);return()=>window.removeEventListener("keydown",close);},[]);
   const channelsCount=playlists.reduce((total,p)=>total+p.channels.length,0);
@@ -142,7 +175,7 @@ function App() {
           <button className="overview-card" onClick={()=>openSection("Favorites")}><span className="overview-icon"><Heart size={21}/></span><b>{favorites.length}</b><small>Favorite channels</small><span className="card-link">View favorites <ChevronRight size={15}/></span></button>
         </div><div className="home-content-grid"><section className="welcome-panel"><p className="eyebrow">YOUR ENTERTAINMENT HUB</p><h2>All your channels.<br/><span>One simple player.</span></h2><p>Connect a playlist to browse channels and build your TV library. Open any channel to start watching with automatic stream fallback.</p><button className="primary-button" onClick={()=>openSection("Playlists")}>Open playlist manager <ChevronRight size={16}/></button></section><section className="quick-links"><h2>Quick access</h2><button onClick={()=>openSection("Guide")}><CalendarDays size={19}/><span><b>Programme guide</b><small>See what's on now and next</small></span><ChevronRight size={17}/></button><button onClick={()=>openSection("History")}><Clock3 size={19}/><span><b>Recently watched</b><small>Return to your last channels</small></span><ChevronRight size={17}/></button></section></div></>}
         {activeSection==="Live TV"&&<><PageHeading title="Live TV" subtitle="Browse all channels across your connected playlists."/><ChannelLibrary mode="all" onPlay={openPlayer}/></>}
-        {activeSection==="Guide"&&<><PageHeading title="TV Guide" subtitle="Programme schedules, now playing and what's coming next."/><EmptyState icon={CalendarDays} title="Programme guide is Phase 4" detail="XMLTV and LiveTGTV EPG data will populate Now and Next programme information here."/></>}
+         {activeSection==="Guide"&&<GuidePage playlists={playlists} onPlay={openPlayer} status={guideStatus} refreshedAt={guideRefreshedAt}/>}
         {activeSection==="Favorites"&&<><PageHeading title="Favorites" subtitle="Your saved channels in one place."/><ChannelLibrary mode="favorites" onPlay={openPlayer}/></>}
         {activeSection==="History"&&<><PageHeading title="Recently watched" subtitle="Quickly return to the channels you watched recently."/><ChannelLibrary mode="recent" onPlay={openPlayer}/></>}
         {activeSection==="Playlists"&&<PlaylistManager/>}
