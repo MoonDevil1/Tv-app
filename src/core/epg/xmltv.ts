@@ -7,7 +7,7 @@ function decodeXml(value: string): string {
     .replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"')
     .replace(/&apos;/g, "'").replace(/&amp;/g, "&").trim();
 }
-function attribute(tag: string, name: string): string {
+function textContent(value: string): string {\n  return decodeXml(value.replace(/<!\\[CDATA\\[([\\s\\S]*?)\\]\\]>/g, "$1").replace(/<[^>]*>/g, ""));\n}\nfunction attribute(tag: string, name: string): string {
   const match = tag.match(new RegExp("\\b" + name + "\\s*=\\s*(['\"])(.*?)\\1", "i"));
   return match?.[2] ? decodeXml(match[2]) : "";
 }
@@ -38,14 +38,14 @@ export function parseXmltv(xml: string, channels: TvChannel[]): Record<string, E
   for (const match of xml.matchAll(/<channel\b([^>]*)>([\s\S]*?)<\/channel>/gi)) {
     const id = attribute(match[1], "id");
     const display = match[2].match(/<display-name\b[^>]*>([\s\S]*?)<\/display-name>/i)?.[1];
-    if (id && display) xmlNames.set(id, decodeXml(display.replace(/<[^>]+>/g, "")));
+    if (id && display) xmlNames.set(id, textContent(display));
   }
   const result: Record<string, EpgProgramme[]> = {};
   for (const match of xml.matchAll(/<programme\b([^>]*)>([\s\S]*?)<\/programme>/gi)) {
     const channelId = attribute(match[1], "channel");
     const start = parseXmltvDate(attribute(match[1], "start"));
     const stop = parseXmltvDate(attribute(match[1], "stop"));
-    if (!channelId || !start || !stop || stop <= start) continue;
+    if (!channelId || start === undefined || stop === undefined || stop <= start) continue;
     const body = match[2];
     const title = body.match(/<title\b[^>]*>([\s\S]*?)<\/title>/i)?.[1];
     if (!title) continue;
@@ -56,7 +56,7 @@ export function parseXmltv(xml: string, channels: TvChannel[]): Record<string, E
       matches = byName.get(name) ?? [];
     }
     if (matches.length !== 1) continue;
-    const programme: EpgProgramme = { channelId, title: decodeXml(title.replace(/<[^>]+>/g, "")), description: description ? decodeXml(description.replace(/<[^>]+>/g, "")) : undefined, start, stop };
+    const programme: EpgProgramme = { channelId, title: textContent(title), description: description ? textContent(description) : undefined, start, stop };
     const channel = matches[0];
     for (const key of [channel.tvgId, channel.id].filter(Boolean) as string[]) (result[key] ??= []).push(programme);
   }
