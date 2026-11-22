@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { parseM3U, parseJsonPlaylist, parsePlaylist } from "../src/core/parser/m3uParser";
-import { clearKeyJwk, hexToBase64Url, parseClearKeys, createClearKeyDrm } from "../src/core/parser/clearKeyUtils";
+import { clearKeyJwk, hexToBase64Url, parseClearKeys, createClearKeyDrm, normalizeClearKeyLicenseResponse } from "../src/core/parser/clearKeyUtils";
 import { PlaylistManager } from "../src/core/parser/playlistManager";
 import { parseXmltvDate, currentAndNext, parseLiveTgGuide } from "../src/core/epg/xmltv";
 import { waitForMediaEvent } from "../src/core/player/mediaEvents";
@@ -74,6 +74,22 @@ test("converts 128-bit hex values and round-trips ClearKey JWK", () => {
   assert.throws(() => parseClearKeys(`${hexToBase64Url(KID)}:short`));
   const jwk = clearKeyJwk(keys);
   assert.equal(parseClearKeys(jwk)[Object.keys(keys)[0]], Object.values(keys)[0]);
+});
+
+test("normalizes raw and JSON ClearKey license responses into Shaka JWK", () => {
+  const secondKid = "11223344556677889900aabbccddeeff";
+  const secondKey = "00112233445566778899aabbccddeeff";
+  const raw = normalizeClearKeyLicenseResponse(new TextEncoder().encode(`${KID}:${KEY},${secondKid}:${secondKey}`));
+  assert.ok(raw);
+  const parsed = JSON.parse(new TextDecoder().decode(raw));
+  assert.equal(parsed.type, "temporary");
+  assert.equal(parsed.keys.length, 2);
+  assert.equal(parsed.keys[0].kid, hexToBase64Url(KID));
+  assert.equal(parsed.keys[0].k, hexToBase64Url(KEY));
+  const json = normalizeClearKeyLicenseResponse(new TextEncoder().encode(JSON.stringify({ keyId: KID, key: KEY })));
+  assert.ok(json);
+  assert.equal(JSON.parse(new TextDecoder().decode(json)).keys.length, 1);
+  assert.equal(normalizeClearKeyLicenseResponse(new Uint8Array([0, 1, 2, 3])), null);
 });
 
 test("accepts standard JWK data URIs, remote license URLs and Widevine metadata", () => {
