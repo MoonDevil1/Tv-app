@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";\nimport type { WheelEvent } from "react";
-import { ArrowLeft, Captions, ChevronDown, ChevronLeft, ChevronRight, Expand, Heart, Maximize, Monitor, Pause, PictureInPicture, Play, Settings2, Volume2, VolumeX } from "lucide-react";
+import { ArrowLeft, ChevronDown, ChevronLeft, ChevronRight, Heart, Maximize, Monitor, Pause, PictureInPicture, Play, Settings2, Volume2, VolumeX } from "lucide-react";
 import type { Playlist, TvChannel, EpgProgramme } from "../app/models";
 import { useAppStore, channelKey } from "../app/store";
+import { resolveLiveTgTvChannel } from "../core/playlist/livetgtv";
 
 type Props = { playlist: Playlist; channel: TvChannel; onClose: () => void; onSelect: (channel: TvChannel) => void };
 type Quality = { id: string; label: string; height?: number; bandwidth?: number; active: boolean };
@@ -22,6 +23,7 @@ export default function LivePlayer({ playlist, channel: initialChannel, onClose,
   const hlsRef = useRef<any>(null);
   const engineRef = useRef<PlaybackEngine>(null);
   const sourceIndexRef = useRef(0);
+  const resolvedChannelRef = useRef<TvChannel>(initialChannel);
   const generationRef = useRef(0);
   const channels = playlist.channels;
   const [channel, setChannel] = useState(initialChannel);
@@ -79,7 +81,9 @@ export default function LivePlayer({ playlist, channel: initialChannel, onClose,
   const playSource = useCallback(async (sourceIndex: number, generation: number) => {
     const video = videoRef.current;
     if (!video || generation !== generationRef.current) return;
-    const source = channel.sources[sourceIndex];
+    const resolved = playlist.source.includes("livetgtv.lovable.app/api/public/playlist.m3u") ? await resolveLiveTgTvChannel(channel) : channel;
+    resolvedChannelRef.current = resolved;
+    const source = resolved.sources[sourceIndex];
     if (!source) throw new Error("No playable stream source is available for this channel.");
     sourceIndexRef.current = sourceIndex;
     setError("");
@@ -147,7 +151,7 @@ export default function LivePlayer({ playlist, channel: initialChannel, onClose,
 
   const advance = useCallback(async (reason: string) => {
     const next = sourceIndexRef.current + 1;
-    if (next < channel.sources.length) {
+    if (next < resolvedChannelRef.current.sources.length) {
       setError("Trying backup stream…");
       try { await playSource(next, generationRef.current); } catch {}
     } else {
@@ -248,7 +252,7 @@ export default function LivePlayer({ playlist, channel: initialChannel, onClose,
             <><button onClick={()=>setCaption("off")}>Off</button>{textTracks.length?textTracks.map(t=><button key={t.id} onClick={()=>setCaption(t.id)}>{t.label}</button>):<span className="player-menu-empty">No subtitles available</span>}</>}
           </div>}
         </div>
-        <div className="player-volume-hint"><span>Mouse wheel over video to adjust volume</span><span>{channel.sources[sourceIndexRef.current]?.type.toUpperCase() ?? "STREAM"}</span></div>
+        <div className="player-volume-hint"><span>Mouse wheel over video to adjust volume</span><span>{resolvedChannelRef.current.sources[sourceIndexRef.current]?.type.toUpperCase() ?? "STREAM"}</span></div>
       </div>
       <aside className="player-channel-panel"><div className="player-list-heading"><b>Channels</b><span>{channels.length}</span></div><label className="player-list-search"><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search channels…"/></label><div className="player-channel-list">{filteredChannels.map((item,index)=><button className={item.id===channel.id?"player-channel-row active":"player-channel-row"} key={item.id} onClick={()=>selectChannel(item)}><span className="player-channel-number">{item.number ?? index+1}</span><span className="player-channel-logo">{item.logo?<img src={item.logo} alt="" loading="lazy"/>:<Monitor size={19}/>}</span><span className="player-channel-name"><b>{item.name}</b><small>{item.group}</small></span>{item.id===channel.id&&<span className="player-channel-live">LIVE</span>}</button>)}</div></aside>
     </div>
