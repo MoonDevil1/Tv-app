@@ -7,7 +7,10 @@ function decodeXml(value: string): string {
     .replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"')
     .replace(/&apos;/g, "'").replace(/&amp;/g, "&").trim();
 }
-function textContent(value: string): string {\n  return decodeXml(value.replace(/<!\\[CDATA\\[([\\s\\S]*?)\\]\\]>/g, "$1").replace(/<[^>]*>/g, ""));\n}\nfunction attribute(tag: string, name: string): string {
+function textContent(value: string): string {
+  return decodeXml(value.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, "$1").replace(/<[^>]*>/g, ""));
+}
+function attribute(tag: string, name: string): string {
   const match = tag.match(new RegExp("\\b" + name + "\\s*=\\s*(['\"])(.*?)\\1", "i"));
   return match?.[2] ? decodeXml(match[2]) : "";
 }
