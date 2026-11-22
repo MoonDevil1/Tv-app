@@ -10,7 +10,7 @@ export interface DrmConfiguration {
 }
 export interface ChannelSource { url: string; type: ManifestType; headers: StreamHeaders; drm?: DrmConfiguration; label?: string; }
 export interface TvChannel {
-  id: string; name: string; logo?: string; group: string; tvgId?: string; number?: number;
+  id: string; name: string; logo?: string; group: string; tvgId?: string; number?: number; requiresDrm?: boolean; requiresAuthorization?: boolean;
   duration?: number; catchupDays?: number; sources: ChannelSource[]; rawAttributes: Record<string, string>;
 }
 export interface Playlist {
