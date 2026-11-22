@@ -152,7 +152,7 @@ export async function fetchPlaylistText(url: string, headers: StreamHeaders = {}
 }
 export const LIVE_TGTV_SOURCE = LIVE_TGTV_PLAYLIST;
 
-function normalizeName(value: string): string { return value.toLowerCase().replace(/\\b(?:hd|fhd|uhd|4k)\\b/g, "").replace(/[^a-z0-9]/g, ""); }
+function normalizeName(value: string): string { return value.toLowerCase().replace(/\b(?:hd|fhd|uhd|4k)\b/g, "").replace(/[^a-z0-9]/g, ""); }
 export async function addLiveTgTvFallbacks(playlist: Playlist): Promise<Playlist> {
   let host = "";
   try { host = new URL(playlist.source).hostname.toLowerCase(); } catch { return playlist; }
