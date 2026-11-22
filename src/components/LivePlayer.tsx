@@ -58,6 +58,7 @@ export default function LivePlayer({ playlist, channel: initialChannel, onClose,
     try { hlsRef.current?.destroy(); } catch {}
     hlsRef.current = null;
     engineRef.current = null;
+    if (videoRef.current) { videoRef.current.removeAttribute("src"); videoRef.current.load(); }
     await window.tvApp?.setStreamRequestContext(null).catch(() => undefined);
   }, []);
 
