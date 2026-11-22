@@ -49,6 +49,15 @@ function streamLine(raw: string): { url: string; headers: StreamHeaders; drmType
   }
   return { url, headers, drmType, drmLicense };
 }
+function parseKodiLicense(value: string): { license: string; headers: StreamHeaders } {
+  const [license, rawHeaders = ""] = value.split("|", 2);
+  const headers: StreamHeaders = {};
+  for (const [name, headerValue] of new URLSearchParams(rawHeaders.replace(/&amp;/g, "&"))) {
+    if (name && !/[\\r\\n:]/.test(name) && !/[\\r\\n]/.test(headerValue)) headers[name] = headerValue;
+  }
+  return { license: license.trim(), headers };
+}
+
 function inferType(url: string, manifest?: string): Channel["manifestType"] {
   if (/mpd/i.test(manifest ?? "") || /\.mpd(?:$|[?#])/i.test(url)) return "dash";
   if (/\.m3u8?(?:$|[?#])/i.test(url)) return "hls";
@@ -113,7 +122,10 @@ export function parseM3U(source: string, baseUrl?: string): Channel[] {
       try {
         const stream = streamLine(line);
         const url = resolveUrl(stream.url, baseUrl);
-        const drm = createClearKeyDrm(stream.drmType ?? licenseType, stream.drmLicense ?? licenseKey);
+        const rawLicense = stream.drmLicense ?? licenseKey;
+        const parsedLicense = rawLicense ? parseKodiLicense(rawLicense) : undefined;
+        const drm = createClearKeyDrm(stream.drmType ?? licenseType, parsedLicense?.license);
+        if (drm && parsedLicense && Object.keys(parsedLicense.headers).length) drm.licenseHeaders = parsedLicense.headers;
         const channel = {
           ...(pending as Channel), url, headers: { ...pendingHeaders, ...stream.headers },
           drm, manifestType: inferType(url, manifestType)
