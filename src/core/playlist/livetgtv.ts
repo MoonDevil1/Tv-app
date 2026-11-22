@@ -27,7 +27,7 @@ function drmFrom(value: ApiDetails["drm"]): DrmConfiguration | undefined {
   if (["widevine","playready","fairplay"].includes(type)) {
     const licenseUrl = String(value.licenseServer ?? value.licenseUrl ?? "");
     if (!licenseUrl) return;
-    return { scheme: type, licenseUrl, licenseHeaders: headersFrom(value.headers), multiDrm: !!value.multiDrm, contentId: value.contentId, certificateUrl: value.certificateUrl, base64Certificate: !!value.base64Certificate };
+    return { scheme: type as DrmConfiguration["scheme"], licenseUrl, licenseHeaders: headersFrom(value.headers), multiDrm: !!value.multiDrm, contentId: value.contentId, certificateUrl: value.certificateUrl, base64Certificate: !!value.base64Certificate };
   }
 }
 function manifest(url: string): ChannelSource["type"] {
