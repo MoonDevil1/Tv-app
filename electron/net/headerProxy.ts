@@ -5,7 +5,7 @@ export interface StreamRequestContext {
   headers: Record<string, string>;
 }
 
-let activeContext: { origins: Set<string>; headers: Record<string, string> } | null = null;
+let activeContext: { origins: Map<string, Record<string, string>> } | null = null;
 
 const BLOCKED_HEADERS = new Set([
   "host", "content-length", "connection", "transfer-encoding",
@@ -36,7 +36,7 @@ export function setActiveStreamContext(context: StreamRequestContext | null): vo
     headers[name] = value;
   }
 
-  activeContext = { origins: new Set([origin.origin.toLowerCase()]), headers };
+  const origins = new Map<string, Record<string, string>>([[origin.origin.toLowerCase(), headers]]);\n  if (context.licenseUrl) {\n    const license = new URL(context.licenseUrl);\n    if (license.protocol === "https:" || license.protocol === "http:") origins.set(license.origin.toLowerCase(), { ...headers, ...(context.licenseHeaders ?? {}) });\n  }\n  activeContext = { origins };
 }
 
 export function registerHeaderProxy(targetSession: Session): void {
