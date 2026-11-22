@@ -1,6 +1,13 @@
 import type { Channel, DrmConfig, StreamHeaders } from "../types";
 
 const BLOCKED_HEADERS = /^(?:accept-encoding|connection|content-length|host|te|trailer|transfer-encoding|upgrade|proxy-|sec-)/i;
+type ShakaDrmConfiguration = {
+  preferredKeySystems: string[];
+  clearKeys?: Record<string, string>;
+  servers?: Record<string, string>;
+  advanced?: Record<string, { serverCertificateUri?: string }>;
+};
+
 const KEY_SYSTEMS = {
   clearkey: "org.w3.clearkey",
   widevine: "com.widevine.alpha",
@@ -48,17 +55,10 @@ export function headersForRequestUris(
   return candidates.every(candidate => signature(candidate) === first) ? candidates[0] : {};
 }
 
-export function shakaDrmConfiguration(drm: DrmConfig | undefined): {
-  drm?: {
-    preferredKeySystems: string[];
-    clearKeys?: Record<string, string>;
-    servers?: Record<string, string>;
-    advanced?: Record<string, { serverCertificateUri?: string }>;
-  };
-} {
+export function shakaDrmConfiguration(drm: DrmConfig | undefined): { drm?: ShakaDrmConfiguration } {
   if (!drm) return {};
   const keySystem = KEY_SYSTEMS[drm.scheme];
-  const configuration: NonNullable<ReturnType<typeof shakaDrmConfiguration>["drm"]> = {
+  const configuration: ShakaDrmConfiguration = {
     preferredKeySystems: [keySystem]
   };
   if (drm.scheme === "clearkey" && drm.clearKeys && Object.keys(drm.clearKeys).length) {
