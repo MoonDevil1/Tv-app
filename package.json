@@ -10,7 +10,7 @@
     "typecheck": "tsc --noEmit",
     "dist": "npm run build && electron-builder --publish never",
     "dist:win": "npm run build && electron-builder --win --publish never",
-    "test": "tsx --test tests/app-store.test.ts tests/electron-security.test.ts"
+    "test": "tsx --test tests/app-store.test.ts tests/electron-security.test.ts tests/playlist-parser.test.ts"
   },
   "dependencies": {
     "hls.js": "1.7.4",
