@@ -9,7 +9,7 @@ import { Player } from "./components/Player";
 
 const LIVE_TGTV_URL = "https://livetgtv.lovable.app/api/public/playlist.m3u";
 const REFRESH_OPTIONS = [{ label: "Manual", value: 0 }, { label: "1 minute", value: 60000 }, { label: "5 minutes", value: 300000 }, { label: "15 minutes", value: 900000 }, { label: "1 hour", value: 3600000 }];
-const navItems = [{ label: "Discover", icon: Compass }, { label: "Live TV", icon: Radio }, { label: "Favorites", icon: Heart }, { label: "Recently watched", icon: History }, { label: "EPG Guide", icon: LayoutGrid }];
+const navItems = [{ label: "Home", icon: Compass }, { label: "Live TV", icon: Radio }, { label: "Favorites", icon: Heart }, { label: "Recently watched", icon: History }, { label: "EPG Guide", icon: LayoutGrid }];
 const managementItems = [{ label: "Playlists", icon: ListVideo }, { label: "Single stream", icon: AudioLines }, { label: "Settings", icon: Settings2 }];
 const channelKey = (playlistId: string, channel: Channel) => `${playlistId}:${channel.id}`;
 const formatTime = (timestamp?: number) => timestamp ? new Date(timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "—";
@@ -20,7 +20,7 @@ function ChannelCard({ channel, favorite, selected, onSelect, onFavorite }: { ch
       <div className="channel-logo">{channel.logo && <img src={channel.logo} alt="" loading="lazy" onError={e => { e.currentTarget.style.display = "none"; }} />}{!channel.logo && <Tv2 size={23} />}</div>
       <div className="channel-copy"><b title={channel.name}>{channel.name}</b><span>{channel.group}</span></div>
     </button>
-    <div className="channel-meta"><span>{channel.manifestType === "dash" ? "DASH" : channel.manifestType === "hls" ? "HLS" : "STREAM"}</span><button className={favorite ? "favorite-button is-favorite" : "favorite-button"} onClick={onFavorite} aria-label={favorite ? "Remove favorite" : "Add favorite"}><Heart size={15} fill={favorite ? "currentColor" : "none"} /></button></div>
+    <div className="channel-meta"><span>{channel.drm ? `${channel.drm.scheme.toUpperCase()} DRM` : channel.manifestType === "dash" ? "DASH" : channel.manifestType === "hls" ? "HLS" : "STREAM"}</span><button className={favorite ? "favorite-button is-favorite" : "favorite-button"} onClick={onFavorite} aria-label={favorite ? "Remove favorite" : "Add favorite"}><Heart size={15} fill={favorite ? "currentColor" : "none"} /></button></div>
   </article>;
 }
 
@@ -40,7 +40,7 @@ export default function App() {
   const manager = useMemo(() => new PlaylistManager(), []);
   const playlists = useAppStore(s => s.playlists), favorites = useAppStore(s => s.favorites), recentlyWatched = useAppStore(s => s.recentlyWatched), epgPrograms = useAppStore(s => s.epgPrograms);
   const addPlaylist = useAppStore(s => s.addPlaylist), replacePlaylist = useAppStore(s => s.replacePlaylist), removeStoredPlaylist = useAppStore(s => s.removePlaylist), toggleFavorite = useAppStore(s => s.toggleFavorite), recordWatch = useAppStore(s => s.recordWatch), setEpgPrograms = useAppStore(s => s.setEpgPrograms);
-  const [active, setActive] = useState("Discover"), [query, setQuery] = useState(""), [selectedPlaylistId, setSelectedPlaylistId] = useState(""), [selectedGroup, setSelectedGroup] = useState("All");
+  const [active, setActive] = useState("Home"), [query, setQuery] = useState(""), [selectedPlaylistId, setSelectedPlaylistId] = useState(""), [selectedGroup, setSelectedGroup] = useState("All");
   const [selectedChannel, setSelectedChannel] = useState<{ playlistId: string; channel: Channel } | null>(null);
   const [showAdd, setShowAdd] = useState(false), [sourceUrl, setSourceUrl] = useState(LIVE_TGTV_URL), [playlistName, setPlaylistName] = useState("LiveTGTV"), [refreshInterval, setRefreshInterval] = useState(300000);
   const [busy, setBusy] = useState(false), [epgBusy, setEpgBusy] = useState(false), [error, setError] = useState(""), [notice, setNotice] = useState(""), [scrollTop, setScrollTop] = useState(0), [columns, setColumns] = useState(4);
@@ -193,7 +193,7 @@ export default function App() {
   const rowHeight = 106, startRow = Math.max(0, Math.floor(scrollTop / rowHeight) - 1), visibleRows = 6;
   const totalRows = Math.ceil(visibleChannels.length / columns);
   const renderedChannels = visibleChannels.slice(startRow * columns, (startRow + visibleRows) * columns);
-  const isGridView = ["Discover", "Live TV", "Favorites", "Recently watched"].includes(active);
+  const isGridView = ["Home", "Live TV", "Favorites", "Recently watched"].includes(active);
 
   return <div className="app-shell">
     <aside className="sidebar">
@@ -208,7 +208,7 @@ export default function App() {
       <section className="page-content">
         <>
           {isGridView && <div key="channels" className="library-view">
-            <div className="library-intro"><div><div className="eyebrow"><Sparkles size={13} /> YOUR CHANNEL UNIVERSE</div><h1>{active === "Discover" ? <>Every channel.<br /><span>One beautiful place.</span></> : active === "Live TV" ? <>Find your next<br /><span>live moment.</span></> : active === "Favorites" ? <>Your favorites.<br /><span>Always close.</span></> : <>Pick up right<br /><span>where you left off.</span></>}</h1><p>{selectedPlaylist ? `${selectedPlaylist.name} · ${selectedPlaylist.channels.length.toLocaleString()} channels in this source` : "Connect an M3U, M3U8 or JSON playlist to populate your library."}</p></div>
+            <div className="library-intro"><div><div className="eyebrow"><Sparkles size={13} /> YOUR CHANNEL UNIVERSE</div><h1>{active === "Home" ? <>Every channel.<br /><span>One beautiful place.</span></> : active === "Live TV" ? <>Find your next<br /><span>live moment.</span></> : active === "Favorites" ? <>Your favorites.<br /><span>Always close.</span></> : <>Pick up right<br /><span>where you left off.</span></>}</h1><p>{selectedPlaylist ? `${selectedPlaylist.name} · ${selectedPlaylist.channels.length.toLocaleString()} channels in this source` : "Connect an M3U, M3U8 or JSON playlist to populate your library."}</p></div>
               <div className="hero-art" aria-hidden="true"><div className="orbit orbit-one" /><div className="orbit orbit-two" /><div className="hero-screen"><div className="screen-glow" /><div className="screen-icon"><Radio size={42} /></div><span>LIVE · ANYWHERE</span></div><div className="floating-chip chip-top"><Signal size={14} /> Adaptive streaming</div><div className="floating-chip chip-bottom"><Wifi size={14} /> Playlist library</div></div>
             </div>
             <div className="section-heading library-heading"><div><span className="eyebrow">CHANNEL LIBRARY</span><h2>{visibleChannels.length.toLocaleString()} channels</h2></div><div className="library-tools">{playlists.length > 0 && <select className="playlist-select" value={selectedPlaylist?.id ?? ""} onChange={e => { setSelectedPlaylistId(e.target.value); setSelectedGroup("All"); }} aria-label="Choose playlist">{playlists.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select>}<span className="updated-label"><Wifi size={14} /> Local library</span></div></div>
