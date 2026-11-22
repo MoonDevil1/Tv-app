@@ -11,10 +11,11 @@ type Props = {
   onClose: () => void;
   onChangeChannel: (channel: Channel) => void;
   onRecover: (channel: Channel) => Promise<Channel | null>;
+  onResolve?: (channel: Channel) => Promise<Channel | null>;
 };
 type Option = { id: number; label: string };
 
-export function Player({ channel, channels, onClose, onChangeChannel, onRecover }: Props) {
+export function Player({ channel, channels, onClose, onChangeChannel, onRecover, onResolve }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const engineRef = useRef<StreamEngine | null>(null);
   const hideRef = useRef<number | undefined>(undefined);
@@ -74,15 +75,18 @@ export function Player({ channel, channels, onClose, onChangeChannel, onRecover 
     setLive(!(channel.manifestType === "progressive" || /\.(?:mp4|m4v|mkv|webm)(?:$|[?#])/i.test(channel.url)));
     let cancelled = false;
     void (async () => {
-      await engine.play(video, channel);
+      const resolved = await onResolve?.(channel);
+      if (cancelled) return;
+      const playable = resolved ?? channel;
+      await engine.play(video, playable);
       if (cancelled) return;
       setQuality(engine.getQualityOptions());
       setAudio(engine.getAudioOptions());
       setSubtitles(engine.getSubtitleOptions());
-      setLive(!(channel.manifestType === "progressive" || /\.(?:mp4|m4v|mkv|webm)(?:$|[?#])/i.test(channel.url)));
+      setLive(!(playable.manifestType === "progressive" || /\.(?:mp4|m4v|mkv|webm)(?:$|[?#])/i.test(playable.url)));
     })().catch(err => { if (!cancelled) setError(err instanceof Error ? err.message : String(err)); });
     return () => { void engine.destroy(); engineRef.current = null; };
-  }, [engine, channel.id, channel.url]);
+  }, [engine, channel.id, channel.url, onResolve]);
 
   useEffect(() => {
     const tvgId = channel.tvgId;
