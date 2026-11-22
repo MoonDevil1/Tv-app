@@ -221,17 +221,17 @@ export default function App() {
                 <div><b>{playlist.name}</b><span>{playlist.channels.length.toLocaleString()} channels · {playlist.groups.length} groups</span><small>Updated {new Date(playlist.fetchedAt).toLocaleString()}</small></div>
                 <ChevronDown size={17} />
               </button>)}
-              <button className="home-tile home-add-playlist" onClick={() => setShowAdd(true)}>
+              {playlists.length > 0 && <button className="home-tile home-add-playlist" onClick={() => setShowAdd(true)}>
                 <div className="home-tile-icon"><Plus size={21} /></div>
                 <div><b>Add playlist</b><span>Connect an M3U, M3U8 or JSON source</span></div>
                 <ChevronDown size={17} />
-              </button>
+              </button>}
             </div>
             {!playlists.length && <div className="empty-library home-empty"><div className="empty-icon"><ListVideo size={23} /></div><b>Your playlist library is empty</b><span>Connect a playlist to start browsing live channels.</span><button className="primary-button" onClick={() => setShowAdd(true)}><Plus size={16} /> Add first playlist</button></div>}
           </div>}
 
           {isGridView && <div key="channels" className="library-view">
-            <div className="library-intro"><div><div className="eyebrow"><Sparkles size={13} /> YOUR CHANNEL UNIVERSE</div><h1>{active === "Home" ? <>Every channel.<br /><span>One beautiful place.</span></> : active === "Live TV" ? <>Find your next<br /><span>live moment.</span></> : active === "Favorites" ? <>Your favorites.<br /><span>Always close.</span></> : <>Pick up right<br /><span>where you left off.</span></>}</h1><p>{selectedPlaylist ? `${selectedPlaylist.name} · ${selectedPlaylist.channels.length.toLocaleString()} channels in this source` : "Connect an M3U, M3U8 or JSON playlist to populate your library."}</p></div>
+            <div className="library-intro"><div><div className="eyebrow"><Sparkles size={13} /> YOUR CHANNEL UNIVERSE</div><h1>{active === "Live TV" ? <>Find your next<br /><span>live moment.</span></> : active === "Favorites" ? <>Your favorites.<br /><span>Always close.</span></> : <>Pick up right<br /><span>where you left off.</span></>}</h1><p>{selectedPlaylist ? `${selectedPlaylist.name} · ${selectedPlaylist.channels.length.toLocaleString()} channels in this source` : "Connect an M3U, M3U8 or JSON playlist to populate your library."}</p></div>
               <div className="hero-art" aria-hidden="true"><div className="orbit orbit-one" /><div className="orbit orbit-two" /><div className="hero-screen"><div className="screen-glow" /><div className="screen-icon"><Radio size={42} /></div><span>LIVE · ANYWHERE</span></div><div className="floating-chip chip-top"><Signal size={14} /> Adaptive streaming</div><div className="floating-chip chip-bottom"><Wifi size={14} /> Playlist library</div></div>
             </div>
             <div className="section-heading library-heading"><div><span className="eyebrow">CHANNEL LIBRARY</span><h2>{visibleChannels.length.toLocaleString()} channels</h2></div><div className="library-tools">{playlists.length > 0 && <select className="playlist-select" value={selectedPlaylist?.id ?? ""} onChange={e => { setSelectedPlaylistId(e.target.value); setSelectedGroup("All"); }} aria-label="Choose playlist">{playlists.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select>}<span className="updated-label"><Wifi size={14} /> Local library</span></div></div>
