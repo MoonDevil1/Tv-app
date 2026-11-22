@@ -8,7 +8,7 @@ export interface StreamRequestContext {
 let activeContext: { origins: Set<string>; headers: Record<string, string> } | null = null;
 
 const BLOCKED_HEADERS = new Set([
-  "host", "content-length", "connection", "transfer-encoding", "origin",
+  "host", "content-length", "connection", "transfer-encoding",
   "upgrade", "proxy-authorization", "proxy-connection", "accept-encoding"
 ]);
 
