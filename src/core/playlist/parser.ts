@@ -1,6 +1,7 @@
 import type { ChannelSource, ManifestType, Playlist, StreamHeaders, TvChannel } from "../../app/models";
 
-const LIVE_TGTV_PLAYLIST = "https://livetgtv.lovable.app/api/public/playlist.m3u";\nconst LIVE_TGTV_FALLBACK = "https://hjh-545.pages.dev/";
+const LIVE_TGTV_PLAYLIST = "https://livetgtv.lovable.app/api/public/playlist.m3u";
+const LIVE_TGTV_FALLBACK = "https://hjh-545.pages.dev/";
 const DEFAULT_HEADERS = { Accept: "application/vnd.apple.mpegurl, audio/x-mpegurl, text/plain, application/json, */*", "User-Agent": "TG-IPTV-Windows/2.1" };
 
 function attr(line: string, key: string): string {
