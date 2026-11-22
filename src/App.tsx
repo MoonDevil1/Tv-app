@@ -193,7 +193,7 @@ export default function App() {
   const rowHeight = 106, startRow = Math.max(0, Math.floor(scrollTop / rowHeight) - 1), visibleRows = 6;
   const totalRows = Math.ceil(visibleChannels.length / columns);
   const renderedChannels = visibleChannels.slice(startRow * columns, (startRow + visibleRows) * columns);
-  const isGridView = ["Home", "Live TV", "Favorites", "Recently watched"].includes(active);
+  const isGridView = ["Live TV", "Favorites", "Recently watched"].includes(active);
 
   return <div className="app-shell">
     <aside className="sidebar">
@@ -207,6 +207,29 @@ export default function App() {
       <header className="topbar"><div className="breadcrumbs"><span>YOUR LIBRARY</span><span className="crumb-slash">/</span><b>{active}</b></div><div className="topbar-actions"><label className="search-box"><Search size={17} /><input ref={searchRef} value={query} onChange={e => setQuery(e.target.value)} placeholder="Search channels, groups…" /><kbd><Command size={11} /> K</kbd></label><button className="icon-button" aria-label="Refresh playlist" onClick={() => selectedPlaylist && void refreshPlaylist(selectedPlaylist)} disabled={!selectedPlaylist}><Activity size={18} /></button><button className="add-button" onClick={() => setShowAdd(true)}><Plus size={17} /> Add playlist</button></div></header>
       <section className="page-content">
         <>
+          {active === "Home" && <div key="home" className="management-view home-dashboard">
+            <div className="eyebrow">YOUR LIBRARY</div>
+            <div className="home-title-row"><h1>All Playlists</h1><span>Total: {playlists.length}</span></div>
+            <div className="home-tiles">
+              <button className="home-tile home-favorites" onClick={() => setActive("Favorites")}>
+                <div className="home-tile-icon"><Heart size={22} fill="#e4ad24" stroke="#e4ad24" /></div>
+                <div><b>Favorites</b><span>{favorites.length} saved channels for quick access</span></div>
+                <ChevronDown size={17} />
+              </button>
+              {playlists.map(playlist => <button className="home-tile home-playlist" key={playlist.id} onClick={() => { setSelectedPlaylistId(playlist.id); setSelectedGroup("All"); setActive("Live TV"); }}>
+                <div className="home-tile-icon"><ListVideo size={21} /></div>
+                <div><b>{playlist.name}</b><span>{playlist.channels.length.toLocaleString()} channels · {playlist.groups.length} groups</span><small>Updated {new Date(playlist.fetchedAt).toLocaleString()}</small></div>
+                <ChevronDown size={17} />
+              </button>)}
+              <button className="home-tile home-add-playlist" onClick={() => setShowAdd(true)}>
+                <div className="home-tile-icon"><Plus size={21} /></div>
+                <div><b>Add playlist</b><span>Connect an M3U, M3U8 or JSON source</span></div>
+                <ChevronDown size={17} />
+              </button>
+            </div>
+            {!playlists.length && <div className="empty-library home-empty"><div className="empty-icon"><ListVideo size={23} /></div><b>Your playlist library is empty</b><span>Connect a playlist to start browsing live channels.</span><button className="primary-button" onClick={() => setShowAdd(true)}><Plus size={16} /> Add first playlist</button></div>}
+          </div>}
+
           {isGridView && <div key="channels" className="library-view">
             <div className="library-intro"><div><div className="eyebrow"><Sparkles size={13} /> YOUR CHANNEL UNIVERSE</div><h1>{active === "Home" ? <>Every channel.<br /><span>One beautiful place.</span></> : active === "Live TV" ? <>Find your next<br /><span>live moment.</span></> : active === "Favorites" ? <>Your favorites.<br /><span>Always close.</span></> : <>Pick up right<br /><span>where you left off.</span></>}</h1><p>{selectedPlaylist ? `${selectedPlaylist.name} · ${selectedPlaylist.channels.length.toLocaleString()} channels in this source` : "Connect an M3U, M3U8 or JSON playlist to populate your library."}</p></div>
               <div className="hero-art" aria-hidden="true"><div className="orbit orbit-one" /><div className="orbit orbit-two" /><div className="hero-screen"><div className="screen-glow" /><div className="screen-icon"><Radio size={42} /></div><span>LIVE · ANYWHERE</span></div><div className="floating-chip chip-top"><Signal size={14} /> Adaptive streaming</div><div className="floating-chip chip-bottom"><Wifi size={14} /> Playlist library</div></div>
