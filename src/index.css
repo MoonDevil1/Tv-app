@@ -293,3 +293,89 @@ body{background:#f4f6fa;color:#202734}
 .home-add-playlist .home-tile-icon{background:#eef7f2;color:#42866a}
 .home-empty{margin-top:22px}
 @media(max-width:900px){.home-tiles{grid-template-columns:1fr}}
+
+
+/* AuthoIPTV-style Windows layout: compact Material app bar and optional navigation drawer. */
+body{background:#f4f6fa;color:#263238;font-family:"Segoe UI",Roboto,Arial,sans-serif}
+.app-shell,.main-area{background:#f4f6fa}
+.main-area{margin-left:0!important;min-height:100vh}
+.topbar{height:64px;padding:0 24px;background:#356bc4;border:0;box-shadow:0 2px 5px #183c7620;position:sticky;top:0;z-index:8}
+.topbar-heading{display:flex;align-items:center;gap:14px;color:#fff;font-size:18px;font-weight:500}
+.topbar-heading b{font-weight:500}
+.menu-button{width:36px;height:36px;display:grid;place-items:center;border:0;border-radius:6px;background:transparent;color:#fff}
+.menu-button:hover{background:#ffffff20}
+.topbar-actions{gap:10px}
+.search-box{width:230px;height:36px;background:#ffffff18;border:1px solid #ffffff40;border-radius:5px;color:#fff}
+.search-box input{color:#fff;font-size:12px}
+.search-box input::placeholder{color:#ffffffbd}
+.search-box kbd{display:none}
+.icon-button{border:0;border-radius:5px;background:#ffffff18;color:#fff}
+.add-button{background:#fff;color:#2859a8;border-radius:5px;box-shadow:none;padding:10px 13px}
+.add-button:hover{filter:brightness(.96);transform:none}
+.page-content{max-width:1440px;margin:0 auto;padding:30px 42px 20px}
+.sidebar{transform:translateX(-100%);transition:none!important;z-index:12;background:#fff;border-right:1px solid #dfe4ec;box-shadow:4px 0 18px #17263a1c}
+.sidebar.open{transform:translateX(0)}
+.sidebar-backdrop{position:fixed;inset:0;z-index:11;border:0;background:#15223855}
+.brand{padding-bottom:22px}
+.brand-mark{background:#356bc4;color:#fff;box-shadow:none;border-radius:7px}
+.brand strong{color:#263243;font-family:"Segoe UI",Roboto,Arial,sans-serif;font-weight:600}
+.brand span{color:#8290a2}
+.workspace{background:#f7f9fc;border:1px solid #e2e7ef;border-radius:6px;margin-bottom:20px}
+.workspace-icon,.avatar{background:#e8effb;color:#356bc4;border-radius:6px}
+.workspace b,.profile b,.connection b{color:#344154}
+.workspace small,.profile small,.connection small{color:#7e8a9a}
+.workspace>svg{color:#7b8797}
+.nav-label{color:#8792a1}
+.nav-item{color:#596678;border-radius:5px}
+.nav-item:hover{background:#f2f5fa;color:#27374f}
+.nav-item.active{background:#eaf1fd;color:#2759a9;box-shadow:inset 3px 0 #356bc4}
+.nav-item.active svg{color:#356bc4}
+.library-label{margin-top:22px}
+.sidebar-bottom .connection{background:#f7f9fc;border:1px solid #e2e7ef;border-radius:6px}
+.help-link{color:#667488}
+.profile{display:none}
+.home-dashboard{max-width:1050px;margin:0 auto;padding:12px 8px 24px}
+.home-title-row{margin:4px 0 22px}
+.home-title-row h1{font:500 23px "Segoe UI",Roboto,Arial,sans-serif;letter-spacing:0;color:#263238}
+.home-title-row>span{background:#e8edf4;color:#657184;border-radius:14px}
+.home-tiles{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.home-tile{min-height:82px;border:1px solid #e1e6ed;border-radius:6px;background:#fff;color:#273243;box-shadow:0 1px 2px #1b2c430b}
+.home-tile:hover{border-color:#aec5ed;background:#fafdff}
+.home-tile-icon{background:#edf3fd;color:#356bc4;border-radius:6px}
+.home-favorites .home-tile-icon{background:#fff8e5}
+.home-tile b{font-size:13px;color:#273243;font-weight:600}
+.home-tile span{font-size:11px;color:#748094}
+.home-tile small{font-size:10px;color:#929cab}
+.home-tile>svg{color:#8b96a5}
+.home-add-playlist{border-style:dashed;background:#fafbfd}
+.library-intro{min-height:115px;padding:0 4px 12px}
+.library-intro .hero-art{display:none!important}
+.library-intro h1{font:500 24px/1.3 "Segoe UI",Roboto,Arial,sans-serif;letter-spacing:0;color:#263238;margin:8px 0}
+.library-intro h1 span{color:#356bc4}
+.library-intro p,.view-lead{color:#788496;font-size:12px}
+.library-intro .eyebrow,.management-view>.eyebrow{color:#758398}
+.library-heading{margin-top:12px}
+.channel-card{border:1px solid #e0e5ec;border-radius:6px;background:#fff;box-shadow:0 1px 2px #1b2c430b}
+.channel-card:hover,.channel-card.selected{border-color:#8caee4;background:#f8fbff}
+.channel-main{color:#273243}
+.channel-logo{background:#edf2fa;color:#356bc4;border-radius:5px}
+.channel-copy b{color:#273243;font-size:12px}
+.channel-copy span{color:#788496}
+.channel-meta{color:#8490a1}
+.group-chip{border:1px solid #dce3ed;border-radius:5px;background:#fff;color:#58677b}
+.group-chip:hover,.group-chip.active{border-color:#9bb8e5;background:#eaf1fd;color:#2759a9}
+.virtual-grid{scrollbar-color:#c7d0dc #edf0f5}
+.management-view{max-width:1050px;margin:0 auto;padding:18px 8px}
+.management-view h1{font:500 26px/1.3 "Segoe UI",Roboto,Arial,sans-serif;letter-spacing:0;color:#263238}
+.management-view h1 span{color:#356bc4}
+.settings-card,.playlist-row,.guide-row{background:#fff;border:1px solid #e0e5ec;border-radius:6px;box-shadow:0 1px 2px #1b2c430b}
+.playlist-row-copy b,.guide-channel b,.guide-program b,.settings-card>b{color:#344154}
+.playlist-row-copy span,.playlist-row-copy small,.guide-channel span,.guide-program small,.settings-card>span{color:#788496}
+.primary-button{background:#356bc4;color:#fff;border-radius:5px;box-shadow:none}
+.primary-button:hover{filter:brightness(.96);transform:none}
+.small-icon-button{background:#f5f7fa;border:1px solid #dce3ed;color:#596a80;border-radius:5px}
+.field-label{color:#58677b}
+.field-label input,.field-label select,.playlist-select{background:#fff;border:1px solid #d7dee8;color:#344154;border-radius:5px}
+.notice.error{background:#fff1f2;border-color:#f1c6cc;color:#a53e4b}
+.notice.success{background:#eef8f2;border-color:#cce8d7;color:#28734a}
+@media(max-width:900px){.topbar{padding:0 14px}.page-content{padding:22px 16px}.home-tiles{grid-template-columns:1fr}.search-box{width:170px}}
