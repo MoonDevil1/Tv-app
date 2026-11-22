@@ -1,6 +1,6 @@
 import type { ChannelSource, ManifestType, Playlist, StreamHeaders, TvChannel } from "../../app/models";
 
-const LIVE_TGTV_PLAYLIST = "https://livetgtv.lovable.app/api/public/playlist.m3u";
+const LIVE_TGTV_PLAYLIST = "https://livetgtv.lovable.app/api/public/playlist.m3u";\nconst LIVE_TGTV_FALLBACK = "https://hjh-545.pages.dev/";
 const DEFAULT_HEADERS = { Accept: "application/vnd.apple.mpegurl, audio/x-mpegurl, text/plain, application/json, */*", "User-Agent": "TG-IPTV-Windows/2.1" };
 
 function attr(line: string, key: string): string {
@@ -87,7 +87,7 @@ function parseM3u(text: string): { channels: TvChannel[]; epgUrls: string[] } {
       id, name, logo: attr(current.info, "tvg-logo") || undefined,
       group: attr(current.info, "group-title") || "Other",
       tvgId: tvgId || undefined, number: channels.length + 1,
-      sources: [source], rawAttributes: { "tvg-id": tvgId, "tvg-name": attr(current.info, "tvg-name"), "group-title": attr(current.info, "group-title") }
+      sources: [source], requiresDrm: props.some(line => /license_(?:type|key)|drm/i.test(line)), requiresAuthorization: Object.keys(headers).some(key => /^(?:cookie|authorization)$/i.test(key)), rawAttributes: { "tvg-id": tvgId, "tvg-name": attr(current.info, "tvg-name"), "group-title": attr(current.info, "group-title") }
     });
     current = null;
   };
@@ -151,3 +151,24 @@ export async function fetchPlaylistText(url: string, headers: StreamHeaders = {}
   return { text: response.text, finalUrl: response.url };
 }
 export const LIVE_TGTV_SOURCE = LIVE_TGTV_PLAYLIST;
+
+function normalizeName(value: string): string { return value.toLowerCase().replace(/\\b(?:hd|fhd|uhd|4k)\\b/g, "").replace(/[^a-z0-9]/g, ""); }
+export async function addLiveTgTvFallbacks(playlist: Playlist): Promise<Playlist> {
+  let host = "";
+  try { host = new URL(playlist.source).hostname.toLowerCase(); } catch { return playlist; }
+  if (host !== "livetgtv.lovable.app" || !playlist.source.includes("/api/public/playlist.m3u")) return playlist;
+  try {
+    const response = await fetchPlaylistText(LIVE_TGTV_FALLBACK);
+    const backup = parsePlaylistText(response.text, response.finalUrl).channels;
+    const channels = playlist.channels.map(channel => {
+      const byId = channel.tvgId ? backup.filter(item => item.tvgId?.toLowerCase() === channel.tvgId?.toLowerCase()) : [];
+      const name = normalizeName(channel.name);
+      const byName = name ? backup.filter(item => normalizeName(item.name) === name) : [];
+      const byLogo = channel.logo ? backup.filter(item => item.logo === channel.logo) : [];
+      const match = byId.length === 1 ? byId[0] : byName.length === 1 ? byName[0] : byLogo.length === 1 ? byLogo[0] : undefined;
+      if (!match || match.requiresDrm || match.requiresAuthorization || channel.sources.some(s => s.url === match.sources[0]?.url)) return channel;
+      return { ...channel, sources: [...channel.sources, { ...match.sources[0], label: "LiveTGTV backup" }] };
+    });
+    return { ...playlist, channels };
+  } catch { return playlist; }
+}
