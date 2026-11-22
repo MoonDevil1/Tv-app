@@ -31,12 +31,19 @@ export function setActiveStreamContext(context: StreamRequestContext | null): vo
   for (const [rawName, rawValue] of Object.entries(context.headers)) {
     const name = rawName.trim();
     const value = String(rawValue).trim();
-    if (!name || name.length > 128 || value.length > 8192 || /[\r\n:]/.test(name) || /[\r\n]/.test(value)) continue;
+    if (!name || name.length > 128 || value.length > 8192 || /[\r
+:]/.test(name) || /[\r
+]/.test(value)) continue;
     if (BLOCKED_HEADERS.has(name.toLowerCase()) || /^proxy-|^sec-/i.test(name)) continue;
     headers[name] = value;
   }
 
-  const origins = new Map<string, Record<string, string>>([[origin.origin.toLowerCase(), headers]]);\n  if (context.licenseUrl) {\n    const license = new URL(context.licenseUrl);\n    if (license.protocol === "https:" || license.protocol === "http:") origins.set(license.origin.toLowerCase(), { ...headers, ...(context.licenseHeaders ?? {}) });\n  }\n  activeContext = { origins };
+  const origins = new Map<string, Record<string, string>>([[origin.origin.toLowerCase(), headers]]);
+  if (context.licenseUrl) {
+    const license = new URL(context.licenseUrl);
+    if (license.protocol === "https:" || license.protocol === "http:") origins.set(license.origin.toLowerCase(), { ...headers, ...(context.licenseHeaders ?? {}) });
+  }
+  activeContext = { origins };
 }
 
 export function registerHeaderProxy(targetSession: Session): void {
