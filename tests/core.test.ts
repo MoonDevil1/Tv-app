@@ -33,6 +33,37 @@ test("parses channel metadata, DASH, multiple ClearKeys and per-channel headers"
   assert.equal(channels[1].headers.Referer, "https://provider.example");
 });
 
+test("parses LiveTGTV Zee Cinema HD and &Pictures HD Kodi ClearKey entries without losing channel headers", () => {
+  const source = `#EXTM3U
+#EXTINF:-1 tvg-id="165" tvg-name="Zee Cinema HD" tvg-logo="https://img.example/zee.png" group-title="Movies", Zee Cinema HD
+#KODIPROP:inputstream.adaptive.manifest_type=mpd
+#KODIPROP:inputstream.adaptive.license_type=clearkey
+#KODIPROP:inputstream.adaptive.license_key=${KID}:${KEY},11223344556677889900aabbccddeeff:00112233445566778899aabbccddeeff,223344556677889900aabbccddeeff11:11223344556677889900aabbccddeeff,3344556677889900aabbccddeeff1122:223344556677889900aabbccddeeff11,44556677889900aabbccddeeff112233:3344556677889900aabbccddeeff1122
+#EXTVLCOPT:http-user-agent=LiveTGTV-Test/1.0
+#EXTHTTP:{"cookie":"session=test-cookie"}
+https://cdn.example/bpk-tv/ZeeCinemaHD_BTS/WDVLive/index.mpd
+#EXTINF:-1 tvg-id="1839" tvg-name="&Pictures HD" group-title="Movies", &Pictures HD
+#KODIPROP:inputstream.adaptive.manifest_type=mpd
+#KODIPROP:inputstream.adaptive.license_type=clearkey
+#KODIPROP:inputstream.adaptive.license_key=${KID}:${KEY}
+#EXTVLCOPT:http-user-agent=LiveTGTV-Test/1.0
+#EXTHTTP:{"cookie":"session=test-cookie"}
+https://cdn.example/bpk-tv/AndPicturesHD_BTS/WDVLive/index.mpd`;
+  const channels = parseM3U(source, "https://livetgtv.example/api/public/playlist.m3u");
+  assert.equal(channels.length, 2);
+  for (const channel of channels) {
+    assert.equal(channel.manifestType, "dash");
+    assert.equal(channel.drm?.scheme, "clearkey");
+    assert.equal(channel.headers["User-Agent"], "LiveTGTV-Test/1.0");
+    assert.equal(channel.headers.cookie, "session=test-cookie");
+    assert.equal(channel.group, "Movies");
+  }
+  assert.equal(channels[0].name, "Zee Cinema HD");
+  assert.equal(Object.keys(channels[0].drm?.clearKeys ?? {}).length, 5);
+  assert.equal(channels[1].name, "&Pictures HD");
+  assert.equal(channels[1].tvgId, "1839");
+});
+
 test("converts 128-bit hex values and round-trips ClearKey JWK", () => {
   assert.equal(hexToBase64Url(KID), "ABEiM0RVZneImaq7zN3u_w");
   const keys = parseClearKeys(`${KID}:${KEY}`);
