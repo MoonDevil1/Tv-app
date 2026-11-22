@@ -34,7 +34,7 @@ function safeHeaders(headers?: StreamHeaders): StreamHeaders {
   return result;
 }
 
-/** User playlist headers are scoped to the stream origin, including User-Agent, Referer, Origin and Cookie. */
+/** JavaScript-safe playlist headers are scoped to the stream origin. Browser-restricted headers are applied by Electron webRequest. */
 export function streamHeadersForRequest(channel: Channel, requestUrl: string): StreamHeaders {
   return originOf(channel.url) && originOf(channel.url) === originOf(requestUrl) ? safeHeaders(channel.headers) : {};
 }
