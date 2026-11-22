@@ -29,13 +29,21 @@ function safeHeaders(value: unknown): StreamHeaders {
   }
   return headers;
 }
-function parseExtHttp(value: string): StreamHeaders {
+function parseHeaderValue(value: string): StreamHeaders {
   try { return safeHeaders(JSON.parse(unescapeValue(value))); }
   catch {
-    const separator = value.indexOf("=");
-    return separator > 0 ? { [value.slice(0, separator).trim()]: unescapeValue(value.slice(separator + 1).trim()) } : {};
+    const headers: StreamHeaders = {};
+    for (const [name, headerValue] of new URLSearchParams(value.replace(/&amp;/g, "&"))) {
+      if (name && !/[\r\n:]/.test(name) && !/[\r\n]/.test(headerValue)) headers[name] = unescapeValue(headerValue);
+    }
+    if (!Object.keys(headers).length) {
+      const separator = value.indexOf("=");
+      if (separator > 0) headers[value.slice(0, separator).trim()] = unescapeValue(value.slice(separator + 1).trim());
+    }
+    return headers;
   }
 }
+const parseExtHttp = parseHeaderValue;
 function streamLine(raw: string): { url: string; headers: StreamHeaders; drmType?: string; drmLicense?: string } {
   const separator = raw.indexOf("|");
   if (separator < 0) return { url: unescapeValue(raw.trim()), headers: {} };
@@ -43,12 +51,21 @@ function streamLine(raw: string): { url: string; headers: StreamHeaders; drmType
   const headers: StreamHeaders = {};
   let drmType: string | undefined, drmLicense: string | undefined;
   for (const [key, value] of new URLSearchParams(raw.slice(separator + 1).replace(/&amp;/g, "&"))) {
-    if (/^drmscheme$/i.test(key)) drmType = value;
-    else if (/^drmlicense$/i.test(key)) drmLicense = value;
+    if (/^(?:drmscheme|drmtype|license_type)$/i.test(key)) drmType = value;
+    else if (/^(?:drmlicense|license_url|licenseurl)$/i.test(key)) drmLicense = value;
     else headers[key] = value;
   }
   return { url, headers, drmType, drmLicense };
 }
+function parseKodiLicense(value: string): { license: string; headers: StreamHeaders } {
+  const [license, rawHeaders = ""] = value.split("|", 2);
+  const headers: StreamHeaders = {};
+  for (const [name, headerValue] of new URLSearchParams(rawHeaders.replace(/&amp;/g, "&"))) {
+    if (name && !/[\r\n:]/.test(name) && !/[\r\n]/.test(headerValue)) headers[name] = headerValue;
+  }
+  return { license: license.trim(), headers };
+}
+
 function inferType(url: string, manifest?: string): Channel["manifestType"] {
   if (/mpd/i.test(manifest ?? "") || /\.mpd(?:$|[?#])/i.test(url)) return "dash";
   if (/\.m3u8?(?:$|[?#])/i.test(url)) return "hls";
@@ -66,9 +83,10 @@ export function parseM3U(source: string, baseUrl?: string): Channel[] {
   const channels: Channel[] = [];
   let pending: Partial<Channel> | null = null;
   let pendingHeaders: StreamHeaders = {};
+  let leadingHeaders: StreamHeaders = {};
   let licenseType: string | undefined, licenseKey: string | undefined, manifestType: string | undefined;
   let currentGroup = "";
-  const reset = () => { pending = null; pendingHeaders = {}; licenseType = undefined; licenseKey = undefined; manifestType = undefined; };
+  const reset = () => { pending = null; pendingHeaders = { ...leadingHeaders }; leadingHeaders = {}; licenseType = undefined; licenseKey = undefined; manifestType = undefined; };
   for (const rawLine of lines) {
     const line = rawLine.trim();
     if (!line) continue;
@@ -86,20 +104,23 @@ export function parseM3U(source: string, baseUrl?: string): Channel[] {
         catchupDays: Number(attrs["catchup-days"]) || undefined, catchupSource: attrs["catchup-source"],
         rawAttributes: attrs, headers: {}
       };
+      licenseType = attrs["drm-scheme"] ?? attrs["license-type"];
+      licenseKey = attrs["license-url"] ?? attrs["license_url"] ?? attrs["drm-license"];
+      manifestType = attrs["manifest-type"];
     } else if (line.startsWith("#EXTGRP:")) {
       currentGroup = unescapeValue(line.slice(8).trim());
-    } else if (line.startsWith("#EXTVLCOPT:") && pending) {
+    } else if (line.startsWith("#EXTVLCOPT:")) {
       const option = line.slice(11), index = option.indexOf("=");
       if (index > 0) {
         const key = option.slice(0, index).trim().toLowerCase();
         const value = unescapeValue(option.slice(index + 1).trim());
         const header = key === "http-user-agent" ? "User-Agent" : key === "http-referrer" ? "Referer" :
           key === "http-cookie" ? "Cookie" : key === "http-origin" ? "Origin" : key.replace(/^http-/, "");
-        pendingHeaders[header] = value;
+        (pending ? pendingHeaders : leadingHeaders)[header] = value;
       }
-    } else if (line.startsWith("#EXTHTTP:") && pending) {
-      Object.assign(pendingHeaders, parseExtHttp(line.slice(9).trim()));
-    } else if (line.startsWith("#KODIPROP:") && pending) {
+    } else if (line.startsWith("#EXTHTTP:")) {
+      Object.assign(pending ? pendingHeaders : leadingHeaders, parseExtHttp(line.slice(9).trim()));
+    } else if (line.startsWith("#KODIPROP:")) {
       const prop = line.slice(10), index = prop.indexOf("=");
       if (index > 0) {
         const key = unescapeValue(prop.slice(0, index).trim()).toLowerCase();
@@ -107,13 +128,17 @@ export function parseM3U(source: string, baseUrl?: string): Channel[] {
         if (key.endsWith("license_type")) licenseType = value;
         else if (key.endsWith("license_key")) licenseKey = value;
         else if (key.endsWith("manifest_type")) manifestType = value;
+        else if (key.endsWith("stream_headers")) Object.assign(pending ? pendingHeaders : leadingHeaders, parseHeaderValue(value));
         else if (key.endsWith("license_key") && value.startsWith("{")) licenseKey = value;
       }
     } else if (!line.startsWith("#") && pending) {
       try {
         const stream = streamLine(line);
         const url = resolveUrl(stream.url, baseUrl);
-        const drm = createClearKeyDrm(stream.drmType ?? licenseType, stream.drmLicense ?? licenseKey);
+        const rawLicense = stream.drmLicense ?? licenseKey;
+        const parsedLicense = rawLicense ? parseKodiLicense(rawLicense) : undefined;
+        const drm = createClearKeyDrm(stream.drmType ?? licenseType, parsedLicense?.license);
+        if (drm && parsedLicense && Object.keys(parsedLicense.headers).length) drm.licenseHeaders = parsedLicense.headers;
         const channel = {
           ...(pending as Channel), url, headers: { ...pendingHeaders, ...stream.headers },
           drm, manifestType: inferType(url, manifestType)

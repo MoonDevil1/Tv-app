@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { parseM3U, parseJsonPlaylist, parsePlaylist } from "../src/core/parser/m3uParser";
-import { clearKeyJwk, hexToBase64Url, parseClearKeys, createClearKeyDrm } from "../src/core/parser/clearKeyUtils";
+import { clearKeyJwk, hexToBase64Url, parseClearKeys, createClearKeyDrm, normalizeClearKeyLicenseResponse } from "../src/core/parser/clearKeyUtils";
 import { PlaylistManager } from "../src/core/parser/playlistManager";
 import { parseXmltvDate, currentAndNext, parseLiveTgGuide } from "../src/core/epg/xmltv";
 import { waitForMediaEvent } from "../src/core/player/mediaEvents";
@@ -19,6 +19,35 @@ const sample = `#EXTM3U url-tvg="https://epg.example/guide.xml"
 https://cdn.example/live/index.mpd
 #EXTINF:-1 tvg-name="Radio" group-title="Audio",Radio
 https://cdn.example/radio/index.m3u8|Referer=https://provider.example`;
+
+test("keeps EXTHTTP headers before EXTINF and parses Kodi stream_headers", () => {
+  const source = `#EXTM3U
+#EXTHTTP:cookie=SESSIONID=abc123
+#EXTINF:-1,Protected channel
+#KODIPROP:inputstream.adaptive.stream_headers=User-Agent=VegaTest%2F1.0&Referer=https%3A%2F%2Fprovider.example%2F
+https://cdn.example/live/channel.mpd`;
+  const [channel] = parseM3U(source);
+  assert.equal(channel.headers.cookie, "SESSIONID=abc123");
+  assert.equal(channel.headers["User-Agent"], "VegaTest/1.0");
+  assert.equal(channel.headers.Referer, "https://provider.example/");
+});
+
+test("parses Kodi Widevine license URLs and keeps license headers separate from stream headers", () => {
+  const source = `#EXTM3U
+#EXTINF:-1,Protected channel
+#KODIPROP:inputstream.adaptive.manifest_type=mpd
+#KODIPROP:inputstream.adaptive.license_type=com.widevine.alpha
+#KODIPROP:inputstream.adaptive.license_key=https://license.example/wv|Authorization=Bearer%20license&Content-Type=application%2Foctet-stream|
+#EXTVLCOPT:http-user-agent=StreamAgent
+https://cdn.example/live/channel.mpd`;
+  const [channel] = parseM3U(source);
+  assert.equal(channel.drm?.scheme, "widevine");
+  assert.equal(channel.drm?.licenseUrl, "https://license.example/wv");
+  assert.deepEqual(channel.drm?.licenseHeaders, {
+    Authorization: "Bearer license", "Content-Type": "application/octet-stream"
+  });
+  assert.deepEqual(channel.headers, { "User-Agent": "StreamAgent" });
+});
 
 test("parses channel metadata, DASH, multiple ClearKeys and per-channel headers", () => {
   const channels = parseM3U(sample);
@@ -45,6 +74,22 @@ test("converts 128-bit hex values and round-trips ClearKey JWK", () => {
   assert.throws(() => parseClearKeys(`${hexToBase64Url(KID)}:short`));
   const jwk = clearKeyJwk(keys);
   assert.equal(parseClearKeys(jwk)[Object.keys(keys)[0]], Object.values(keys)[0]);
+});
+
+test("normalizes raw and JSON ClearKey license responses into Shaka JWK", () => {
+  const secondKid = "11223344556677889900aabbccddeeff";
+  const secondKey = "00112233445566778899aabbccddeeff";
+  const raw = normalizeClearKeyLicenseResponse(new TextEncoder().encode(`${KID}:${KEY},${secondKid}:${secondKey}`));
+  assert.ok(raw);
+  const parsed = JSON.parse(new TextDecoder().decode(raw));
+  assert.equal(parsed.type, "temporary");
+  assert.equal(parsed.keys.length, 2);
+  assert.equal(parsed.keys[0].kid, hexToBase64Url(KID));
+  assert.equal(parsed.keys[0].k, hexToBase64Url(KEY));
+  const json = normalizeClearKeyLicenseResponse(new TextEncoder().encode(JSON.stringify({ keyId: KID, key: KEY })));
+  assert.ok(json);
+  assert.equal(JSON.parse(new TextDecoder().decode(json)).keys.length, 1);
+  assert.equal(normalizeClearKeyLicenseResponse(new Uint8Array([0, 1, 2, 3])), null);
 });
 
 test("accepts standard JWK data URIs, remote license URLs and Widevine metadata", () => {
@@ -190,7 +235,8 @@ test("license headers are sent only to the configured license server", () => {
 
 test("builds ClearKey and Widevine Shaka DRM configurations", () => {
   const keys = { "ABEiM0RVZneImaq7zN3u_w": "ABEiM0RVZneImaq7zN3u_w" };
-  assert.deepEqual(shakaDrmConfiguration({ scheme: "clearkey", clearKeys: keys }), { drm: { clearKeys: keys } });
+  const hexKeys = { [KID]: KID };
+  assert.deepEqual(shakaDrmConfiguration({ scheme: "clearkey", clearKeys: keys }), { drm: { clearKeys: hexKeys } });
   assert.deepEqual(shakaDrmConfiguration({ scheme: "clearkey", licenseUrl: "https://license.example/ck" }), {
     drm: { servers: { "org.w3.clearkey": "https://license.example/ck" } }
   });

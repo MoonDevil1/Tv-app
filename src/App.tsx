@@ -9,7 +9,7 @@ import { Player } from "./components/Player";
 
 const LIVE_TGTV_URL = "https://livetgtv.lovable.app/api/public/playlist.m3u";
 const REFRESH_OPTIONS = [{ label: "Manual", value: 0 }, { label: "1 minute", value: 60000 }, { label: "5 minutes", value: 300000 }, { label: "15 minutes", value: 900000 }, { label: "1 hour", value: 3600000 }];
-const navItems = [{ label: "Discover", icon: Compass }, { label: "Live TV", icon: Radio }, { label: "Favorites", icon: Heart }, { label: "Recently watched", icon: History }, { label: "EPG Guide", icon: LayoutGrid }];
+const navItems = [{ label: "Home", icon: Compass }, { label: "Live TV", icon: Radio }, { label: "Favorites", icon: Heart }, { label: "Recently watched", icon: History }, { label: "EPG Guide", icon: LayoutGrid }];
 const managementItems = [{ label: "Playlists", icon: ListVideo }, { label: "Single stream", icon: AudioLines }, { label: "Settings", icon: Settings2 }];
 const channelKey = (playlistId: string, channel: Channel) => `${playlistId}:${channel.id}`;
 const formatTime = (timestamp?: number) => timestamp ? new Date(timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "—";
@@ -40,7 +40,7 @@ export default function App() {
   const manager = useMemo(() => new PlaylistManager(), []);
   const playlists = useAppStore(s => s.playlists), favorites = useAppStore(s => s.favorites), recentlyWatched = useAppStore(s => s.recentlyWatched), epgPrograms = useAppStore(s => s.epgPrograms);
   const addPlaylist = useAppStore(s => s.addPlaylist), replacePlaylist = useAppStore(s => s.replacePlaylist), removeStoredPlaylist = useAppStore(s => s.removePlaylist), toggleFavorite = useAppStore(s => s.toggleFavorite), recordWatch = useAppStore(s => s.recordWatch), setEpgPrograms = useAppStore(s => s.setEpgPrograms);
-  const [active, setActive] = useState("Discover"), [query, setQuery] = useState(""), [selectedPlaylistId, setSelectedPlaylistId] = useState(""), [selectedGroup, setSelectedGroup] = useState("All");
+  const [active, setActive] = useState("Home"), [query, setQuery] = useState(""), [selectedPlaylistId, setSelectedPlaylistId] = useState(""), [selectedGroup, setSelectedGroup] = useState("All");
   const [selectedChannel, setSelectedChannel] = useState<{ playlistId: string; channel: Channel } | null>(null);
   const [showAdd, setShowAdd] = useState(false), [sourceUrl, setSourceUrl] = useState(LIVE_TGTV_URL), [playlistName, setPlaylistName] = useState("LiveTGTV"), [refreshInterval, setRefreshInterval] = useState(300000);
   const [busy, setBusy] = useState(false), [epgBusy, setEpgBusy] = useState(false), [error, setError] = useState(""), [notice, setNotice] = useState(""), [scrollTop, setScrollTop] = useState(0), [columns, setColumns] = useState(4);
@@ -193,7 +193,7 @@ export default function App() {
   const rowHeight = 106, startRow = Math.max(0, Math.floor(scrollTop / rowHeight) - 1), visibleRows = 6;
   const totalRows = Math.ceil(visibleChannels.length / columns);
   const renderedChannels = visibleChannels.slice(startRow * columns, (startRow + visibleRows) * columns);
-  const isGridView = ["Discover", "Live TV", "Favorites", "Recently watched"].includes(active);
+  const isGridView = ["Live TV", "Favorites", "Recently watched"].includes(active);
 
   return <div className="app-shell">
     <aside className="sidebar">
@@ -207,8 +207,19 @@ export default function App() {
       <header className="topbar"><div className="breadcrumbs"><span>YOUR LIBRARY</span><span className="crumb-slash">/</span><b>{active}</b></div><div className="topbar-actions"><label className="search-box"><Search size={17} /><input ref={searchRef} value={query} onChange={e => setQuery(e.target.value)} placeholder="Search channels, groups…" /><kbd><Command size={11} /> K</kbd></label><button className="icon-button" aria-label="Refresh playlist" onClick={() => selectedPlaylist && void refreshPlaylist(selectedPlaylist)} disabled={!selectedPlaylist}><Activity size={18} /></button><button className="add-button" onClick={() => setShowAdd(true)}><Plus size={17} /> Add playlist</button></div></header>
       <section className="page-content">
         <>
+          {active === "Home" && <div key="home" className="home-view">
+            <div className="home-title"><div><span className="eyebrow">YOUR LIBRARY</span><h1>IPTV - Home</h1></div><button className="primary-button" onClick={() => setShowAdd(true)}><Plus size={16} /> Add playlist</button></div>
+            <div className="home-section-heading"><h2>All Playlists</h2><span>Total: {playlists.length}</span></div>
+            <button className="home-favorites" onClick={() => setActive("Favorites")}><span className="home-favorites-icon"><Heart size={20} fill="currentColor" /></span><span><b>Favorites</b><small>Saved channels for quick access</small></span><span className="home-count">{favorites.length}</span></button>
+            {error && <div className="notice error"><X size={15} />{error}<button onClick={() => setError("")}>Dismiss</button></div>}
+            {notice && <div className="notice success"><Check size={15} />{notice}<button onClick={() => setNotice("")}>Dismiss</button></div>}
+            {playlists.length ? <div className="home-playlist-list">{playlists.map(playlist => <button className="home-playlist-card" key={playlist.id} onClick={() => { setSelectedPlaylistId(playlist.id); setSelectedGroup("All"); setActive("Live TV"); }}>
+              <span className="home-playlist-icon"><ListVideo size={21} /></span><span className="home-playlist-copy"><b>{playlist.name}</b><small>{playlist.channels.length.toLocaleString()} channels · {playlist.groups.length} groups</small></span><span className="home-count">{playlist.channels.length.toLocaleString()}</span>
+            </button>)}</div> : <div className="empty-library"><div className="empty-icon"><FileUp size={23} /></div><b>No playlists added yet</b><span>Add an M3U/M3U8 URL, JSON endpoint or local playlist file.</span><button className="primary-button" onClick={() => setShowAdd(true)}><Plus size={16} /> Add your first playlist</button></div>}
+          </div>}
+
           {isGridView && <div key="channels" className="library-view">
-            <div className="library-intro"><div><div className="eyebrow"><Sparkles size={13} /> YOUR CHANNEL UNIVERSE</div><h1>{active === "Discover" ? <>Every channel.<br /><span>One beautiful place.</span></> : active === "Live TV" ? <>Find your next<br /><span>live moment.</span></> : active === "Favorites" ? <>Your favorites.<br /><span>Always close.</span></> : <>Pick up right<br /><span>where you left off.</span></>}</h1><p>{selectedPlaylist ? `${selectedPlaylist.name} · ${selectedPlaylist.channels.length.toLocaleString()} channels in this source` : "Connect an M3U, M3U8 or JSON playlist to populate your library."}</p></div>
+            <div className="library-intro"><div><div className="eyebrow"><Sparkles size={13} /> YOUR CHANNEL UNIVERSE</div><h1>{active === "Live TV" ? <>Live TV<br /><span>All channels.</span></> : active === "Favorites" ? <>Your favorites.<br /><span>Always close.</span></> : <>Recently watched<br /><span>Continue watching.</span></>}</h1><p>{selectedPlaylist ? `${selectedPlaylist.name} · ${selectedPlaylist.channels.length.toLocaleString()} channels in this source` : "Connect an M3U, M3U8 or JSON playlist to populate your library."}</p></div>
               <div className="hero-art" aria-hidden="true"><div className="orbit orbit-one" /><div className="orbit orbit-two" /><div className="hero-screen"><div className="screen-glow" /><div className="screen-icon"><Radio size={42} /></div><span>LIVE · ANYWHERE</span></div><div className="floating-chip chip-top"><Signal size={14} /> Adaptive streaming</div><div className="floating-chip chip-bottom"><Wifi size={14} /> Playlist library</div></div>
             </div>
             <div className="section-heading library-heading"><div><span className="eyebrow">CHANNEL LIBRARY</span><h2>{visibleChannels.length.toLocaleString()} channels</h2></div><div className="library-tools">{playlists.length > 0 && <select className="playlist-select" value={selectedPlaylist?.id ?? ""} onChange={e => { setSelectedPlaylistId(e.target.value); setSelectedGroup("All"); }} aria-label="Choose playlist">{playlists.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select>}<span className="updated-label"><Wifi size={14} /> Local library</span></div></div>
