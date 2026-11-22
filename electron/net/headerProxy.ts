@@ -29,19 +29,26 @@ export function setActiveStreamContext(context: StreamRequestContext | null): vo
   }
   if (Object.keys(context.headers).length > 50) throw new TypeError("Too many stream request headers.");
 
-  const headers: Record<string, string> = {};
-  for (const [rawName, rawValue] of Object.entries(context.headers)) {
-    const name = rawName.trim();
-    const value = String(rawValue).trim();
-    if (!name || name.length > 128 || value.length > 8192 || /[\r\n:]/.test(name) || /[\r\n]/.test(value)) continue;
-    if (BLOCKED_HEADERS.has(name.toLowerCase()) || /^proxy-|^sec-/i.test(name)) continue;
-    headers[name] = value;
-  }
-
+  const sanitizeHeaders = (input: Record<string, string>) => {
+    const result: Record<string, string> = {};
+    for (const [rawName, rawValue] of Object.entries(input)) {
+      const name = rawName.trim();
+      const value = String(rawValue).trim();
+      if (!name || name.length > 128 || value.length > 8192 || /[\r\n:]/.test(name) || /[\r\n]/.test(value)) continue;
+      if (BLOCKED_HEADERS.has(name.toLowerCase()) || /^proxy-|^sec-/i.test(name)) continue;
+      result[name] = value;
+    }
+    return result;
+  };
+  const headers = sanitizeHeaders(context.headers);
   const origins = new Map<string, Record<string, string>>([[origin.origin.toLowerCase(), headers]]);
   if (context.licenseUrl) {
-    const license = new URL(context.licenseUrl);
-    if (license.protocol === "https:" || license.protocol === "http:") origins.set(license.origin.toLowerCase(), { ...(context.licenseHeaders ?? {}) });
+    try {
+      const license = new URL(context.licenseUrl);
+      if ((license.protocol === "https:" || license.protocol === "http:") && !license.username && !license.password) {
+        origins.set(license.origin.toLowerCase(), sanitizeHeaders(context.licenseHeaders ?? {}));
+      }
+    } catch { /* The player reports invalid license URLs. */ }
   }
   activeContext = { origins };
 }
