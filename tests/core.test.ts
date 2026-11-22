@@ -53,7 +53,51 @@ test("accepts standard JWK data URIs, remote license URLs and Widevine metadata"
   assert.equal(Object.keys(parseClearKeys(`data:application/json,${encodeURIComponent(jwk)}`)).length, 1);
   assert.equal(createClearKeyDrm("clearkey", "https://license.example/key")?.licenseUrl, "https://license.example/key");
   assert.equal(createClearKeyDrm("widevine", "https://license.example/wv")?.scheme, "widevine");
-  assert.equal(createClearKeyDrm("playready", "https://license.example/pr"), undefined);
+  assert.equal(createClearKeyDrm("playready", "https://license.example/pr")?.licenseUrl, "https://license.example/pr");
+});
+
+test("parses AuthoIPTV-compatible header order, Kodi stream headers and remote DRM licenses", () => {
+  const source = `#EXTM3U
+#EXTHTTP:{"Cookie":"session=pre","Referer":"https://provider.example/"}
+#EXTINF:-1 tvg-id="premium" LicenseURL="https://license.example/clearkey" group-title="Premium",Premium HD
+#KODIPROP:inputstream.adaptive.manifest_type=mpd
+#KODIPROP:inputstream.adaptive.stream_headers=User-Agent=ExamplePlayer%2F1.0&Origin=https%3A%2F%2Fprovider.example
+https://stream.example/premium.mpd`;
+  const [channel] = parseM3U(source);
+  assert.equal(channel.manifestType, "dash");
+  assert.equal(channel.headers.Cookie, "session=pre");
+  assert.equal(channel.headers.Referer, "https://provider.example/");
+  assert.equal(channel.headers["User-Agent"], "ExamplePlayer/1.0");
+  assert.equal(channel.headers.Origin, "https://provider.example");
+  assert.equal(channel.drm?.scheme, "clearkey");
+  assert.equal(channel.drm?.licenseUrl, "https://license.example/clearkey");
+});
+
+test("keeps DRM license headers separate from stream headers and supports Widevine and PlayReady aliases", () => {
+  const source = `#EXTM3U
+#EXTINF:-1,Widevine
+#KODIPROP:inputstream.adaptive.license_type=com.widevine.alpha
+#KODIPROP:inputstream.adaptive.license_key=https://license.example/wv|Authorization=Bearer%20license&X-License=one
+https://stream.example/wv.mpd
+#EXTINF:-1,PlayReady
+#KODIPROP:inputstream.adaptive.license_type=com.microsoft.playready
+#KODIPROP:inputstream.adaptive.license_key=https://license.example/pr
+https://stream.example/pr.mpd`;
+  const [widevine, playready] = parseM3U(source);
+  assert.equal(widevine.drm?.scheme, "widevine");
+  assert.equal(widevine.drm?.licenseUrl, "https://license.example/wv");
+  assert.deepEqual(widevine.drm?.licenseHeaders, { Authorization: "Bearer license", "X-License": "one" });
+  assert.deepEqual(widevine.headers, {});
+  assert.equal(playready.drm?.scheme, "playready");
+  assert.equal(playready.drm?.licenseUrl, "https://license.example/pr");
+});
+
+test("supports inline LicenseURL and DRM fields in a stream URL", () => {
+  const [channel] = parseM3U(`#EXTM3U
+#EXTINF:-1,ClearKey URL
+https://stream.example/live.mpd|User-Agent=IPTVPlayer%2F1&drmScheme=clearkey&drmLicense=https%3A%2F%2Flicense.example%2Fck`);
+  assert.equal(channel.headers["User-Agent"], "IPTVPlayer/1");
+  assert.equal(channel.drm?.licenseUrl, "https://license.example/ck");
 });
 
 test("parses JSON playlist envelopes, IPTV aliases, headers and relative stream URLs", () => {
@@ -154,7 +198,7 @@ test("playback request policy scopes stream headers to the manifest origin", () 
     rawAttributes: {}
   };
   assert.deepEqual(streamHeadersForRequest(channel, "https://origin.example/live/segment.ts"), {
-    Authorization: "Bearer stream", "X-Token": "abc"
+    Authorization: "Bearer stream", Referer: "https://origin.example/", "X-Token": "abc", Cookie: "sid=secret"
   });
   assert.deepEqual(streamHeadersForRequest(channel, "https://cdn.example/segment.ts"), {});
   assert.deepEqual(streamHeadersForRequest(channel, "http://origin.example/segment.ts"), {});
@@ -280,4 +324,13 @@ test("parses LiveTGTV current, next and upcoming guide data with Unix-second tim
   assert.equal(programs[0].description, "On now");
   assert.equal(programs[2].title, "Later");
   assert.equal(parseLiveTgGuide({ error: "Channel guide unavailable" }, "144").length, 0);
+});
+
+test("builds Vega-compatible Shaka key-system configurations", () => {
+  assert.deepEqual(shakaDrmConfiguration({ scheme: "playready", licenseUrl: "https://license.example/pr" }), {
+    drm: { preferredKeySystems: ["com.microsoft.playready"], servers: { "com.microsoft.playready": "https://license.example/pr" } }
+  });
+  assert.deepEqual(shakaDrmConfiguration({ scheme: "fairplay", licenseUrl: "https://license.example/fp" }), {
+    drm: { preferredKeySystems: ["com.apple.fps"], servers: { "com.apple.fps": "https://license.example/fp" } }
+  });
 });
