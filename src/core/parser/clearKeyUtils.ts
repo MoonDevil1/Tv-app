@@ -94,8 +94,15 @@ export function normalizeClearKeyLicenseResponse(data: Uint8Array): Uint8Array |
         String(item.k ?? item.key ?? "")
       ]));
     } else if (parsed && typeof parsed === "object") {
-      if (Array.isArray(parsed.keys)) input = raw;
-      else if (parsed.keys && typeof parsed.keys === "object") input = parsed.keys as Record<string, string>;
+      if (Array.isArray(parsed.keys)) {
+        const entries = parsed.keys.filter((item): item is Record<string, unknown> => !!item && typeof item === "object");
+        input = entries.every(item => item.kty === "oct" && typeof item.kid === "string" && typeof item.k === "string")
+          ? raw
+          : Object.fromEntries(entries.map(item => [
+            String(item.kid ?? item.keyId ?? item.key_id ?? ""),
+            String(item.k ?? item.key ?? "")
+          ]));
+      } else if (parsed.keys && typeof parsed.keys === "object") input = parsed.keys as Record<string, string>;
       else if ((parsed.keyId ?? parsed.kid) && (parsed.key ?? parsed.k)) {
         input = { [String(parsed.keyId ?? parsed.kid)]: String(parsed.key ?? parsed.k) };
       } else if (typeof parsed.license === "string") input = parsed.license;
