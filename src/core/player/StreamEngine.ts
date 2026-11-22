@@ -32,7 +32,7 @@ export class StreamEngine {
     this.options.onState?.("loading");
     try {
       await window.tvApp?.setStreamRequestContext({ originUrl: channel.url, headers: channel.headers });
-      if (channel.manifestType === "dash" || /\.mpd(?:$|[?#])/i.test(channel.url)) await this.playDash(video, channel, generation, abortController.signal);
+      if (channel.drm || channel.manifestType === "dash" || /\.mpd(?:$|[?#])/i.test(channel.url)) await this.playDash(video, channel, generation, abortController.signal);
       else if (channel.manifestType === "progressive" || /\.(?:mp4|m4v|webm|ogg)(?:$|[?#])/i.test(channel.url)) await this.playProgressive(video, channel, abortController.signal);
       else await this.playHls(video, channel, generation, abortController.signal);
       if (generation !== this.generation) return;
@@ -95,15 +95,27 @@ export class StreamEngine {
     const drmConfiguration = shakaDrmConfiguration(channel.drm);
     player.configure({ streaming: { bufferingGoal: 20, rebufferingGoal: 2, bufferBehind: 10, lowLatencyMode: false }, abr: { enabled: true } });
     if (drmConfiguration.drm) player.configure(drmConfiguration);
+    const requestTypes = shaka.net.NetworkingEngine.RequestType;
     player.getNetworkingEngine()?.registerRequestFilter((type, request) => {
       if (generation !== this.generation) return;
-      const streamHeaders = headersForRequestUris(request.uris, uri => streamHeadersForRequest(channel, uri));
-      Object.assign(request.headers, streamHeaders);
-      if (type === shaka.net.NetworkingEngine.RequestType.LICENSE) {
-        const licenseHeaders = headersForRequestUris(request.uris, uri => licenseHeadersForRequest(channel.drm, uri));
-        Object.assign(request.headers, licenseHeaders);
+      if (type === requestTypes.MANIFEST || type === requestTypes.SEGMENT) {
+        Object.assign(request.headers, headersForRequestUris(request.uris, uri => streamHeadersForRequest(channel, uri)));
+      } else if (type === requestTypes.LICENSE) {
+        Object.assign(request.headers, headersForRequestUris(request.uris, uri => licenseHeadersForRequest(channel.drm, uri)));
       }
     });
+    if (channel.drm?.base64Certificate) {
+      player.getNetworkingEngine()?.registerResponseFilter((type, response) => {
+        if (type !== requestTypes.SERVER_CERTIFICATE) return;
+        const encoded = new TextDecoder().decode(response.data).trim().replace(/^data:[^,]*,/, "");
+        try {
+          const binary = atob(encoded);
+          response.data = Uint8Array.from(binary, character => character.charCodeAt(0));
+        } catch {
+          throw new Error("The DRM server certificate was not valid base64 data.");
+        }
+      });
+    }
     player.addEventListener("error", event => {
       if (generation !== this.generation) return;
       const detail = (event as Event & { detail?: { code?: number; data?: unknown[] } }).detail;
