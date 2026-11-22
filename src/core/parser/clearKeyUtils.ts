@@ -80,8 +80,9 @@ export function clearKeyJwk(keys: Record<string, string>): string {
 }
 
 /** Convert non-standard ClearKey license bodies into the JWK response Shaka expects. */
-export function normalizeClearKeyLicenseResponse(data: Uint8Array): Uint8Array | null {
-  const raw = new TextDecoder().decode(data).trim();
+export function normalizeClearKeyLicenseResponse(data: ArrayBuffer | ArrayBufferView<ArrayBufferLike>): Uint8Array | null {
+  const bytes = data instanceof ArrayBuffer ? new Uint8Array(data) : new Uint8Array(data.buffer, data.byteOffset, data.byteLength);
+  const raw = new TextDecoder().decode(bytes).trim();
   if (!raw) return null;
   let input: string | Record<string, string> = raw;
   try {
