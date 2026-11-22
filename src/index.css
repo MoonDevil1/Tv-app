@@ -25,3 +25,4 @@
 :root[data-theme="dark"] .error-message{color:#ffb6ad;background:#382322;border-color:#68403d}
 @media(max-width:1050px){.channel-grid{grid-template-columns:1fr}.channel-toolbar{flex-wrap:wrap}.channel-search{flex-basis:100%}}
 @media(max-width:820px){.import-grid{grid-template-columns:1fr}.channel-toolbar select{flex:1;max-width:none}.playlist-row-info small:first-of-type{max-width:48vw}}
+.playlist-refresh-select{max-width:125px;padding:7px 6px;color:var(--muted);background:var(--surface);border:1px solid var(--border);border-radius:5px;font-size:9px}@media(max-width:1050px){.playlist-refresh-select{max-width:95px}}
