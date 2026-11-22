@@ -36,7 +36,8 @@ function PlaylistManager() {
   const addPlaylist = useAppStore(state => state.addPlaylist), replacePlaylist = useAppStore(state => state.replacePlaylist), removePlaylist = useAppStore(state => state.removePlaylist);
   const [url,setUrl] = useState(""), [name,setName] = useState(""), [headersText,setHeadersText] = useState("{}"), [paste,setPaste] = useState("");
   const [error,setError] = useState(""), [busy,setBusy] = useState(false), [busyId,setBusyId] = useState("");
-  const fileRef = useRef<HTMLInputElement>(null);\n  const refreshing = useRef(new Set<string>());
+  const fileRef = useRef<HTMLInputElement>(null);
+  const refreshing = useRef(new Set<string>());
   const importContent = async (text:string, source:string, customName:string, headers:Record<string,string> = {}) => {
     const parsed = await addLiveTgTvFallbacks(parsePlaylistText(text,source,customName));
     parsed.refreshIntervalMs = settings.defaultRefreshIntervalMs;
@@ -63,7 +64,7 @@ function PlaylistManager() {
     finally { setBusy(false); if(fileRef.current) fileRef.current.value=""; }
   };
   const refresh = async (playlist:Playlist, background = false) => {
-    if (refreshing.current.has(playlist.id) || !/^https?:\\/\\//i.test(playlist.source)) return;
+    if (refreshing.current.has(playlist.id) || !(playlist.source.startsWith("http://") || playlist.source.startsWith("https://"))) return;
     refreshing.current.add(playlist.id);
     if (!background) { setBusyId(playlist.id); setError(""); }
     try {
@@ -78,7 +79,7 @@ function PlaylistManager() {
       const now = Date.now();
       for (const playlist of useAppStore.getState().playlists) {
         const lastRefresh = playlist.refreshedAt ?? playlist.importedAt;
-        if (playlist.refreshIntervalMs > 0 && /^https?:\\/\\//i.test(playlist.source) && now - lastRefresh >= playlist.refreshIntervalMs) void refresh(playlist, true);
+        if (playlist.refreshIntervalMs > 0 && (playlist.source.startsWith("http://") || playlist.source.startsWith("https://")) && now - lastRefresh >= playlist.refreshIntervalMs) void refresh(playlist, true);
       }
     }, 15000);
     return () => window.clearInterval(timer);
