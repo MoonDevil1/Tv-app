@@ -56,6 +56,6 @@ https://live.example/zee.mpd`, "https://livetgtv.lovable.app/api/public/playlist
     assert.equal(result.channels[0].sources[1].label, "LiveTGTV backup");
   } finally {
     if (original) Object.defineProperty(globalThis, "window", original);
-    else delete (globalThis as typeof globalThis & { window?: Window }).window;
+    else Reflect.deleteProperty(globalThis, "window");
   }
 });
