@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";\nimport type { WheelEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { WheelEvent } from "react";
 import { ArrowLeft, ChevronDown, ChevronLeft, ChevronRight, Heart, Maximize, Monitor, Pause, PictureInPicture, Play, Settings2, Volume2, VolumeX } from "lucide-react";
 import type { Playlist, TvChannel, EpgProgramme } from "../app/models";
 import { useAppStore, channelKey } from "../app/store";
@@ -52,8 +53,8 @@ export default function LivePlayer({ playlist, channel: initialChannel, onClose,
   const programme = currentProgrammes(guide, channel);
 
   const cleanup = useCallback(async () => {
-    generationRef.current++;
-    videoRef.current?.pause();\n    try { await shakaRef.current?.destroy(); } catch {}
+    videoRef.current?.pause();
+    try { await shakaRef.current?.destroy(); } catch {}
     shakaRef.current = null;
     try { hlsRef.current?.destroy(); } catch {}
     hlsRef.current = null;
