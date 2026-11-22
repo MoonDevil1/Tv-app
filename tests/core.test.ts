@@ -20,6 +20,23 @@ https://cdn.example/live/index.mpd
 #EXTINF:-1 tvg-name="Radio" group-title="Audio",Radio
 https://cdn.example/radio/index.m3u8|Referer=https://provider.example`;
 
+test("parses Kodi Widevine license URLs and keeps license headers separate from stream headers", () => {
+  const source = `#EXTM3U
+#EXTINF:-1,Protected channel
+#KODIPROP:inputstream.adaptive.manifest_type=mpd
+#KODIPROP:inputstream.adaptive.license_type=com.widevine.alpha
+#KODIPROP:inputstream.adaptive.license_key=https://license.example/wv|Authorization=Bearer%20license&Content-Type=application%2Foctet-stream|
+#EXTVLCOPT:http-user-agent=StreamAgent
+https://cdn.example/live/channel.mpd`;
+  const [channel] = parseM3U(source);
+  assert.equal(channel.drm?.scheme, "widevine");
+  assert.equal(channel.drm?.licenseUrl, "https://license.example/wv");
+  assert.deepEqual(channel.drm?.licenseHeaders, {
+    Authorization: "Bearer license", "Content-Type": "application/octet-stream"
+  });
+  assert.deepEqual(channel.headers, { "User-Agent": "StreamAgent" });
+});
+
 test("parses channel metadata, DASH, multiple ClearKeys and per-channel headers", () => {
   const channels = parseM3U(sample);
   assert.equal(channels.length, 2);
@@ -190,7 +207,8 @@ test("license headers are sent only to the configured license server", () => {
 
 test("builds ClearKey and Widevine Shaka DRM configurations", () => {
   const keys = { "ABEiM0RVZneImaq7zN3u_w": "ABEiM0RVZneImaq7zN3u_w" };
-  assert.deepEqual(shakaDrmConfiguration({ scheme: "clearkey", clearKeys: keys }), { drm: { clearKeys: keys } });
+  const hexKeys = { [KID]: KID };
+  assert.deepEqual(shakaDrmConfiguration({ scheme: "clearkey", clearKeys: keys }), { drm: { clearKeys: hexKeys } });
   assert.deepEqual(shakaDrmConfiguration({ scheme: "clearkey", licenseUrl: "https://license.example/ck" }), {
     drm: { servers: { "org.w3.clearkey": "https://license.example/ck" } }
   });
