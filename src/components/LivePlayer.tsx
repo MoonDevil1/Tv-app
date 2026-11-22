@@ -107,8 +107,12 @@ export default function LivePlayer({ playlist, channel: initialChannel, onClose,
           abr: { enabled: preferredQuality === "auto" },
           drm: source.drm?.scheme === "clearkey" ? { clearKeys: source.drm.clearKeys ?? {} } : source.drm?.licenseUrl ? { servers: { [source.drm.scheme === "widevine" ? "com.widevine.alpha" : source.drm.scheme]: source.drm.licenseUrl } } : {}
         });
+        const mediaOrigin = new URL(source.url).origin;
+        const licenseOrigin = source.drm?.licenseUrl ? new URL(source.drm.licenseUrl).origin : "";
         player.getNetworkingEngine()?.registerRequestFilter((type: number, request: any) => {
           const isLicense = type === shaka.net.NetworkingEngine.RequestType.LICENSE;
+          const expectedOrigin = isLicense ? licenseOrigin : mediaOrigin;
+          if (!expectedOrigin || !(request.uris ?? []).some((uri: string) => { try { return new URL(uri).origin === expectedOrigin; } catch { return false; } })) return;
           const requestHeaders = isLicense ? source.drm?.licenseHeaders ?? {} : source.headers;
           for (const [key, value] of Object.entries(requestHeaders)) request.headers[key] = value;
         });
