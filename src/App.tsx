@@ -5,6 +5,7 @@ import { PlaylistManager } from "./core/parser/playlistManager";
 import { parseXmltv, currentAndNext } from "./core/epg/xmltv";
 import { useAppStore } from "./core/store/appStore";
 import { Player } from "./components/Player";
+import { resolveLiveTgTvChannel } from "./core/player/liveTgTvResolver";
 
 const LIVE_TGTV_URL = "https://livetgtv.lovable.app/api/public/playlist.m3u";
 const REFRESH_OPTIONS = [{ label: "Manual", value: 0 }, { label: "1 minute", value: 60000 }, { label: "5 minutes", value: 300000 }, { label: "15 minutes", value: 900000 }, { label: "1 hour", value: 3600000 }];
@@ -153,19 +154,27 @@ export default function App() {
     finally { setEpgBusy(false); }
   }
   function selectChannel(playlistId: string, channel: Channel) { setSelectedChannel({ playlistId, channel }); recordWatch(playlistId, channel); }
+  const resolveLiveTgChannel = useCallback(async (channel: Channel): Promise<Channel | null> => {
+    const ownerId = selectedPlaylistIdRef.current;
+    const owner = playlistsRef.current.find(item => item.id === ownerId && item.channels.some(candidate => candidate.id === channel.id));
+    if (!owner || owner.source.split("?")[0] !== LIVE_TGTV_URL || !channel.tvgId || !/^\d+$/.test(channel.tvgId)) return null;
+    if (!window.tvApp?.fetchRemoteText) return null;
+    return resolveLiveTgTvChannel(channel, window.tvApp.fetchRemoteText, window.tvApp.cancelRemoteText);
+  }, []);
   const recoverChannel = useCallback(async (channel: Channel) => {
+    const resolved = await resolveLiveTgChannel(channel);
+    if (resolved) return resolved;
     const ownerId = selectedPlaylistIdRef.current;
     const owner = playlistsRef.current.find(item => item.id === ownerId && item.channels.some(candidate => candidate.id === channel.id));
     if (!owner) return null;
     try {
-      // Refresh the authoritative M3U so the replacement retains every KID, cookie and request header.
       const refreshed = await manager.refresh(owner.id);
       replacePlaylist(refreshed);
       return refreshed.channels.find(candidate => candidate.id === channel.id)
         ?? (channel.tvgId ? refreshed.channels.find(candidate => candidate.tvgId === channel.tvgId) : null)
         ?? null;
     } catch { return null; }
-  }, [manager, replacePlaylist]);
+  }, [manager, replacePlaylist, resolveLiveTgChannel]);
   const playerChannels = selectedChannel
     ? playlists.find(item => item.id === selectedChannel.playlistId)?.channels ?? []
     : [];
@@ -235,7 +244,7 @@ export default function App() {
         <footer className="page-footer"><span>TG IPTV <i>·</i> Built for the big screen</span><span><kbd>?</kbd> Keyboard shortcuts <i>·</i> Version 2.0.1</span></footer>
       </section>
     </main>
-    {selectedChannel && <Player channel={selectedChannel.channel} channels={playerChannels} onClose={() => setSelectedChannel(null)} onChangeChannel={next => { setSelectedChannel({ playlistId: selectedChannel.playlistId, channel: next }); recordWatch(selectedChannel.playlistId, next); }} onRecover={recoverChannel} />}
+    {selectedChannel && <Player channel={selectedChannel.channel} channels={playerChannels} onClose={() => setSelectedChannel(null)} onChangeChannel={next => { setSelectedChannel({ playlistId: selectedChannel.playlistId, channel: next }); recordWatch(selectedChannel.playlistId, next); }} onRecover={recoverChannel} onResolve={resolveLiveTgChannel} />}
     <input ref={fileInput} type="file" accept=".m3u,.m3u8,.txt,.json,application/json,audio/x-mpegurl,application/vnd.apple.mpegurl" hidden onChange={onFileChange} />
     <>{showAdd && <div className="modal-backdrop" onMouseDown={e => { if (e.target === e.currentTarget && !busy) setShowAdd(false); }}>
       <div className="add-modal">
