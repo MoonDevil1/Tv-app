@@ -39,5 +39,5 @@ export const useAppStore = create<AppState>()(persist((set) => ({
   setGuide: guide => set({ guide })
 }), {
   name: "tg-iptv-rebuild-v1", storage: createJSONStorage(() => localStorage),
-  partialize: state => ({ activeSection: state.activeSection, settings: state.settings, favorites: state.favorites, recentChannels: state.recentChannels })
+  partialize: state => ({ activeSection: state.activeSection, settings: state.settings, playlists: state.playlists, favorites: state.favorites, recentChannels: state.recentChannels })
 }));
