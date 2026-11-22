@@ -95,6 +95,17 @@ export class StreamEngine {
     const drmConfiguration = shakaDrmConfiguration(channel.drm);
     player.configure({ streaming: { bufferingGoal: 20, rebufferingGoal: 2, bufferBehind: 10, lowLatencyMode: false }, abr: { enabled: true } });
     if (drmConfiguration.drm) player.configure(drmConfiguration);
+    if (channel.drm?.scheme === "fairplay" && channel.drm.contentId) {
+      const contentId = channel.drm.contentId;
+      player.configure({
+        drm: {
+          initDataTransform: (data: Uint8Array, type: string, info: { serverCertificate: Uint8Array | null } | null) =>
+            type === "skd"
+              ? shaka.drm.FairPlay.initDataTransform(data, contentId, info?.serverCertificate ?? null)
+              : data
+        }
+      });
+    }
     const requestTypes = shaka.net.NetworkingEngine.RequestType;
     player.getNetworkingEngine()?.registerRequestFilter((type, request) => {
       if (generation !== this.generation) return;
