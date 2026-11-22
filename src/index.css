@@ -272,3 +272,24 @@ body{background:#f4f6fa;color:#202734}
 .update-progress>div{background:#356bc4}
 .add-button:hover,.primary-button:hover,.icon-button:hover,.small-icon-button:hover,.group-chip:hover,.nav-item:hover{transform:none}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;transition:none!important;animation:none!important}}
+
+
+.home-dashboard{max-width:1050px}
+.home-title-row{display:flex;align-items:center;gap:14px;margin:4px 0 24px}
+.home-title-row h1{font:600 28px "Segoe UI",Roboto,Arial,sans-serif;letter-spacing:-.5px;color:#202734;margin:0}
+.home-title-row>span{font-size:11px;color:#6e7b8e;background:#e8edf4;border-radius:14px;padding:5px 10px}
+.home-tiles{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.home-tile{display:flex;align-items:center;gap:13px;min-width:0;min-height:82px;padding:14px 16px;border:1px solid #e1e6ed;border-radius:8px;background:#fff;color:#273243;text-align:left}
+.home-tile:hover{border-color:#aec5ed;background:#fafdff}
+.home-tile-icon{width:42px;height:42px;flex:0 0 42px;display:grid;place-items:center;background:#edf3fd;color:#356bc4;border-radius:8px}
+.home-favorites .home-tile-icon{background:#fff8e5}
+.home-tile>div:nth-child(2){min-width:0;flex:1}
+.home-tile b,.home-tile span,.home-tile small{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.home-tile b{font-size:13px;font-weight:600;color:#273243}
+.home-tile span{font-size:10px;color:#748094;margin-top:5px}
+.home-tile small{font-size:9px;color:#929cab;margin-top:4px}
+.home-tile>svg{color:#8b96a5;transform:rotate(-90deg)}
+.home-add-playlist{border-style:dashed;background:#fafbfd}
+.home-add-playlist .home-tile-icon{background:#eef7f2;color:#42866a}
+.home-empty{margin-top:22px}
+@media(max-width:900px){.home-tiles{grid-template-columns:1fr}}
