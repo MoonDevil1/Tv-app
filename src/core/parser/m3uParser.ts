@@ -34,7 +34,7 @@ function parseHeaderValue(value: string): StreamHeaders {
   catch {
     const headers: StreamHeaders = {};
     for (const [name, headerValue] of new URLSearchParams(value.replace(/&amp;/g, "&"))) {
-      if (name && !/[\\r\\n:]/.test(name) && !/[\\r\\n]/.test(headerValue)) headers[name] = unescapeValue(headerValue);
+      if (name && !/[\r\n:]/.test(name) && !/[\r\n]/.test(headerValue)) headers[name] = unescapeValue(headerValue);
     }
     if (!Object.keys(headers).length) {
       const separator = value.indexOf("=");
@@ -61,7 +61,7 @@ function parseKodiLicense(value: string): { license: string; headers: StreamHead
   const [license, rawHeaders = ""] = value.split("|", 2);
   const headers: StreamHeaders = {};
   for (const [name, headerValue] of new URLSearchParams(rawHeaders.replace(/&amp;/g, "&"))) {
-    if (name && !/[\\r\\n:]/.test(name) && !/[\\r\\n]/.test(headerValue)) headers[name] = headerValue;
+    if (name && !/[\r\n:]/.test(name) && !/[\r\n]/.test(headerValue)) headers[name] = headerValue;
   }
   return { license: license.trim(), headers };
 }
