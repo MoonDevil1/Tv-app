@@ -40,7 +40,6 @@ export default function LivePlayer({ playlist, channel: initialChannel, onClose,
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const [volumeVisible, setVolumeVisible] = useState(false);
-  const [fullscreen, setFullscreen] = useState(false);
   const [search, setSearch] = useState("");
   const [nowNext, setNowNext] = useState(() => currentProgrammes(useAppStore.getState().guide, initialChannel));
   const guide = useAppStore(state => state.guide);
@@ -50,7 +49,6 @@ export default function LivePlayer({ playlist, channel: initialChannel, onClose,
   const preferredQuality = useAppStore(state => state.settings.preferredQuality);
   const filteredChannels = useMemo(() => channels.filter(item => !search || item.name.toLowerCase().includes(search.toLowerCase())), [channels, search]);
   const isFavorite = favorites.includes(channelKey(playlist.id, channel.id));
-  const programme = currentProgrammes(guide, channel);
 
   const cleanup = useCallback(async () => {
     videoRef.current?.pause();
