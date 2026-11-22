@@ -90,7 +90,8 @@ export async function fetchRemoteText(
         if (next.origin !== current.origin) {
           headers.delete("authorization");
           headers.delete("proxy-authorization");
-          headers.delete("cookie");\n          headers.delete("origin");
+          headers.delete("cookie");
+          headers.delete("origin");
         }
         current = next;
         continue;
