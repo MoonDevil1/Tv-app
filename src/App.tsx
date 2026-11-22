@@ -3,7 +3,8 @@ import type { ReactNode } from "react";
 import { CalendarDays, ChevronRight, CircleHelp, Clock3, FileUp, Heart, History, ListVideo, Menu, Moon, Play, Radio, RefreshCw, Search, Settings, Sun, Trash2, Tv2, Upload } from "lucide-react";
 import { useAppStore, channelKey } from "./app/store";
 import type { AppSection, AppSettings, Playlist, ThemeMode } from "./app/models";
-import { addLiveTgTvFallbacks, fetchPlaylistText, LIVE_TGTV_SOURCE, parsePlaylistText } from "./core/playlist/parser";\nimport LivePlayer from "./components/LivePlayer";
+import { addLiveTgTvFallbacks, fetchPlaylistText, LIVE_TGTV_SOURCE, parsePlaylistText } from "./core/playlist/parser";
+import LivePlayer from "./components/LivePlayer";
 
 const navigation: Array<{ section: AppSection; icon: typeof Tv2; group: "watch" | "manage" }> = [
   { section: "Home", icon: Tv2, group: "watch" }, { section: "Live TV", icon: Radio, group: "watch" },
@@ -114,7 +115,11 @@ function ChannelLibrary({ mode, onPlay }: { mode: "all" | "favorites"; onPlay: (
 function App() {
   const activeSection=useAppStore(state=>state.activeSection),setActiveSection=useAppStore(state=>state.setActiveSection);
   const settings=useAppStore(state=>state.settings),playlists=useAppStore(state=>state.playlists),favorites=useAppStore(state=>state.favorites);
-  const [navigationOpen,setNavigationOpen]=useState(false);\n  const [activePlayback,setActivePlayback]=useState<{playlistId:string;channelId:string}|null>(null);\n  const selectedPlaylist=activePlayback ? playlists.find(item=>item.id===activePlayback.playlistId) : undefined;\n  const selectedChannel=selectedPlaylist?.channels.find(item=>item.id===activePlayback?.channelId);\n  const openPlayer=(playlist:Playlist,channel:import("./app/models").TvChannel)=>setActivePlayback({playlistId:playlist.id,channelId:channel.id});
+  const [navigationOpen,setNavigationOpen]=useState(false);
+  const [activePlayback,setActivePlayback]=useState<{playlistId:string;channelId:string}|null>(null);
+  const selectedPlaylist=activePlayback ? playlists.find(item=>item.id===activePlayback.playlistId) : undefined;
+  const selectedChannel=selectedPlaylist?.channels.find(item=>item.id===activePlayback?.channelId);
+  const openPlayer=(playlist:Playlist,channel:import("./app/models").TvChannel)=>setActivePlayback({playlistId:playlist.id,channelId:channel.id});
   useEffect(()=>{document.documentElement.dataset.theme=settings.theme;},[settings.theme]);
   useEffect(()=>{const close=(e:KeyboardEvent)=>{if(e.key==="Escape")setNavigationOpen(false);};window.addEventListener("keydown",close);return()=>window.removeEventListener("keydown",close);},[]);
   const channelsCount=playlists.reduce((total,p)=>total+p.channels.length,0);
@@ -129,6 +134,7 @@ function App() {
     </aside>
     <div className="main-column"><header className="app-bar"><div className="app-bar-title"><button className="menu-button" onClick={()=>setNavigationOpen(v=>!v)} aria-label="Toggle navigation"><Menu size={21}/></button><span>IPTV <i>/</i> {activeSection}</span></div><div className="app-bar-actions"><span className="platform-label"><span/> Windows Desktop</span></div></header>
       <main className="page-container">
+        {selectedPlaylist && selectedChannel ? <LivePlayer playlist={selectedPlaylist} channel={selectedChannel} onClose={()=>setActivePlayback(null)} onSelect={channel=>setActivePlayback({playlistId:selectedPlaylist.id,channelId:channel.id})}/> : <>
         {activeSection==="Home"&&<><PageHeading title="Welcome to TG IPTV" subtitle="Your television library, playlists and programme guide in one place."/><div className="overview-cards">
           <button className="overview-card" onClick={()=>openSection("Live TV")}><span className="overview-icon"><Radio size={21}/></span><b>{channelsCount.toLocaleString()}</b><small>Channels available</small><span className="card-link">Open Live TV <ChevronRight size={15}/></span></button>
           <button className="overview-card" onClick={()=>openSection("Playlists")}><span className="overview-icon"><ListVideo size={21}/></span><b>{playlists.length}</b><small>Connected playlists</small><span className="card-link">Manage playlists <ChevronRight size={15}/></span></button>
@@ -140,6 +146,7 @@ function App() {
         {activeSection==="History"&&<><PageHeading title="Recently watched" subtitle="Quickly return to the channels you watched recently."/><EmptyState icon={History} title="Viewing history is part of the player phase" detail="Recently played channels will appear here after playback is implemented."/></>}
         {activeSection==="Playlists"&&<PlaylistManager/>}
         {activeSection==="Settings"&&<SettingsPage/>}
+        </>}
       </main><footer className="app-footer"><span>TG IPTV Desktop</span><span>Windows edition <i>•</i> Live player</span></footer>
     </div>
   </div>;
