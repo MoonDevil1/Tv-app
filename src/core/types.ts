@@ -40,7 +40,7 @@ declare global {
       openFeedbackReport(report: Record<string, unknown>): Promise<{ opened: boolean }>;
       fetchRemoteText(url: string, headers?: StreamHeaders, requestId?: string): Promise<{ text: string; url: string; status: number }>;
       cancelRemoteText(requestId: string): Promise<{ cancelled: boolean }>;
-      setStreamRequestContext(context: { originUrl: string; headers: Record<string, string> } | null): Promise<{ active: boolean }>;
+      setStreamRequestContext(context: { originUrl: string; headers: Record<string, string>; licenseUrl?: string; licenseHeaders?: StreamHeaders } | null): Promise<{ active: boolean }>;
       getUpdateState(): Promise<DesktopUpdateState>;
       checkForUpdates(): Promise<{ accepted: boolean }>;
       downloadUpdate(): Promise<{ accepted: boolean }>;
