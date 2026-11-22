@@ -263,9 +263,12 @@ export function parseJsonPlaylist(input: unknown, baseUrl?: string): Channel[] {
     let drm = undefined;
     if (licenseValue && typeof licenseValue === "object") {
       try {
+        const keyObject = licenseValue as Record<string, unknown>;
         const keys = Array.isArray(licenseValue)
           ? parseClearKeys(JSON.stringify({ keys: licenseValue }))
-          : parseClearKeys(licenseValue as Record<string, string>);
+          : Array.isArray(keyObject.keys)
+            ? parseClearKeys(JSON.stringify(keyObject))
+            : parseClearKeys(licenseValue as Record<string, string>);
         drm = createDrmConfig(drmType || "clearkey", undefined, licenseHeaders, extras);
         if (drm) drm = { ...drm, clearKeys: keys };
       } catch { drm = undefined; }
