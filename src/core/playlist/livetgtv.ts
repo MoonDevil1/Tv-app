@@ -40,7 +40,9 @@ function manifest(url: string, fallback: ChannelSource["type"] = "unknown"): Cha
 }
 export async function resolveLiveTgTvChannel(channel: TvChannel): Promise<TvChannel> {
   const id = (channel.id.match(/^(?:liveid|tvg):(.+)$/)?.[1] ?? channel.tvgId ?? "").trim();
-  if (!id || channel.id.startsWith("name:")) return channel;\n  const hasAuth = Object.keys(channel.sources[0]?.headers ?? {}).some(key => /^(?:cookie|authorization)$/i.test(key));\n  if (channel.requiresAuthorization && !hasAuth) return { ...channel, sources: [] };
+  if (!id || channel.id.startsWith("name:")) return channel;
+  const hasAuth = Object.keys(channel.sources[0]?.headers ?? {}).some(key => /^(?:cookie|authorization)$/i.test(key));
+  if (channel.requiresAuthorization && !hasAuth) return { ...channel, sources: [] };
   try {
     const { text } = await fetchPlaylistText(API + "/" + encodeURIComponent(id), { Accept: "application/json", "Cache-Control": "no-cache", "User-Agent": "Vega-LiveTGTV/1.0" });
     const details = JSON.parse(text) as ApiDetails;
