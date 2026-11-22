@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 import { CalendarDays, ChevronRight, CircleHelp, Clock3, FileUp, Heart, History, ListVideo, Menu, Moon, Radio, RefreshCw, Search, Settings, Sun, Trash2, Tv2, Upload } from "lucide-react";
 import { useAppStore, channelKey } from "./app/store";
 import type { AppSection, AppSettings, Playlist, ThemeMode, TvChannel } from "./app/models";
-import { fetchPlaylistText, LIVE_TGTV_SOURCE, parsePlaylistText } from "./core/playlist/parser";
+import { addLiveTgTvFallbacks, fetchPlaylistText, LIVE_TGTV_SOURCE, parsePlaylistText } from "./core/playlist/parser";
 
 const navigation: Array<{ section: AppSection; icon: typeof Tv2; group: "watch" | "manage" }> = [
   { section: "Home", icon: Tv2, group: "watch" }, { section: "Live TV", icon: Radio, group: "watch" },
@@ -38,7 +38,7 @@ function PlaylistManager() {
   const [error,setError] = useState(""), [busy,setBusy] = useState(false), [busyId,setBusyId] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
   const importContent = async (text:string, source:string, customName:string, headers:Record<string,string> = {}) => {
-    const parsed = parsePlaylistText(text,source,customName);
+    const parsed = await addLiveTgTvFallbacks(parsePlaylistText(text,source,customName));
     parsed.refreshIntervalMs = settings.defaultRefreshIntervalMs;
     parsed.requestHeaders = headers;
     addPlaylist(parsed);
@@ -66,7 +66,7 @@ function PlaylistManager() {
     setBusyId(playlist.id); setError("");
     try {
       const result=await fetchPlaylistText(playlist.source,playlist.requestHeaders);
-      const updated=parsePlaylistText(result.text,result.finalUrl,playlist.name);
+      const updated=await addLiveTgTvFallbacks(parsePlaylistText(result.text,result.finalUrl,playlist.name));
       replacePlaylist({...updated,id:playlist.id,name:playlist.name,importedAt:playlist.importedAt,refreshedAt:Date.now(),refreshIntervalMs:playlist.refreshIntervalMs,requestHeaders:playlist.requestHeaders});
     } catch(e) { setError(`Could not refresh ${playlist.name}: ${e instanceof Error ? e.message : "network error"}`); }
     finally { setBusyId(""); }
