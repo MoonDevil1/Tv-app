@@ -36,7 +36,7 @@ function PlaylistManager() {
   const addPlaylist = useAppStore(state => state.addPlaylist), replacePlaylist = useAppStore(state => state.replacePlaylist), removePlaylist = useAppStore(state => state.removePlaylist);
   const [url,setUrl] = useState(""), [name,setName] = useState(""), [headersText,setHeadersText] = useState("{}"), [paste,setPaste] = useState("");
   const [error,setError] = useState(""), [busy,setBusy] = useState(false), [busyId,setBusyId] = useState("");
-  const fileRef = useRef<HTMLInputElement>(null);
+  const fileRef = useRef<HTMLInputElement>(null);\n  const refreshing = useRef(new Set<string>());
   const importContent = async (text:string, source:string, customName:string, headers:Record<string,string> = {}) => {
     const parsed = await addLiveTgTvFallbacks(parsePlaylistText(text,source,customName));
     parsed.refreshIntervalMs = settings.defaultRefreshIntervalMs;
@@ -62,15 +62,27 @@ function PlaylistManager() {
     catch(e) { setError(e instanceof Error ? e.message : "File import failed."); }
     finally { setBusy(false); if(fileRef.current) fileRef.current.value=""; }
   };
-  const refresh = async (playlist:Playlist) => {
-    setBusyId(playlist.id); setError("");
+  const refresh = async (playlist:Playlist, background = false) => {
+    if (refreshing.current.has(playlist.id) || !/^https?:\\/\\//i.test(playlist.source)) return;
+    refreshing.current.add(playlist.id);
+    if (!background) { setBusyId(playlist.id); setError(""); }
     try {
       const result=await fetchPlaylistText(playlist.source,playlist.requestHeaders);
       const updated=await addLiveTgTvFallbacks(parsePlaylistText(result.text,result.finalUrl,playlist.name));
       replacePlaylist({...updated,id:playlist.id,name:playlist.name,importedAt:playlist.importedAt,refreshedAt:Date.now(),refreshIntervalMs:playlist.refreshIntervalMs,requestHeaders:playlist.requestHeaders});
     } catch(e) { setError(`Could not refresh ${playlist.name}: ${e instanceof Error ? e.message : "network error"}`); }
-    finally { setBusyId(""); }
+    finally { refreshing.current.delete(playlist.id); if (!background) setBusyId(""); }
   };
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      const now = Date.now();
+      for (const playlist of useAppStore.getState().playlists) {
+        const lastRefresh = playlist.refreshedAt ?? playlist.importedAt;
+        if (playlist.refreshIntervalMs > 0 && /^https?:\\/\\//i.test(playlist.source) && now - lastRefresh >= playlist.refreshIntervalMs) void refresh(playlist, true);
+      }
+    }, 15000);
+    return () => window.clearInterval(timer);
+  }, []);
   return <><PageHeading title="Playlist manager" subtitle="Connect remote or local M3U, M3U8 and JSON playlists." action={<button className="secondary-button" onClick={() => void importUrl(LIVE_TGTV_SOURCE)} disabled={busy}><Radio size={15}/> Add LiveTGTV</button>} />
     <section className="import-panel"><div className="panel-heading"><h2>Add a playlist</h2><p>Use a playlist URL, paste its contents or select a local file.</p></div>
       <div className="import-grid"><label><span>Playlist URL</span><input value={url} onChange={e=>setUrl(e.target.value)} placeholder="https://example.com/playlist.m3u" /></label><label><span>Display name (optional)</span><input value={name} onChange={e=>setName(e.target.value)} placeholder="My IPTV playlist" /></label></div>
@@ -80,7 +92,7 @@ function PlaylistManager() {
       {error && <p className="error-message" role="alert">{error}</p>}
     </section>
     <section className="playlist-list-section"><div className="list-section-heading"><h2>Connected playlists</h2><span>{playlists.length}</span></div>
-      {playlists.length===0 ? <div className="compact-empty">No playlists added yet.</div> : playlists.map(playlist=><article className="playlist-row" key={playlist.id}><div className="playlist-row-icon"><ListVideo size={20}/></div><div className="playlist-row-info"><b>{playlist.name}</b><small>{playlist.channels.length.toLocaleString()} channels · {playlist.groups.length} groups · {playlist.source}</small><small>{playlist.refreshedAt ? "Last refreshed " + new Date(playlist.refreshedAt).toLocaleString() : "Imported " + new Date(playlist.importedAt).toLocaleString()}</small></div><button className="icon-button" title="Refresh playlist" disabled={busyId===playlist.id} onClick={()=>void refresh(playlist)}>{busyId===playlist.id ? <span className="spinner"/> : <RefreshCw size={16}/>}</button><button className="icon-button danger" title="Remove playlist" onClick={()=>removePlaylist(playlist.id)}><Trash2 size={16}/></button></article>)}
+      {playlists.length===0 ? <div className="compact-empty">No playlists added yet.</div> : playlists.map(playlist=><article className="playlist-row" key={playlist.id}><div className="playlist-row-icon"><ListVideo size={20}/></div><div className="playlist-row-info"><b>{playlist.name}</b><small>{playlist.channels.length.toLocaleString()} channels · {playlist.groups.length} groups · {playlist.source}</small><small>{playlist.refreshedAt ? "Last refreshed " + new Date(playlist.refreshedAt).toLocaleString() : "Imported " + new Date(playlist.importedAt).toLocaleString()}</small></div><select className="playlist-refresh-select" aria-label={"Refresh interval for " + playlist.name} value={playlist.refreshIntervalMs} onChange={e=>replacePlaylist({...playlist,refreshIntervalMs:Number(e.target.value)})}>{refreshOptions.map(option=><option value={option.value} key={option.value}>{option.label}</option>)}</select><button className="icon-button" title="Refresh playlist" disabled={busyId===playlist.id || !/^https?:\\/\\//i.test(playlist.source)} onClick={()=>void refresh(playlist)}>{busyId===playlist.id ? <span className="spinner"/> : <RefreshCw size={16}/>}</button><button className="icon-button danger" title="Remove playlist" onClick={()=>removePlaylist(playlist.id)}><Trash2 size={16}/></button></article>)}
     </section>
   </>;
 }
