@@ -31,7 +31,7 @@ export class StreamEngine {
     this.video = video;
     this.options.onState?.("loading");
     try {
-      await window.tvApp?.setStreamRequestContext({ originUrl: channel.url, headers: channel.headers });
+      await window.tvApp?.setStreamRequestContext({ originUrl: channel.url, headers: channel.headers, licenseUrl: channel.drm?.licenseUrl, licenseHeaders: channel.drm?.licenseHeaders });
       if (channel.drm || channel.manifestType === "dash" || /\.mpd(?:$|[?#])/i.test(channel.url)) await this.playDash(video, channel, generation, abortController.signal);
       else if (channel.manifestType === "progressive" || /\.(?:mp4|m4v|webm|ogg)(?:$|[?#])/i.test(channel.url)) await this.playProgressive(video, channel, abortController.signal);
       else await this.playHls(video, channel, generation, abortController.signal);
