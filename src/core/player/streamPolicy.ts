@@ -1,6 +1,12 @@
 import type { Channel, DrmConfig, StreamHeaders } from "../types";
 
-const BLOCKED_HEADERS = /^(?:accept-encoding|connection|content-length|cookie|host|origin|referer|te|trailer|transfer-encoding|upgrade|user-agent|proxy-|sec-)/i;
+const BLOCKED_HEADERS = /^(?:accept-encoding|connection|content-length|host|te|trailer|transfer-encoding|upgrade|proxy-|sec-)/i;
+const KEY_SYSTEMS = {
+  clearkey: "org.w3.clearkey",
+  widevine: "com.widevine.alpha",
+  playready: "com.microsoft.playready",
+  fairplay: "com.apple.fps"
+} as const;
 
 function originOf(value: string | undefined): string {
   if (!value) return "";
@@ -15,18 +21,18 @@ function originOf(value: string | undefined): string {
 function safeHeaders(headers?: StreamHeaders): StreamHeaders {
   const result: StreamHeaders = {};
   for (const [name, value] of Object.entries(headers ?? {})) {
-    if (!name.trim() || BLOCKED_HEADERS.test(name) || /[\r\n:]/.test(name) || /[\r\n]/.test(String(value))) continue;
+    if (!/^[!#$%&'*+.^_`|~0-9A-Za-z-]+$/.test(name) || BLOCKED_HEADERS.test(name) || /[\r\n]/.test(String(value))) continue;
     result[name] = String(value);
   }
   return result;
 }
 
-/** Stream credentials are sent only to the manifest's origin, never arbitrary CDN hosts. */
+/** User playlist headers are scoped to the stream origin, including User-Agent, Referer, Origin and Cookie. */
 export function streamHeadersForRequest(channel: Channel, requestUrl: string): StreamHeaders {
   return originOf(channel.url) && originOf(channel.url) === originOf(requestUrl) ? safeHeaders(channel.headers) : {};
 }
 
-/** License credentials are isolated to the configured license server. */
+/** License credentials are sent only to the configured license-server origin. */
 export function licenseHeadersForRequest(drm: DrmConfig | undefined, requestUrl: string): StreamHeaders {
   return drm?.licenseUrl && originOf(drm.licenseUrl) === originOf(requestUrl) ? safeHeaders(drm.licenseHeaders) : {};
 }
@@ -42,16 +48,26 @@ export function headersForRequestUris(
   return candidates.every(candidate => signature(candidate) === first) ? candidates[0] : {};
 }
 
-export function shakaDrmConfiguration(drm: DrmConfig | undefined): { drm?: { clearKeys?: Record<string, string>; servers?: Record<string, string> } } {
+export function shakaDrmConfiguration(drm: DrmConfig | undefined): {
+  drm?: {
+    preferredKeySystems: string[];
+    clearKeys?: Record<string, string>;
+    servers?: Record<string, string>;
+    advanced?: Record<string, { serverCertificateUri?: string }>;
+  };
+} {
   if (!drm) return {};
+  const keySystem = KEY_SYSTEMS[drm.scheme];
+  const configuration: NonNullable<ReturnType<typeof shakaDrmConfiguration>["drm"]> = {
+    preferredKeySystems: [keySystem]
+  };
   if (drm.scheme === "clearkey" && drm.clearKeys && Object.keys(drm.clearKeys).length) {
-    return { drm: { clearKeys: drm.clearKeys } };
+    configuration.clearKeys = drm.clearKeys;
+  } else if (drm.licenseUrl) {
+    configuration.servers = { [keySystem]: drm.licenseUrl };
   }
-  if (drm.scheme === "clearkey" && drm.licenseUrl) {
-    return { drm: { servers: { "org.w3.clearkey": drm.licenseUrl } } };
+  if (drm.certificateUrl) {
+    configuration.advanced = { [keySystem]: { serverCertificateUri: drm.certificateUrl } };
   }
-  if (drm.scheme === "widevine" && drm.licenseUrl) {
-    return { drm: { servers: { "com.widevine.alpha": drm.licenseUrl } } };
-  }
-  return {};
+  return { drm: configuration };
 }
