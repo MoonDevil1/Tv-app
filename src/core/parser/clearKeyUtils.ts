@@ -110,7 +110,11 @@ export function normalizeClearKeyLicenseResponse(data: ArrayBuffer | ArrayBuffer
       else if (typeof parsed.data === "string") input = parsed.data;
       else input = parsed as Record<string, string>;
     }
-    const keys = typeof input === "string" ? parseClearKeys(input) : parseClearKeys(input);
+  } catch {
+    // Raw comma-separated keyId:key responses are not JSON; parse them below.
+  }
+  try {
+    const keys = parseClearKeys(input);
     if (!Object.keys(keys).length) return null;
     return new TextEncoder().encode(clearKeyJwk(keys));
   } catch {
