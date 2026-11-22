@@ -123,6 +123,16 @@ test("accepts JWK arrays nested inside JSON DRM objects", () => {
   assert.equal(Object.keys(channels[0].drm?.clearKeys ?? {}).length, 1);
 });
 
+test("accepts JWK key arrays nested under the ClearKey map", () => {
+  const [channel] = parseJsonPlaylist({ channels: [{
+    name: "Nested JWK", url: "https://cdn.example/nested.mpd",
+    drm: { scheme: "clearkey", clearKeys: { keys: [
+      { kty: "oct", kid: "ABEiM0RVZneImaq7zN3u_w", k: "_-7dzLuqmYh3ZlVEMyIRAA" }
+    ] } }
+  }] });
+  assert.deepEqual(channel.drm?.clearKeys, { "ABEiM0RVZneImaq7zN3u_w": "_-7dzLuqmYh3ZlVEMyIRAA" });
+});
+
 test("auto-detects JSON and rejects unsupported or malformed input", () => {
   assert.equal(parsePlaylist(sample).length, 2);
   assert.equal(parsePlaylist(JSON.stringify([{ name: "one", url: "https://x.test/a.m3u8" }])).length, 1);
@@ -236,10 +246,10 @@ test("builds ClearKey and Widevine Shaka DRM configurations", () => {
   const keys = { "ABEiM0RVZneImaq7zN3u_w": "ABEiM0RVZneImaq7zN3u_w" };
   assert.deepEqual(shakaDrmConfiguration({ scheme: "clearkey", clearKeys: keys }), { drm: { preferredKeySystems: ["org.w3.clearkey"], clearKeys: keys } });
   assert.deepEqual(shakaDrmConfiguration({ scheme: "clearkey", licenseUrl: "https://license.example/ck" }), {
-    drm: { servers: { "org.w3.clearkey": "https://license.example/ck" } }
+    drm: { preferredKeySystems: ["org.w3.clearkey"], servers: { "org.w3.clearkey": "https://license.example/ck" } }
   });
   assert.deepEqual(shakaDrmConfiguration({ scheme: "widevine", licenseUrl: "https://license.example/wv" }), {
-    drm: { servers: { "com.widevine.alpha": "https://license.example/wv" } }
+    drm: { preferredKeySystems: ["com.widevine.alpha"], servers: { "com.widevine.alpha": "https://license.example/wv" } }
   });
   assert.deepEqual(shakaDrmConfiguration(undefined), {});
 });
