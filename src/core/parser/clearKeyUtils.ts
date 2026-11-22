@@ -1,4 +1,4 @@
-import type { DrmConfig } from "../types";
+import type { DrmConfig, DrmScheme, StreamHeaders } from "../types";
 
 const HEX_128 = /^[0-9a-f]{32}$/i;
 const BASE64URL = /^[A-Za-z0-9_-]+$/;
@@ -36,12 +36,15 @@ function parseJwk(raw: string): Record<string, string> {
     }
     keys[normalizeBase64Url(item.kid)] = normalizeBase64Url(item.k);
   }
+  if (!Object.keys(keys).length) throw new TypeError("ClearKey JWK contains no usable keys.");
   return keys;
 }
 
 export function parseClearKeys(input: string | Record<string, string>): Record<string, string> {
   if (typeof input !== "string") {
-    return Object.fromEntries(Object.entries(input).map(([kid, key]) => [normalizeKeyMaterial(kid), normalizeKeyMaterial(String(key))]));
+    return Object.fromEntries(Object.entries(input).map(([kid, key]) => [
+      normalizeKeyMaterial(kid), normalizeKeyMaterial(String(key))
+    ]));
   }
   const raw = input.trim();
   if (!raw) return {};
@@ -65,16 +68,49 @@ export function parseClearKeys(input: string | Record<string, string>): Record<s
   return keys;
 }
 
-export function createClearKeyDrm(type: string | undefined, license: string | undefined): DrmConfig | undefined {
-  if (!type && !license) return undefined;
-  const scheme = (type ?? "clearkey").toLowerCase();
-  if (scheme.includes("widevine")) return license ? { scheme: "widevine", licenseUrl: license.trim() } : { scheme: "widevine" };
-  if (!scheme.includes("clearkey")) return undefined;
-  if (!license) return { scheme: "clearkey" };
-  if (/^https?:\/\//i.test(license.trim())) return { scheme: "clearkey", licenseUrl: license.trim(), rawLicenseKey: license };
-  return { scheme: "clearkey", clearKeys: parseClearKeys(license), rawLicenseKey: license };
+export function clearKeyJwk(keys: Record<string, string>): string {
+  return JSON.stringify({
+    keys: Object.entries(keys).map(([kid, k]) => ({ kty: "oct", kid, k, alg: "A128KW" })),
+    type: "temporary"
+  });
 }
 
-export function clearKeyJwk(keys: Record<string, string>): string {
-  return JSON.stringify({ keys: Object.entries(keys).map(([kid, k]) => ({ kty: "oct", kid, k, alg: "A128KW" })), type: "temporary" });
+export function normalizeDrmScheme(type?: string, license?: string): DrmScheme | undefined {
+  const value = (type ?? "").trim().toLowerCase();
+  if (value.includes("widevine")) return "widevine";
+  if (value.includes("playready")) return "playready";
+  if (value.includes("fairplay") || value.includes("com.apple.fps")) return "fairplay";
+  if (value.includes("clearkey") || value.includes("clear-key") || value === "org.w3.clearkey") return "clearkey";
+  if (!value && license && /^https?:\/\//i.test(license.trim())) return "clearkey";
+  return undefined;
 }
+
+/** Normalize playlist DRM metadata into the player contract used by the Vega engines. */
+export function createDrmConfig(
+  type: string | undefined,
+  license: string | undefined,
+  licenseHeaders: StreamHeaders = {},
+  extras: Pick<DrmConfig, "certificateUrl" | "contentId" | "base64Certificate" | "multiDrm"> = {}
+): DrmConfig | undefined {
+  if (!type && !license) return undefined;
+  const scheme = normalizeDrmScheme(type, license);
+  if (!scheme) return undefined;
+  const common = {
+    scheme,
+    ...(Object.keys(licenseHeaders).length ? { licenseHeaders } : {}),
+    ...extras
+  };
+  if (scheme === "clearkey") {
+    if (!license?.trim()) return common;
+    const raw = license.trim();
+    if (/^https?:\/\//i.test(raw)) return { ...common, licenseUrl: raw, rawLicenseKey: raw };
+    return { ...common, clearKeys: parseClearKeys(raw), rawLicenseKey: raw };
+  }
+  if (!license?.trim()) return common;
+  const licenseUrl = license.trim();
+  if (!/^https?:\/\//i.test(licenseUrl)) throw new TypeError("DRM license server must use HTTP or HTTPS.");
+  return { ...common, licenseUrl, rawLicenseKey: licenseUrl };
+}
+
+/** Backwards-compatible export used by existing playlist integrations. */
+export const createClearKeyDrm = createDrmConfig;
