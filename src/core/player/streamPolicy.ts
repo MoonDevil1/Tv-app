@@ -1,6 +1,6 @@
 import type { Channel, DrmConfig, StreamHeaders } from "../types";
 
-const BLOCKED_HEADERS = /^(?:accept-encoding|connection|content-length|host|te|trailer|transfer-encoding|upgrade|proxy-|sec-)/i;
+const BLOCKED_HEADERS = /^(?:accept-encoding|connection|content-length|cookie|host|origin|referer|te|trailer|transfer-encoding|upgrade|user-agent|proxy-|sec-)/i;
 type ShakaDrmConfiguration = {
   preferredKeySystems: string[];
   clearKeys?: Record<string, string>;
