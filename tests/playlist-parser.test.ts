@@ -101,3 +101,15 @@ test("keeps every JSON playlist source and its per-source headers and DRM metada
   assert.equal(channel.sources[1].headers.Referer, "https://provider.example/");
   assert.equal(channel.sources[1].label, "Backup");
 });
+
+
+test("decodes base64url ClearKey JWK values into Shaka hexadecimal keys", () => {
+  const playlist = parsePlaylistText(`#EXTM3U
+#EXTINF:-1,ClearKey base64 channel
+#KODIPROP:inputstream.adaptive.license_type=org.w3.clearkey
+#KODIPROP:inputstream.adaptive.license_key={"keys":[{"kty":"oct","kid":"AAECAwQFBgcICQoLDA0ODw","k":"EBESExQVFhcYGRobHB0eHw"}]}
+https://cdn.example/clearkey-base64.mpd`, "local.m3u");
+  assert.deepEqual(playlist.channels[0].sources[0].drm?.clearKeys, {
+    "000102030405060708090a0b0c0d0e0f": "101112131415161718191a1b1c1d1e1f"
+  });
+});
