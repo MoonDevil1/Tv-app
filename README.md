@@ -36,3 +36,8 @@ Windows installers are generated in `release/`. The project uses Electron, React
 ## Playback and DRM
 
 The application will use Shaka Player for DASH and DRM-capable streams, hls.js for HLS, and the native media element for progressive files. It will not bypass DRM or disable Chromium web security. Playback requires a supported Windows runtime/CDM, valid provider authorization and valid stream/license data.
+
+
+## Interface design credit
+
+The visual refinement in this project adapts design guidance from [unslop](https://github.com/heydamir/unslop) by Damir Sokolovsky, used under the [Creative Commons Attribution 4.0 International licence](https://creativecommons.org/licenses/by/4.0/). Changes include a restrained broadcast-console direction, neutral light/dark surfaces, clearer type hierarchy, consistent spacing and reduced decorative effects.
