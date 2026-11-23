@@ -10,9 +10,7 @@
     "typecheck": "tsc --noEmit",
     "dist": "npm run build && electron-builder --publish never",
     "dist:win": "npm run build && electron-builder --win --publish never",
-    "dist:mac": "npm run build && electron-builder --mac --publish never",
-    "dist:linux": "npm run build && electron-builder --linux --publish never",
-    "test": "tsx --test tests/core.test.ts tests/electron-security.test.ts"
+    "test": "tsx --test tests/app-store.test.ts tests/electron-security.test.ts tests/playlist-parser.test.ts tests/livetgtv-adapter.test.ts tests/xmltv.test.ts"
   },
   "dependencies": {
     "hls.js": "1.7.4",
@@ -53,17 +51,6 @@
         "portable"
       ]
     },
-    "mac": {
-      "target": [
-        "dmg",
-        "zip"
-      ]
-    },
-    "linux": {
-      "target": [
-        "AppImage"
-      ]
-    },
     "publish": [
       {
         "provider": "github",
@@ -81,6 +68,6 @@
   "engines": {
     "node": ">=22.0.0"
   },
-  "description": "Cross-platform IPTV desktop player built with Electron.",
+  "description": "Windows IPTV desktop application rebuilt around AuthoIPTV features and Vega-compatible LiveTGTV playback.",
   "author": "MoonDevil1"
 }

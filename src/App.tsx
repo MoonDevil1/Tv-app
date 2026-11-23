@@ -1,249 +1,189 @@
-import { ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Activity, AudioLines, Check, ChevronDown, CircleHelp, Command, Compass, FileUp, Heart, History, LayoutGrid, ListVideo, LoaderCircle, Plus, Radio, RefreshCw, Search, Settings2, Signal, Sparkles, Trash2, Tv2, Wifi, X, Clock3, PlayCircle, Download, CheckCircle2, AlertCircle, RotateCw } from "lucide-react";
-import type { Channel, Playlist, DesktopUpdateState } from "./core/types";
-import { PlaylistManager } from "./core/parser/playlistManager";
-import { parseClearKeys } from "./core/parser/clearKeyUtils";
-import { parseXmltv, currentAndNext } from "./core/epg/xmltv";
-import { useAppStore } from "./core/store/appStore";
-import { Player } from "./components/Player";
+import { useEffect, useMemo, useRef, useState } from "react";
+import type { ReactNode } from "react";
+import { CalendarDays, ChevronRight, CircleHelp, Clock3, FileUp, Heart, History, ListVideo, Menu, Moon, Play, Radio, RefreshCw, Search, Settings, Sun, Trash2, Tv2, Upload } from "lucide-react";
+import { useAppStore, channelKey } from "./app/store";
+import type { AppSection, AppSettings, EpgProgramme, Playlist, ThemeMode, TvChannel } from "./app/models";
+import { addLiveTgTvFallbacks, fetchPlaylistText, LIVE_TGTV_SOURCE, parsePlaylistText } from "./core/playlist/parser";
+import LivePlayer from "./components/LivePlayer";
+import { parseXmltv } from "./core/epg/xmltv";
 
-const LIVE_TGTV_URL = "https://livetgtv.lovable.app/api/public/playlist.m3u";
-const REFRESH_OPTIONS = [{ label: "Manual", value: 0 }, { label: "1 minute", value: 60000 }, { label: "5 minutes", value: 300000 }, { label: "15 minutes", value: 900000 }, { label: "1 hour", value: 3600000 }];
-const navItems = [{ label: "Discover", icon: Compass }, { label: "Live TV", icon: Radio }, { label: "Favorites", icon: Heart }, { label: "Recently watched", icon: History }, { label: "EPG Guide", icon: LayoutGrid }];
-const managementItems = [{ label: "Playlists", icon: ListVideo }, { label: "Single stream", icon: AudioLines }, { label: "Settings", icon: Settings2 }];
-const channelKey = (playlistId: string, channel: Channel) => `${playlistId}:${channel.id}`;
-const formatTime = (timestamp?: number) => timestamp ? new Date(timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "—";
-
-function ChannelCard({ channel, favorite, selected, onSelect, onFavorite }: { channel: Channel; favorite: boolean; selected: boolean; onSelect: () => void; onFavorite: () => void }) {
-  return <article className={selected ? "channel-card selected" : "channel-card"}>
-    <button className="channel-main" onClick={onSelect} aria-label={`Select ${channel.name}`}>
-      <div className="channel-logo">{channel.logo && <img src={channel.logo} alt="" loading="lazy" onError={e => { e.currentTarget.style.display = "none"; }} />}{!channel.logo && <Tv2 size={23} />}</div>
-      <div className="channel-copy"><b title={channel.name}>{channel.name}</b><span>{channel.group}</span></div>
-    </button>
-    <div className="channel-meta"><span>{channel.manifestType === "dash" ? "DASH" : channel.manifestType === "hls" ? "HLS" : "STREAM"}</span><button className={favorite ? "favorite-button is-favorite" : "favorite-button"} onClick={onFavorite} aria-label={favorite ? "Remove favorite" : "Add favorite"}><Heart size={15} fill={favorite ? "currentColor" : "none"} /></button></div>
-  </article>;
+const navigation: Array<{ section: AppSection; icon: typeof Tv2; group: "watch" | "manage" }> = [
+  { section: "Home", icon: Tv2, group: "watch" }, { section: "Live TV", icon: Radio, group: "watch" },
+  { section: "Guide", icon: CalendarDays, group: "watch" }, { section: "Favorites", icon: Heart, group: "watch" },
+  { section: "History", icon: History, group: "watch" }, { section: "Playlists", icon: ListVideo, group: "manage" },
+  { section: "Settings", icon: Settings, group: "manage" }
+];
+const refreshOptions = [{ label: "Manual", value: 0 }, { label: "Every 1 minute", value: 60000 }, { label: "Every 5 minutes", value: 300000 }, { label: "Every 15 minutes", value: 900000 }, { label: "Every hour", value: 3600000 }];
+function PageHeading({ title, subtitle, action }: { title: string; subtitle: string; action?: ReactNode }) {
+  return <div className="page-heading"><div><p className="eyebrow">TG IPTV DESKTOP</p><h1>{title}</h1><p className="page-subtitle">{subtitle}</p></div>{action}</div>;
 }
-
-export default function App() {
-  useEffect(() => {
-    const onError = (event: ErrorEvent) => {
-      void window.tvApp?.reportDiagnostic({ type: "renderer-error", message: event.message, source: event.filename ? event.filename.split("/").pop() : undefined, line: event.lineno }).catch(() => undefined);
-    };
-    const onRejection = (event: PromiseRejectionEvent) => {
-      const reason = event.reason;
-      void window.tvApp?.reportDiagnostic({ type: "renderer-unhandled-rejection", message: reason instanceof Error ? reason.message : String(reason).slice(0, 1000) }).catch(() => undefined);
-    };
-    window.addEventListener("error", onError);
-    window.addEventListener("unhandledrejection", onRejection);
-    return () => { window.removeEventListener("error", onError); window.removeEventListener("unhandledrejection", onRejection); };
-  }, []);
-  const manager = useMemo(() => new PlaylistManager(), []);
-  const playlists = useAppStore(s => s.playlists), favorites = useAppStore(s => s.favorites), recentlyWatched = useAppStore(s => s.recentlyWatched), epgPrograms = useAppStore(s => s.epgPrograms);
-  const addPlaylist = useAppStore(s => s.addPlaylist), replacePlaylist = useAppStore(s => s.replacePlaylist), removeStoredPlaylist = useAppStore(s => s.removePlaylist), toggleFavorite = useAppStore(s => s.toggleFavorite), recordWatch = useAppStore(s => s.recordWatch), setEpgPrograms = useAppStore(s => s.setEpgPrograms);
-  const [active, setActive] = useState("Discover"), [query, setQuery] = useState(""), [selectedPlaylistId, setSelectedPlaylistId] = useState(""), [selectedGroup, setSelectedGroup] = useState("All");
-  const [selectedChannel, setSelectedChannel] = useState<{ playlistId: string; channel: Channel } | null>(null);
-  const [showAdd, setShowAdd] = useState(false), [sourceUrl, setSourceUrl] = useState(LIVE_TGTV_URL), [playlistName, setPlaylistName] = useState("LiveTGTV"), [refreshInterval, setRefreshInterval] = useState(300000);
-  const [busy, setBusy] = useState(false), [epgBusy, setEpgBusy] = useState(false), [error, setError] = useState(""), [notice, setNotice] = useState(""), [scrollTop, setScrollTop] = useState(0), [columns, setColumns] = useState(4);
-  const [updateState, setUpdateState] = useState<DesktopUpdateState>({ status: "idle", message: "Checking update status…" });
-  const fileInput = useRef<HTMLInputElement>(null);
-  const searchRef = useRef<HTMLInputElement>(null);
-  const playlistsRef = useRef(playlists);
-  const selectedPlaylistIdRef = useRef("");
-  playlistsRef.current = playlists;
-  selectedPlaylistIdRef.current = selectedChannel?.playlistId ?? "";
-
-  useEffect(() => {
-    const api = window.tvApp;
-    if (!api) return;
-    let active = true;
-    const unsubscribe = api.onUpdateState(state => { if (active) setUpdateState(state); });
-    void api.getUpdateState().then(state => { if (active) setUpdateState(state); });
-    return () => { active = false; unsubscribe(); };
-  }, []);
-
-  useEffect(() => {
-    const onShortcut = (event: KeyboardEvent) => {
-      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") { event.preventDefault(); searchRef.current?.focus(); }
-      if (event.key === "/" && !(event.target instanceof HTMLInputElement) && !(event.target instanceof HTMLTextAreaElement)) { event.preventDefault(); searchRef.current?.focus(); }
-    };
-    window.addEventListener("keydown", onShortcut);
-    return () => window.removeEventListener("keydown", onShortcut);
-  }, []);
-
-  useEffect(() => {
-    let cancelled = false;
-    const savedPlaylists = useAppStore.getState().playlists;
-    void (async () => {
-      for (const saved of savedPlaylists) {
-        try {
-          const restoredPlaylist = await manager.load(saved.source, { id: saved.id, name: saved.name, refreshIntervalMs: saved.refreshIntervalMs });
-          if (cancelled) return;
-          replacePlaylist(restoredPlaylist);
-          if (restoredPlaylist.refreshIntervalMs) manager.startAutoRefresh(restoredPlaylist, replacePlaylist, e => setError(e.message));
-        } catch (e) { if (!cancelled) setError(`Could not restore ${saved.name}: ${e instanceof Error ? e.message : String(e)}`); }
-      }
-    })();
-    return () => { cancelled = true; manager.dispose(); };
-  }, [manager, replacePlaylist]);
-
-  useEffect(() => {
-    const wide = window.matchMedia("(max-width: 1080px)");
-    const medium = window.matchMedia("(max-width: 1320px)");
-    const updateColumns = () => { setColumns(wide.matches ? 2 : medium.matches ? 3 : 4); setScrollTop(0); };
-    updateColumns();
-    wide.addEventListener("change", updateColumns);
-    medium.addEventListener("change", updateColumns);
-    return () => { wide.removeEventListener("change", updateColumns); medium.removeEventListener("change", updateColumns); };
-  }, []);
-
-  useEffect(() => {
-    if (!selectedPlaylistId && playlists[0]) setSelectedPlaylistId(playlists[0].id);
-    if (selectedPlaylistId && !playlists.some(item => item.id === selectedPlaylistId)) setSelectedPlaylistId(playlists[0]?.id ?? "");
-  }, [playlists, selectedPlaylistId]);
-
-  const selectedPlaylist = playlists.find(item => item.id === selectedPlaylistId) ?? playlists[0];
-  const allChannels = useMemo(() => playlists.flatMap(playlist => playlist.channels.map(channel => ({ playlistId: playlist.id, channel }))), [playlists]);
-  const visibleChannels = useMemo(() => {
-    let rows = allChannels;
-    if (active === "Favorites") rows = rows.filter(row => favorites.includes(channelKey(row.playlistId, row.channel)));
-    else if (active === "Recently watched") rows = recentlyWatched.map(item => ({ playlistId: item.playlistId, channel: item.channel }));
-    else if (selectedPlaylist) rows = rows.filter(row => row.playlistId === selectedPlaylist.id);
-    if (selectedGroup !== "All" && active !== "Favorites" && active !== "Recently watched") rows = rows.filter(row => row.channel.group === selectedGroup);
-    const term = query.trim().toLocaleLowerCase();
-    if (term) rows = rows.filter(row => [row.channel.name, row.channel.group, row.channel.tvgId].some(value => value?.toLocaleLowerCase().includes(term)));
-    return rows;
-  }, [allChannels, active, favorites, recentlyWatched, selectedPlaylist, selectedGroup, query]);
-  const groups = useMemo(() => ["All", ...new Set((selectedPlaylist?.channels ?? []).map(channel => channel.group).filter(Boolean))], [selectedPlaylist]);
-  const statChannels = playlists.reduce((sum, item) => sum + item.channels.length, 0);
-  const guideRows = (selectedPlaylist?.channels ?? []).map(channel => ({ channel, programs: epgPrograms[channel.tvgId ?? ""] ?? [] }));
-
-  async function addSource(source: string, name: string, file?: File) {
-    setBusy(true); setError(""); setNotice("");
+function EmptyState({ icon: Icon, title, detail, action, onAction }: { icon: typeof Tv2; title: string; detail: string; action?: string; onAction?: () => void }) {
+  return <div className="empty-state"><div className="empty-state-icon"><Icon size={27} strokeWidth={1.7} /></div><h2>{title}</h2><p>{detail}</p>{action && onAction && <button className="primary-button" onClick={onAction}>{action}<ChevronRight size={16} /></button>}</div>;
+}
+function SettingsPage() {
+  const settings = useAppStore(state => state.settings), updateSettings = useAppStore(state => state.updateSettings);
+  return <><PageHeading title="Settings" subtitle="Configure the app, playlists and playback preferences." /><div className="settings-layout">
+    <section className="settings-panel"><div className="panel-heading"><h2>Appearance</h2><p>Choose the look of the desktop application.</p></div><div className="theme-options">
+      {(["light", "dark"] as ThemeMode[]).map(theme => <button key={theme} className={settings.theme === theme ? "theme-option selected" : "theme-option"} onClick={() => updateSettings({ theme })}><span className={`theme-preview ${theme}`}>{theme === "light" ? <Sun size={19} /> : <Moon size={19} />}</span><span><b>{theme === "light" ? "Light" : "Dark"}</b><small>{theme === "light" ? "Bright Material surfaces" : "Low-glare dark surfaces"}</small></span><span className="selection-dot" /></button>)}
+    </div></section>
+    <section className="settings-panel"><div className="panel-heading"><h2>Playlist defaults</h2><p>Defaults applied when a playlist is added.</p></div><label className="setting-row"><span><b>Automatic playlist refresh</b><small>Refresh remote playlist data in the background.</small></span><select value={settings.defaultRefreshIntervalMs} onChange={e => updateSettings({ defaultRefreshIntervalMs: Number(e.target.value) })}>{refreshOptions.map(o => <option value={o.value} key={o.value}>{o.label}</option>)}</select></label></section>
+    <section className="settings-panel"><div className="panel-heading"><h2>Playback defaults</h2><p>Initial behaviour for the built-in TV player.</p></div>
+      <label className="setting-row"><span><b>Preferred stream quality</b><small>Auto lets the stream select the available quality.</small></span><select value={settings.preferredQuality} onChange={e => updateSettings({ preferredQuality: e.target.value as AppSettings["preferredQuality"] })}><option value="auto">Auto</option><option value="1080p">1080p</option><option value="720p">720p</option><option value="480p">480p</option></select></label>
+      <label className="setting-row"><span><b>Show channel numbers</b><small>Display playlist channel numbers in the library.</small></span><input type="checkbox" checked={settings.showChannelNumbers} onChange={e => updateSettings({ showChannelNumbers: e.target.checked })} /></label>
+      <label className="setting-row"><span><b>Diagnostics</b><small>Save local playback errors and performance details.</small></span><input type="checkbox" checked={settings.diagnosticsEnabled} onChange={e => updateSettings({ diagnosticsEnabled: e.target.checked })} /></label>
+    </section></div></>;
+}
+function PlaylistManager() {
+  const playlists = useAppStore(state => state.playlists), settings = useAppStore(state => state.settings);
+  const addPlaylist = useAppStore(state => state.addPlaylist), replacePlaylist = useAppStore(state => state.replacePlaylist), removePlaylist = useAppStore(state => state.removePlaylist);
+  const [url,setUrl] = useState(""), [name,setName] = useState(""), [headersText,setHeadersText] = useState("{}"), [paste,setPaste] = useState("");
+  const [error,setError] = useState(""), [busy,setBusy] = useState(false), [busyId,setBusyId] = useState("");
+  const fileRef = useRef<HTMLInputElement>(null);
+  const refreshing = useRef(new Set<string>());
+  const lastAttempt = useRef(new Map<string,number>());
+  const importContent = async (text:string, source:string, customName:string, headers:Record<string,string> = {}) => {
+    const parsed = await addLiveTgTvFallbacks(parsePlaylistText(text,source,customName));
+    parsed.refreshIntervalMs = settings.defaultRefreshIntervalMs;
+    parsed.requestHeaders = headers;
+    addPlaylist(parsed);
+    setUrl(""); setName(""); setPaste(""); setHeadersText("{}"); setError("");
+  };
+  const importUrl = async (target:string) => {
+    setBusy(true); setError("");
     try {
-      const singleStream = !file && name === "Single stream" && /^https?:\/\//i.test(source.trim());
-      const playlistInput = singleStream ? `#EXTM3U\n#EXTINF:-1,${name}\n${source.trim()}` : source.trim();
-      const options = { name: name.trim() || file?.name || "My playlist", refreshIntervalMs: singleStream ? 0 : refreshInterval };
-      const playlist = file ? await manager.loadFile(file, options) : await manager.load(playlistInput, options);
-      addPlaylist(playlist); setSelectedPlaylistId(playlist.id); setSelectedGroup("All");
-      if (playlist.refreshIntervalMs) manager.startAutoRefresh(playlist, replacePlaylist, e => setError(e.message));
-      setShowAdd(false); setActive("Live TV"); setNotice(`Imported ${playlist.channels.length.toLocaleString()} channels from ${playlist.name}.`);
-      setSourceUrl(LIVE_TGTV_URL);
-    } catch (e) { setError(e instanceof Error ? e.message : String(e)); }
+      let headers:Record<string,string> = {};
+      try { const raw=JSON.parse(headersText); if (!raw || Array.isArray(raw) || typeof raw!=="object" || Object.values(raw).some(v=>typeof v!=="string")) throw new Error(); headers=raw; }
+      catch { throw new Error("Request headers must be a JSON object with text values."); }
+      const result=await fetchPlaylistText(target,headers);
+      await importContent(result.text,result.finalUrl,name,headers);
+    } catch(e) { setError(e instanceof Error ? e.message : "Playlist import failed."); }
     finally { setBusy(false); }
-  }
-  function onFileChange(event: ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
-    if (file) void addSource("", file.name.replace(/\.[^.]+$/, ""), file);
-    event.target.value = "";
-  }
-  async function refreshPlaylist(playlist: Playlist) {
-    setError(""); setNotice("");
-    try { const next = await manager.refresh(playlist.id); replacePlaylist(next); setNotice(`Updated ${next.name}: ${next.channels.length.toLocaleString()} channels.`); }
-    catch (e) { setError(e instanceof Error ? e.message : String(e)); }
-  }
-  async function loadGuide() {
-    const url = selectedPlaylist?.epgUrls[0];
-    if (!url) { setError("This playlist does not declare an XMLTV EPG URL."); return; }
-    setEpgBusy(true); setError("");
+  };
+  const importFile = async (file?:File) => {
+    if (!file) return;
+    setBusy(true); setError("");
+    try { await importContent(await file.text(),file.name,name || file.name); }
+    catch(e) { setError(e instanceof Error ? e.message : "File import failed."); }
+    finally { setBusy(false); if(fileRef.current) fileRef.current.value=""; }
+  };
+  const refresh = async (playlist:Playlist, background = false) => {
+    if (refreshing.current.has(playlist.id) || !(playlist.source.startsWith("http://") || playlist.source.startsWith("https://"))) return;
+    refreshing.current.add(playlist.id);
+    lastAttempt.current.set(playlist.id, Date.now());
+    if (!background) { setBusyId(playlist.id); setError(""); }
     try {
-      if (!window.tvApp?.fetchRemoteText) throw new Error("EPG downloads are only available in the desktop app.");
-      const response = await window.tvApp.fetchRemoteText(url);
-      const parsed = parseXmltv(response.text); setEpgPrograms(parsed);
-      setNotice(`Loaded guide data for ${Object.keys(parsed).length} channels.`);
-    } catch (e) { setError(`Could not load EPG: ${e instanceof Error ? e.message : String(e)}`); }
-    finally { setEpgBusy(false); }
-  }
-  function selectChannel(playlistId: string, channel: Channel) { setSelectedChannel({ playlistId, channel }); recordWatch(playlistId, channel); }
-  const resolveLiveTgChannel = useCallback(async (channel: Channel): Promise<Channel | null> => {
-    const ownerId = selectedPlaylistIdRef.current;
-    const owner = playlistsRef.current.find(item => item.id === ownerId && item.channels.some(candidate => candidate.id === channel.id));
-    if (!owner || owner.source.split("?")[0] !== LIVE_TGTV_URL || !channel.tvgId || !/^[0-9]+$/.test(channel.tvgId)) return null;
-    if (!window.tvApp?.fetchRemoteText) return null;
-    const requestId = globalThis.crypto.randomUUID();
-    try {
-      const response = await window.tvApp.fetchRemoteText("https://livetgtv.lovable.app/api/public/channels/" + encodeURIComponent(channel.tvgId), undefined, requestId);
-      if (response.status < 200 || response.status >= 300) throw new Error("LiveTGTV returned HTTP " + response.status);
-      const payload = JSON.parse(response.text) as { sources?: unknown; drm?: { type?: string; keyId?: string; key?: string } };
-      const source = Array.isArray(payload.sources) ? payload.sources.find((item): item is string => typeof item === "string" && (item.startsWith("https://") || item.startsWith("http://"))) : undefined;
-      if (!source) return null;
-      const clearKeys = payload.drm?.type?.toLowerCase() === "clearkey" && payload.drm.keyId && payload.drm.key
-        ? parseClearKeys({ [payload.drm.keyId]: payload.drm.key }) : undefined;
-      return { ...channel, url: source, headers: {},
-        manifestType: source.includes(".mpd") ? "dash" : source.includes(".m3u8") ? "hls" : channel.manifestType,
-        drm: clearKeys ? { scheme: "clearkey", clearKeys } : undefined };
-    } catch { return null; }
-    finally { void window.tvApp?.cancelRemoteText(requestId); }
+      const result=await fetchPlaylistText(playlist.source,playlist.requestHeaders);
+      const updated=await addLiveTgTvFallbacks(parsePlaylistText(result.text,result.finalUrl,playlist.name));
+      replacePlaylist({...updated,id:playlist.id,name:playlist.name,importedAt:playlist.importedAt,refreshedAt:Date.now(),refreshIntervalMs:playlist.refreshIntervalMs,requestHeaders:playlist.requestHeaders});
+    } catch(e) { setError(`Could not refresh ${playlist.name}: ${e instanceof Error ? e.message : "network error"}`); }
+    finally { refreshing.current.delete(playlist.id); if (!background) setBusyId(""); }
+  };
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      const now = Date.now();
+      for (const playlist of useAppStore.getState().playlists) {
+        const lastRefresh = playlist.refreshedAt ?? playlist.importedAt;
+        const lastAttemptAt = lastAttempt.current.get(playlist.id) ?? lastRefresh;
+        if (playlist.refreshIntervalMs > 0 && (playlist.source.startsWith("http://") || playlist.source.startsWith("https://")) && now - Math.max(lastRefresh,lastAttemptAt) >= playlist.refreshIntervalMs) void refresh(playlist, true);
+      }
+    }, 15000);
+    return () => window.clearInterval(timer);
   }, []);
-  const recoverChannel = useCallback(async (channel: Channel) => {
-    const resolved = await resolveLiveTgChannel(channel);
-    if (resolved) return resolved;
-    const ownerId = selectedPlaylistIdRef.current;
-    const owner = playlistsRef.current.find(item => item.id === ownerId && item.channels.some(candidate => candidate.id === channel.id));
-    if (!owner) return null;
-    try {
-      const refreshed = await manager.refresh(owner.id);
-      replacePlaylist(refreshed);
-      return refreshed.channels.find(candidate => candidate.id === channel.id) ?? null;
-    } catch { return null; }
-  }, [manager, replacePlaylist, resolveLiveTgChannel]);
-  const playerChannels = selectedChannel
-    ? playlists.find(item => item.id === selectedChannel.playlistId)?.channels ?? []
-    : [];
-
-  const rowHeight = 106, startRow = Math.max(0, Math.floor(scrollTop / rowHeight) - 1), visibleRows = 6;
-  const totalRows = Math.ceil(visibleChannels.length / columns);
-  const renderedChannels = visibleChannels.slice(startRow * columns, (startRow + visibleRows) * columns);
-  const isGridView = ["Discover", "Live TV", "Favorites", "Recently watched"].includes(active);
-
-  return <div className="app-shell">
-    <aside className="sidebar">
-      <div className="brand"><div className="brand-mark"><Tv2 size={22} /></div><div><strong>TG IPTV</strong><span>LIVE ENTERTAINMENT</span></div></div>
-      <div className="workspace"><div className="workspace-icon">T</div><div><b>My library</b><small>{playlists.length} connected source{playlists.length === 1 ? "" : "s"}</small></div><ChevronDown size={15} /></div>
-      <div className="nav-label">YOUR SPACE</div><nav>{navItems.map(({ label, icon: Icon }) => <button key={label} className={active === label ? "nav-item active" : "nav-item"} onClick={() => { setActive(label); setSelectedGroup("All"); }}><Icon size={18} /><span>{label}</span>{label === "Favorites" && <span className="nav-count">{favorites.length}</span>}</button>)}</nav>
-      <div className="nav-label library-label">MANAGE</div><nav>{managementItems.map(({ label, icon: Icon }) => <button key={label} className={active === label ? "nav-item active" : "nav-item"} onClick={() => setActive(label)}><Icon size={18} /><span>{label}</span></button>)}</nav>
-      <div className="sidebar-bottom"><div className="connection"><span className="status-dot" /><div><b>{statChannels ? `${statChannels.toLocaleString()} channels ready` : "Player ready"}</b><small>{playlists.length ? "Library is on this device" : "Waiting for a playlist"}</small></div></div><button className="help-link" onClick={() => setNotice("Shortcuts: Ctrl/⌘+K or / to search; Space/K to play; arrows to zap or seek; M mute; F fullscreen; I picture-in-picture.")}><CircleHelp size={17} /> Help & shortcuts</button><div className="profile"><div className="avatar">N</div><div><b>Local profile</b><small>On this device</small></div><Settings2 size={16} /></div></div>
-    </aside>
-    <main className="main-area">
-      <header className="topbar"><div className="breadcrumbs"><span>YOUR LIBRARY</span><span className="crumb-slash">/</span><b>{active}</b></div><div className="topbar-actions"><label className="search-box"><Search size={17} /><input ref={searchRef} value={query} onChange={e => setQuery(e.target.value)} placeholder="Search channels, groups…" /><kbd><Command size={11} /> K</kbd></label><button className="icon-button" aria-label="Refresh playlist" onClick={() => selectedPlaylist && void refreshPlaylist(selectedPlaylist)} disabled={!selectedPlaylist}><Activity size={18} /></button><button className="add-button" onClick={() => setShowAdd(true)}><Plus size={17} /> Add playlist</button></div></header>
-      <section className="page-content">
-        <>
-          {isGridView && <div key="channels" className="library-view">
-            <div className="library-intro"><div><div className="eyebrow"><Sparkles size={13} /> YOUR CHANNEL UNIVERSE</div><h1>{active === "Discover" ? <>Every channel.<br /><span>One beautiful place.</span></> : active === "Live TV" ? <>Find your next<br /><span>live moment.</span></> : active === "Favorites" ? <>Your favorites.<br /><span>Always close.</span></> : <>Pick up right<br /><span>where you left off.</span></>}</h1><p>{selectedPlaylist ? `${selectedPlaylist.name} · ${selectedPlaylist.channels.length.toLocaleString()} channels in this source` : "Connect an M3U, M3U8 or JSON playlist to populate your library."}</p></div>
-              <div className="hero-art" aria-hidden="true"><div className="orbit orbit-one" /><div className="orbit orbit-two" /><div className="hero-screen"><div className="screen-glow" /><div className="screen-icon"><Radio size={42} /></div><span>LIVE · ANYWHERE</span></div><div className="floating-chip chip-top"><Signal size={14} /> Adaptive streaming</div><div className="floating-chip chip-bottom"><Wifi size={14} /> Playlist library</div></div>
-            </div>
-            <div className="section-heading library-heading"><div><span className="eyebrow">CHANNEL LIBRARY</span><h2>{visibleChannels.length.toLocaleString()} channels</h2></div><div className="library-tools">{playlists.length > 0 && <select className="playlist-select" value={selectedPlaylist?.id ?? ""} onChange={e => { setSelectedPlaylistId(e.target.value); setSelectedGroup("All"); }} aria-label="Choose playlist">{playlists.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select>}<span className="updated-label"><Wifi size={14} /> Local library</span></div></div>
-            {active !== "Favorites" && active !== "Recently watched" && <div className="group-filters">{groups.map(group => <button key={group} className={selectedGroup === group ? "group-chip active" : "group-chip"} onClick={() => { setSelectedGroup(group); setScrollTop(0); }}>{group}<span>{group === "All" ? selectedPlaylist?.channels.length ?? 0 : selectedPlaylist?.channels.filter(channel => channel.group === group).length ?? 0}</span></button>)}</div>}
-            {error && <div className="notice error"><X size={15} />{error}<button onClick={() => setError("")}>Dismiss</button></div>}{notice && <div className="notice success"><Check size={15} />{notice}<button onClick={() => setNotice("")}>Dismiss</button></div>}
-            {selectedChannel && <div className="selected-strip"><div className="selected-mark"><PlayCircle size={18} /></div><div><b>{selectedChannel.channel.name}</b><span>Selected from {playlists.find(item => item.id === selectedChannel.playlistId)?.name ?? "your library"} · Playing in the built-in player</span></div><button onClick={() => setSelectedChannel(null)} aria-label="Close selection"><X size={16} /></button></div>}
-            {visibleChannels.length ? <div className="virtual-grid" onScroll={e => setScrollTop(e.currentTarget.scrollTop)}><div style={{ height: startRow * rowHeight }} /><div className="channel-grid">{renderedChannels.map(({ playlistId, channel }) => <ChannelCard key={channelKey(playlistId, channel)} channel={channel} favorite={favorites.includes(channelKey(playlistId, channel))} selected={selectedChannel?.playlistId === playlistId && selectedChannel.channel.id === channel.id} onSelect={() => selectChannel(playlistId, channel)} onFavorite={() => toggleFavorite(channelKey(playlistId, channel))} />)}</div><div style={{ height: Math.max(0, (totalRows - startRow - visibleRows) * rowHeight) }} /></div> : <div className="empty-library"><div className="empty-icon"><Radio size={23} /></div><b>{playlists.length ? "No channels match this view" : "Your channel library starts here"}</b><span>{playlists.length ? "Try another category or search term." : "Add an M3U/M3U8 URL, JSON endpoint or local playlist file."}</span>{!playlists.length && <button className="primary-button" onClick={() => setShowAdd(true)}><Plus size={16} /> Connect a playlist</button>}</div>}
-          </div>}
-
-          {active === "Playlists" && <div key="playlists" className="management-view"><div className="eyebrow">SOURCE MANAGER</div><h1>Your playlists.<br /><span>One library.</span></h1><p className="view-lead">Manage M3U, M3U8 and JSON sources, refresh them, or remove a source from this device.</p><div className="manage-toolbar"><h2>{playlists.length} connected sources</h2><button className="primary-button" onClick={() => setShowAdd(true)}><Plus size={16} /> Add playlist</button></div>
-            {playlists.length ? <div className="playlist-list">{playlists.map(playlist => <article className="playlist-row" key={playlist.id}><div className="playlist-row-icon"><ListVideo size={20} /></div><div className="playlist-row-copy"><b>{playlist.name}</b><span>{playlist.channels.length.toLocaleString()} channels · {playlist.groups.length} categories · updated {new Date(playlist.fetchedAt).toLocaleString()}</span><small>{/^https?:/i.test(playlist.source) ? playlist.source : "Local playlist file"}</small></div><button className="small-icon-button" onClick={() => void refreshPlaylist(playlist)} title="Refresh"><RefreshCw size={16} /></button><button className="small-icon-button danger" onClick={() => { manager.remove(playlist.id); removeStoredPlaylist(playlist.id); if (selectedPlaylistId === playlist.id) setSelectedPlaylistId(""); }} title="Remove playlist"><Trash2 size={16} /></button></article>)}</div> : <div className="empty-library"><div className="empty-icon"><FileUp size={23} /></div><b>No playlists connected yet</b><span>Add a remote URL or choose a local playlist file.</span><button className="primary-button" onClick={() => setShowAdd(true)}><Plus size={16} /> Add first playlist</button></div>}
-          </div>}
-
-          {active === "EPG Guide" && <div key="epg" className="management-view"><div className="eyebrow">PROGRAM GUIDE</div><h1>What's on.<br /><span>What's next.</span></h1><p className="view-lead">XMLTV now-and-next guide, matched to channel tvg-id values.</p><div className="manage-toolbar"><h2>{selectedPlaylist?.name ?? "Choose a playlist"}</h2><div className="library-tools">{playlists.length > 0 && <select className="playlist-select" value={selectedPlaylist?.id ?? ""} onChange={e => setSelectedPlaylistId(e.target.value)}>{playlists.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select>}<button className="primary-button" onClick={() => void loadGuide()} disabled={epgBusy || !selectedPlaylist?.epgUrls.length}>{epgBusy ? <LoaderCircle className="spin" size={15} /> : <RefreshCw size={15} />} Load guide</button></div></div>
-            {error && <div className="notice error">{error}</div>}{guideRows.some(row => row.programs.length) ? <div className="guide-list">{guideRows.filter(row => row.programs.length).map(({ channel, programs }) => { const { current, next } = currentAndNext(programs); return <article className="guide-row" key={channel.id}><div className="guide-channel"><b>{channel.name}</b><span>{channel.group}</span></div><div className="guide-program"><span className="live-tag">{current ? "NOW" : "NO LIVE DATA"}</span><b>{current?.title ?? "No current programme"}</b><small>{current ? `${formatTime(current.start)} – ${formatTime(current.stop)}` : "Programme information unavailable"}</small></div><div className="guide-program next"><span className="next-tag">UP NEXT</span><b>{next?.title ?? "—"}</b><small>{next ? formatTime(next.start) : "No upcoming listing"}</small></div></article>; })}</div> : <div className="empty-library"><div className="empty-icon"><Clock3 size={23} /></div><b>No guide data loaded</b><span>{selectedPlaylist?.epgUrls.length ? "Load the XMLTV feed declared in this playlist." : "This playlist does not declare an XMLTV URL yet."}</span></div>}
-          </div>}
-
-          {active === "Single stream" && <div key="single" className="management-view"><div className="eyebrow">QUICK CONNECT</div><h1>One link.<br /><span>Instant library.</span></h1><p className="view-lead">Add a direct stream URL as a one-channel source. It opens directly in the built-in player.</p><button className="primary-button" onClick={() => { setSourceUrl(""); setPlaylistName("Single stream"); setShowAdd(true); }}><Plus size={16} /> Add a stream URL</button></div>}
-          {active === "Settings" && <div key="settings" className="management-view"><div className="eyebrow">PREFERENCES</div><h1>Your setup.<br /><span>Your rules.</span></h1><p className="view-lead">Choose the automatic refresh interval applied to newly added remote playlists.</p><div className="settings-card"><b>Default automatic refresh</b><span>Applied to new playlists.</span><div className="group-filters">{REFRESH_OPTIONS.map(option => <button key={option.value} className={refreshInterval === option.value ? "group-chip active" : "group-chip"} onClick={() => setRefreshInterval(option.value)}>{option.label}</button>)}</div></div><div className="settings-card"><b>Feedback and diagnostics</b><span>Playback and application errors are saved locally. Send a report when you want to share a problem.</span><button className="primary-button" onClick={() => void window.tvApp?.openFeedbackReport({ type: "user-feedback", appVersion: "2.0.1", timestamp: new Date().toISOString() })}>Send feedback</button></div><div className="settings-card update-card"><div className="update-heading"><div><b>Desktop app updates</b><span>Checks published TG IPTV releases on GitHub.</span></div><button className="small-icon-button" title="Check for updates" onClick={() => void window.tvApp?.checkForUpdates()} disabled={updateState.status === "checking" || updateState.status === "downloading"}><RotateCw size={16} /></button></div><div className="update-status"><span className={updateState.status === "error" ? "update-indicator error" : "update-indicator"}>{updateState.status === "checking" || updateState.status === "downloading" ? <LoaderCircle className="spin" size={16} /> : updateState.status === "error" ? <AlertCircle size={16} /> : updateState.status === "downloaded" || updateState.status === "not-available" ? <CheckCircle2 size={16} /> : <Activity size={16} />}</span><span>{updateState.message ?? "Update status unknown."}</span></div>{updateState.status === "downloading" && <div className="update-progress"><div style={{ width: `${updateState.percent ?? 0}%` }} /></div>}{updateState.status === "available" && <button className="primary-button" onClick={() => void window.tvApp?.downloadUpdate()}><Download size={15} /> Download {updateState.version}</button>}{updateState.status === "downloaded" && <button className="primary-button" onClick={() => void window.tvApp?.installUpdate()}><RotateCw size={15} /> Restart to install {updateState.version}</button>}</div></div>}
-        </>
-        <footer className="page-footer"><span>TG IPTV <i>·</i> Built for the big screen</span><span><kbd>?</kbd> Keyboard shortcuts <i>·</i> Version 2.0.1</span></footer>
-      </section>
-    </main>
-    {selectedChannel && <Player channel={selectedChannel.channel} channels={playerChannels} onClose={() => setSelectedChannel(null)} onChangeChannel={next => { setSelectedChannel({ playlistId: selectedChannel.playlistId, channel: next }); recordWatch(selectedChannel.playlistId, next); }} onRecover={recoverChannel} onResolve={resolveLiveTgChannel} />}
-    <input ref={fileInput} type="file" accept=".m3u,.m3u8,.txt,.json,application/json,audio/x-mpegurl,application/vnd.apple.mpegurl" hidden onChange={onFileChange} />
-    <>{showAdd && <div className="modal-backdrop" onMouseDown={e => { if (e.target === e.currentTarget && !busy) setShowAdd(false); }}>
-      <div className="add-modal">
-        <button className="modal-close" onClick={() => setShowAdd(false)} disabled={busy}><X size={19} /></button><div className="modal-icon"><ListVideo size={22} /></div><div className="eyebrow">SOURCE MANAGER</div><h2>Connect your playlist</h2><p>Import a remote M3U/M3U8 or JSON source, or open a playlist file stored on this device.</p>
-        <label className="field-label">Playlist name<input value={playlistName} onChange={e => setPlaylistName(e.target.value)} placeholder="My playlist" /></label>
-        <label className="field-label">Playlist URL<input value={sourceUrl} onChange={e => setSourceUrl(e.target.value)} placeholder="https://example.com/playlist.m3u" /></label>
-        <label className="field-label">Automatic refresh<select value={refreshInterval} onChange={e => setRefreshInterval(Number(e.target.value))}>{REFRESH_OPTIONS.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>
-        {error && <div className="notice error">{error}</div>}
-        <button className="primary-button modal-done" disabled={busy || !sourceUrl.trim()} onClick={() => void addSource(sourceUrl, playlistName)}>{busy ? <LoaderCircle className="spin" size={16} /> : <Plus size={16} />}{busy ? "Importing playlist…" : "Import playlist"}</button>
-        <div className="modal-divider"><span>OR</span></div><button className="file-button" disabled={busy} onClick={() => fileInput.current?.click()}><FileUp size={17} /> Choose local playlist file</button><small className="modal-footnote">Supports M3U, M3U8 and JSON. Only HTTP(S) stream URLs are accepted.</small>
-      </div>
-    </div>}</>
+  return <><PageHeading title="Playlist manager" subtitle="Connect remote or local M3U, M3U8 and JSON playlists." action={<button className="secondary-button" onClick={() => void importUrl(LIVE_TGTV_SOURCE)} disabled={busy}><Radio size={15}/> Add LiveTGTV</button>} />
+    <section className="import-panel"><div className="panel-heading"><h2>Add a playlist</h2><p>Use a playlist URL, paste its contents or select a local file.</p></div>
+      <div className="import-grid"><label><span>Playlist URL</span><input value={url} onChange={e=>setUrl(e.target.value)} placeholder="https://example.com/playlist.m3u" /></label><label><span>Display name (optional)</span><input value={name} onChange={e=>setName(e.target.value)} placeholder="My IPTV playlist" /></label></div>
+      <label className="import-label"><span>Request headers (JSON, optional)</span><textarea rows={2} value={headersText} onChange={e=>setHeadersText(e.target.value)} spellCheck={false}/></label>
+      <div className="import-actions"><button className="primary-button" disabled={busy || !url.trim()} onClick={()=>void importUrl(url.trim())}>{busy ? "Importing…" : "Import URL"} <ChevronRight size={15}/></button><button className="secondary-button" disabled={busy || !paste.trim()} onClick={()=>void importContent(paste,"pasted-playlist",name || "Pasted playlist").catch(e=>setError(e.message))}><Upload size={15}/> Import pasted text</button><button className="secondary-button" disabled={busy} onClick={()=>fileRef.current?.click()}><FileUp size={15}/> Choose local file</button><input ref={fileRef} hidden type="file" accept=".m3u,.m3u8,.txt,.json,application/json,audio/x-mpegurl,text/plain" onChange={e=>void importFile(e.target.files?.[0])}/></div>
+      <label className="import-label"><span>Or paste playlist contents</span><textarea rows={4} value={paste} onChange={e=>setPaste(e.target.value)} placeholder="#EXTM3U … or JSON playlist" spellCheck={false}/></label>
+      {error && <p className="error-message" role="alert">{error}</p>}
+    </section>
+    <section className="playlist-list-section"><div className="list-section-heading"><h2>Connected playlists</h2><span>{playlists.length}</span></div>
+      {playlists.length===0 ? <div className="compact-empty">No playlists added yet.</div> : playlists.map(playlist=><article className="playlist-row" key={playlist.id}><div className="playlist-row-icon"><ListVideo size={20}/></div><div className="playlist-row-info"><b>{playlist.name}</b><small>{playlist.channels.length.toLocaleString()} channels · {playlist.groups.length} groups · {playlist.source}</small><small>{playlist.refreshedAt ? "Last refreshed " + new Date(playlist.refreshedAt).toLocaleString() : "Imported " + new Date(playlist.importedAt).toLocaleString()}</small></div><select className="playlist-refresh-select" aria-label={"Refresh interval for " + playlist.name} value={playlist.refreshIntervalMs} onChange={e=>replacePlaylist({...playlist,refreshIntervalMs:Number(e.target.value)})}>{refreshOptions.map(option=><option value={option.value} key={option.value}>{option.label}</option>)}</select><button className="icon-button" title="Refresh playlist" disabled={busyId===playlist.id || !(playlist.source.startsWith("http://") || playlist.source.startsWith("https://"))} onClick={()=>void refresh(playlist)}>{busyId===playlist.id ? <span className="spinner"/> : <RefreshCw size={16}/>}</button><button className="icon-button danger" title="Remove playlist" onClick={()=>removePlaylist(playlist.id)}><Trash2 size={16}/></button></article>)}
+    </section>
+  </>;
+}
+function ChannelLibrary({ mode, onPlay }: { mode: "all" | "favorites" | "recent"; onPlay: (playlist: Playlist, channel: import("./app/models").TvChannel) => void }) {
+  const playlists=useAppStore(state=>state.playlists), favorites=useAppStore(state=>state.favorites);
+  const toggleFavorite=useAppStore(state=>state.toggleFavorite), recentChannels=useAppStore(state=>state.recentChannels);
+  const [query,setQuery]=useState(""),[group,setGroup]=useState("All groups"),[source,setSource]=useState("All playlists");
+  const entries=useMemo(()=>playlists.flatMap(playlist=>playlist.channels.map(channel=>({playlist,channel}))),[playlists]);
+  const groups=useMemo(()=>["All groups",...new Set(entries.map(x=>x.channel.group).filter(Boolean))],[entries]);
+  const recentOrder=new Map(recentChannels.map((item,index)=>[channelKey(item.playlistId,item.channelId),index]));
+  const filtered=entries.filter(({playlist,channel})=>(mode==="all"||(mode==="favorites"&&favorites.includes(channelKey(playlist.id,channel.id)))||(mode==="recent"&&recentOrder.has(channelKey(playlist.id,channel.id)))) && (source==="All playlists"||playlist.id===source) && (group==="All groups"||channel.group===group) && (!query||channel.name.toLowerCase().includes(query.toLowerCase())||channel.group.toLowerCase().includes(query.toLowerCase()))).sort((a,b)=>(recentOrder.get(channelKey(a.playlist.id,a.channel.id))??999)-(recentOrder.get(channelKey(b.playlist.id,b.channel.id))??999));
+  return <div className="channel-library"><div className="channel-toolbar"><label className="channel-search"><Search size={16}/><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Search channels…"/></label><select value={source} onChange={e=>setSource(e.target.value)}><option>All playlists</option>{playlists.map(p=><option value={p.id} key={p.id}>{p.name}</option>)}</select><select value={group} onChange={e=>setGroup(e.target.value)}>{groups.map(g=><option key={g}>{g}</option>)}</select><span>{filtered.length} channels</span></div>
+    {filtered.length===0 ? <EmptyState icon={mode==="all"?Radio:Heart} title={mode==="all"?"No channels found":mode==="favorites"?"No favorite channels yet":"No viewing history yet"} detail={mode==="all"?"Add a playlist or adjust your search and filters.":mode==="favorites"?"Use the star on a channel to save it here.":"Channels you play will appear here."}/> : <div className="channel-grid">{filtered.map(({playlist,channel})=><article className="channel-card" key={playlist.id+":"+channel.id}><div className="channel-logo">{channel.logo ? <img src={channel.logo} alt="" loading="lazy" onError={e=>{e.currentTarget.style.display="none";}}/> : <Tv2 size={22}/>}</div><div className="channel-card-info"><b>{channel.name}</b><small>{channel.group} · {playlist.name}</small><small>{channel.sources[0]?.type.toUpperCase() ?? "STREAM"}</small></div><button className="channel-play-button" onClick={()=>onPlay(playlist,channel)} aria-label={"Play " + channel.name}><Play size={14}/></button><button className={favorites.includes(channelKey(playlist.id,channel.id))?"favorite-button selected":"favorite-button"} aria-label="Toggle favorite" onClick={()=>toggleFavorite(playlist.id,channel.id)}><Heart size={17} fill={favorites.includes(channelKey(playlist.id,channel.id))?"currentColor":"none"}/></button></article>)}</div>}
   </div>;
 }
+function programmeTime(value: number): string { return new Date(value).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }); }
+function GuidePage({ playlists, onPlay, status, refreshedAt }: { playlists: Playlist[]; onPlay: (playlist: Playlist, channel: TvChannel) => void; status: string; refreshedAt: number }) {
+  const guide = useAppStore(state => state.guide); const [query, setQuery] = useState(""); const [, setClock] = useState(Date.now()); const now = Date.now();
+  useEffect(() => { const timer = window.setInterval(() => setClock(Date.now()), 30000); return () => window.clearInterval(timer); }, []);
+  const entries = playlists.flatMap(playlist => playlist.channels.map(channel => { const programmes = guide[channel.tvgId ?? ""] ?? guide[channel.id] ?? []; return { playlist, channel, current: programmes.find(item => item.start <= now && item.stop > now), next: programmes.find(item => item.start > now) }; })).filter(item => item.current || item.next).filter(item => !query || item.channel.name.toLowerCase().includes(query.toLowerCase()) || item.current?.title.toLowerCase().includes(query.toLowerCase()) || item.next?.title.toLowerCase().includes(query.toLowerCase()));
+  const feedCount = new Set(playlists.flatMap(item => item.epgUrls)).size;
+  return <><PageHeading title="TV Guide" subtitle="Live programmes and what is coming up next." action={<span className="guide-updated">{refreshedAt ? "Updated " + new Date(refreshedAt).toLocaleTimeString([], {hour:"2-digit",minute:"2-digit"}) : status}</span>} />
+    <label className="channel-search guide-search"><Search size={16}/><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Search channels or programmes…"/></label>{status && <p className="guide-status" role="status">{status}</p>}
+    {entries.length ? <div className="guide-list">{entries.map(({playlist,channel,current,next})=><article className="guide-row" key={playlist.id+":"+channel.id}>
+      <button className="guide-channel" onClick={()=>onPlay(playlist,channel)}><span className="guide-logo">{channel.logo ? <img src={channel.logo} alt="" loading="lazy"/> : <Tv2 size={20}/>}</span><span><b>{channel.name}</b><small>{channel.group}</small></span></button>
+      <div className="guide-programmes"><div className="guide-programme current"><span className="guide-time">{current ? programmeTime(current.start)+" – "+programmeTime(current.stop) : "NOW"}</span><div><b>{current?.title ?? "No current programme data"}</b>{current?.description && <p>{current.description}</p>}</div>{current && <span className="guide-live">LIVE</span>}</div>
+        <div className="guide-programme"><span className="guide-time">{next ? programmeTime(next.start)+" – "+programmeTime(next.stop) : "NEXT"}</span><div><b>{next?.title ?? "Schedule unavailable"}</b>{next?.description && <p>{next.description}</p>}</div></div></div>
+      <button className="guide-play" onClick={()=>onPlay(playlist,channel)} aria-label={"Watch "+channel.name}><Play size={16}/></button></article>)}</div> : <EmptyState icon={CalendarDays} title={feedCount ? "No matching programme data" : "No programme guide connected"} detail={feedCount ? "The connected EPG feeds did not provide current or upcoming schedules for these channels." : "Add a playlist containing an XMLTV URL (url-tvg, x-tvg-url or epg_url) to load programme schedules."} action="Manage playlists" onAction={()=>useAppStore.getState().setActiveSection("Playlists")}/>}</>;
+}
+function App() {
+  const activeSection=useAppStore(state=>state.activeSection),setActiveSection=useAppStore(state=>state.setActiveSection);
+  const settings=useAppStore(state=>state.settings),playlists=useAppStore(state=>state.playlists),favorites=useAppStore(state=>state.favorites);
+  const setGuide=useAppStore(state=>state.setGuide);
+  const [guideStatus,setGuideStatus]=useState(""),[guideRefreshedAt,setGuideRefreshedAt]=useState(0);
+  const [navigationOpen,setNavigationOpen]=useState(false);
+  const [activePlayback,setActivePlayback]=useState<{playlistId:string;channelId:string}|null>(null);
+  const selectedPlaylist=activePlayback ? playlists.find(item=>item.id===activePlayback.playlistId) : undefined;
+  const selectedChannel=selectedPlaylist?.channels.find(item=>item.id===activePlayback?.channelId);
+  const openPlayer=(playlist:Playlist,channel:import("./app/models").TvChannel)=>setActivePlayback({playlistId:playlist.id,channelId:channel.id});
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      const sources = playlists.flatMap(playlist => playlist.epgUrls.map(url => ({ playlist, url })));
+      if (!sources.length) { setGuide({}); setGuideStatus(""); setGuideRefreshedAt(0); return; }
+      setGuideStatus("Updating programme schedules…");
+      const results = await Promise.allSettled(sources.map(async ({playlist,url}) => { const response = await fetchPlaylistText(url, playlist.requestHeaders); return parseXmltv(response.text, playlist.channels); }));
+      if (cancelled) return;
+      const merged: Record<string, EpgProgramme[]> = {}; let successful = 0;
+      for (const result of results) if (result.status === "fulfilled") { successful++; for (const [id, programmes] of Object.entries(result.value)) merged[id] = [...(merged[id] ?? []), ...programmes]; }
+      for (const items of Object.values(merged)) { const unique = new Map(items.map(item => [item.channelId + ":" + item.start, item])); items.splice(0, items.length, ...[...unique.values()].sort((a,b)=>a.start-b.start)); }
+      setGuide(merged); setGuideRefreshedAt(Date.now());
+      setGuideStatus(successful ? "Loaded schedules from " + successful + " of " + sources.length + " EPG feeds." : "Could not load the configured EPG feeds. Check the feed URL and request headers.");
+    };
+    void load(); const timer = window.setInterval(() => void load(), 30 * 60 * 1000);
+    return () => { cancelled = true; window.clearInterval(timer); };
+  }, [playlists, setGuide]);
+  useEffect(()=>{document.documentElement.dataset.theme=settings.theme;},[settings.theme]);
+  useEffect(()=>{const close=(e:KeyboardEvent)=>{if(e.key==="Escape")setNavigationOpen(false);};window.addEventListener("keydown",close);return()=>window.removeEventListener("keydown",close);},[]);
+  const channelsCount=playlists.reduce((total,p)=>total+p.channels.length,0);
+  const openSection=(section:AppSection)=>{setActiveSection(section);setNavigationOpen(false);};
+  return <div className="application">
+    {navigationOpen&&<button className="navigation-backdrop" aria-label="Close navigation" onClick={()=>setNavigationOpen(false)}/>}
+    <aside className={navigationOpen?"navigation-drawer open":"navigation-drawer"}><div className="brand-lockup"><div className="brand-icon"><Tv2 size={23}/></div><div><b>TG IPTV</b><small>WINDOWS PLAYER</small></div></div>
+      <div className="profile-switcher"><div className="profile-avatar">T</div><span><b>My library</b><small>{playlists.length} playlist{playlists.length===1?"":"s"} connected</small></span></div>
+      <p className="navigation-caption">WATCH</p><nav>{navigation.filter(n=>n.group==="watch").map(({section,icon:Icon})=><button key={section} className={activeSection===section?"navigation-item active":"navigation-item"} onClick={()=>openSection(section)}><Icon size={19}/><span>{section}</span>{section==="Favorites"&&favorites.length>0&&<small>{favorites.length}</small>}</button>)}</nav>
+      <p className="navigation-caption manage-caption">MANAGE</p><nav>{navigation.filter(n=>n.group==="manage").map(({section,icon:Icon})=><button key={section} className={activeSection===section?"navigation-item active":"navigation-item"} onClick={()=>openSection(section)}><Icon size={19}/><span>{section}</span></button>)}</nav>
+      <div className="navigation-bottom"><div className="connection-status"><span className="connection-indicator"/><span><b>Application ready</b><small>Windows desktop</small></span></div><button className="help-link" onClick={()=>openSection("Settings")}><CircleHelp size={17}/> App preferences</button></div>
+    </aside>
+    <div className="main-column"><header className="app-bar"><div className="app-bar-title"><button className="menu-button" onClick={()=>setNavigationOpen(v=>!v)} aria-label="Toggle navigation"><Menu size={21}/></button><span>IPTV <i>/</i> {activeSection}</span></div><div className="app-bar-actions"><span className="platform-label"><span/> Windows Desktop</span></div></header>
+      <main className="page-container">
+        {selectedPlaylist && selectedChannel ? <LivePlayer playlist={selectedPlaylist} channel={selectedChannel} onClose={()=>setActivePlayback(null)} onSelect={channel=>setActivePlayback({playlistId:selectedPlaylist.id,channelId:channel.id})}/> : <>
+        {activeSection==="Home"&&<><PageHeading title="Welcome to TG IPTV" subtitle="Your television library, playlists and programme guide in one place."/><div className="overview-cards">
+          <button className="overview-card" onClick={()=>openSection("Live TV")}><span className="overview-icon"><Radio size={21}/></span><b>{channelsCount.toLocaleString()}</b><small>Channels available</small><span className="card-link">Open Live TV <ChevronRight size={15}/></span></button>
+          <button className="overview-card" onClick={()=>openSection("Playlists")}><span className="overview-icon"><ListVideo size={21}/></span><b>{playlists.length}</b><small>Connected playlists</small><span className="card-link">Manage playlists <ChevronRight size={15}/></span></button>
+          <button className="overview-card" onClick={()=>openSection("Favorites")}><span className="overview-icon"><Heart size={21}/></span><b>{favorites.length}</b><small>Favorite channels</small><span className="card-link">View favorites <ChevronRight size={15}/></span></button>
+        </div><div className="home-content-grid"><section className="welcome-panel"><p className="eyebrow">YOUR ENTERTAINMENT HUB</p><h2>All your channels.<br/><span>One simple player.</span></h2><p>Connect a playlist to browse channels and build your TV library. Open any channel to start watching with automatic stream fallback.</p><button className="primary-button" onClick={()=>openSection("Playlists")}>Open playlist manager <ChevronRight size={16}/></button></section><section className="quick-links"><h2>Quick access</h2><button onClick={()=>openSection("Guide")}><CalendarDays size={19}/><span><b>Programme guide</b><small>See what's on now and next</small></span><ChevronRight size={17}/></button><button onClick={()=>openSection("History")}><Clock3 size={19}/><span><b>Recently watched</b><small>Return to your last channels</small></span><ChevronRight size={17}/></button></section></div></>}
+        {activeSection==="Live TV"&&<><PageHeading title="Live TV" subtitle="Browse all channels across your connected playlists."/><ChannelLibrary mode="all" onPlay={openPlayer}/></>}
+         {activeSection==="Guide"&&<GuidePage playlists={playlists} onPlay={openPlayer} status={guideStatus} refreshedAt={guideRefreshedAt}/>}
+        {activeSection==="Favorites"&&<><PageHeading title="Favorites" subtitle="Your saved channels in one place."/><ChannelLibrary mode="favorites" onPlay={openPlayer}/></>}
+        {activeSection==="History"&&<><PageHeading title="Recently watched" subtitle="Quickly return to the channels you watched recently."/><ChannelLibrary mode="recent" onPlay={openPlayer}/></>}
+        {activeSection==="Playlists"&&<PlaylistManager/>}
+        {activeSection==="Settings"&&<SettingsPage/>}
+        </>}
+      </main><footer className="app-footer"><span>TG IPTV Desktop</span><span>Windows edition <i>•</i> Live player</span></footer>
+    </div>
+  </div>;
+}
+export default App;

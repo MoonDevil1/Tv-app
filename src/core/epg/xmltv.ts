@@ -1,78 +1,68 @@
-import type { EpgProgram } from "../store/appStore";
+import type { EpgProgramme, TvChannel } from "../../app/models";
 
-export function parseXmltvDate(value: string): number {
-  const match = value.trim().match(/^(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})(?:\s*([+-])(\d{2})(\d{2}))?\s*$/);
-  if (!match) return Number.NaN;
-  const [, y, mo, d, h, mi, s, sign, oh = "00", om = "00"] = match;
-  const year = +y, month = +mo, day = +d, hour = +h, minute = +mi, second = +s;
-  const offsetHour = +oh, offsetMinute = +om;
-  if (year < 1900 || month < 1 || month > 12 || day < 1 || hour > 23 || minute > 59 || second > 59 ||
-      offsetHour > 23 || offsetMinute > 59) return Number.NaN;
-  const utc = Date.UTC(year, month - 1, day, hour, minute, second);
-  const date = new Date(utc);
-  if (date.getUTCFullYear() !== year || date.getUTCMonth() !== month - 1 || date.getUTCDate() !== day) return Number.NaN;
-  const offset = (offsetHour * 60 + offsetMinute) * 60_000 * (sign === "+" ? 1 : -1);
+function decodeXml(value: string): string {
+  return value.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, "$1")
+    .replace(/&#x([\da-f]+);/gi, (_, hex: string) => String.fromCodePoint(parseInt(hex, 16)))
+    .replace(/&#(\d+);/g, (_, number: string) => String.fromCodePoint(Number(number)))
+    .replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"')
+    .replace(/&apos;/g, "'").replace(/&amp;/g, "&").trim();
+}
+function textContent(value: string): string {
+  return decodeXml(value.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, "$1").replace(/<[^>]*>/g, ""));
+}
+function attribute(tag: string, name: string): string {
+  const match = tag.match(new RegExp("\\b" + name + "\\s*=\\s*(['\"])(.*?)\\1", "i"));
+  return match?.[2] ? decodeXml(match[2]) : "";
+}
+export function parseXmltvDate(value: string): number | undefined {
+  const match = value.trim().match(/^(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})(?:\s*([+-])(\d{2})(\d{2}))?/);
+  if (!match) return;
+  const [, y, mo, d, h, mi, sec, sign, offH, offM] = match;
+  const utc = Date.UTC(Number(y), Number(mo) - 1, Number(d), Number(h), Number(mi), Number(sec));
+  if (!sign) return new Date(Number(y), Number(mo) - 1, Number(d), Number(h), Number(mi), Number(sec)).getTime();
+  const offset = (Number(offH) * 60 + Number(offM)) * 60000 * (sign === "+" ? 1 : -1);
   return utc - offset;
 }
-
-export function parseXmltv(xml: string): Record<string, EpgProgram[]> {
-  const document = new DOMParser().parseFromString(xml, "application/xml");
-  if (document.querySelector("parsererror")) throw new Error("The EPG file is not valid XMLTV.");
-  const result: Record<string, EpgProgram[]> = {};
-  for (const node of Array.from(document.querySelectorAll("programme"))) {
-    const channelId = node.getAttribute("channel") ?? "";
-    const start = parseXmltvDate(node.getAttribute("start") ?? "");
-    const stop = parseXmltvDate(node.getAttribute("stop") ?? "");
-    const title = node.querySelector("title")?.textContent?.trim() ?? "";
-    if (!channelId || !title || !Number.isFinite(start) || !Number.isFinite(stop) || stop <= start) continue;
-    const description = node.querySelector("desc")?.textContent?.trim() || undefined;
-    (result[channelId] ??= []).push({ channelId, title, description, start, stop });
+function channelName(channel: TvChannel): string {
+  return channel.name.toLowerCase().replace(/\b(?:hd|fhd|uhd|4k)\b/g, "").replace(/[^a-z0-9]/g, "");
+}
+export function parseXmltv(xml: string, channels: TvChannel[]): Record<string, EpgProgramme[]> {
+  if (!/<tv(?:\s|>)/i.test(xml)) throw new Error("The EPG response is not a valid XMLTV document.");
+  const byId = new Map<string, TvChannel[]>();
+  const byName = new Map<string, TvChannel[]>();
+  for (const channel of channels) {
+    for (const id of [channel.tvgId, channel.id].filter(Boolean) as string[]) {
+      const list = byId.get(id) ?? []; list.push(channel); byId.set(id, list);
+    }
+    const name = channelName(channel);
+    if (name) { const list = byName.get(name) ?? []; list.push(channel); byName.set(name, list); }
   }
-  for (const programs of Object.values(result)) programs.sort((a, b) => a.start - b.start);
+  const xmlNames = new Map<string, string>();
+  for (const match of xml.matchAll(/<channel\b([^>]*)>([\s\S]*?)<\/channel>/gi)) {
+    const id = attribute(match[1], "id");
+    const display = match[2].match(/<display-name\b[^>]*>([\s\S]*?)<\/display-name>/i)?.[1];
+    if (id && display) xmlNames.set(id, textContent(display));
+  }
+  const result: Record<string, EpgProgramme[]> = {};
+  for (const match of xml.matchAll(/<programme\b([^>]*)>([\s\S]*?)<\/programme>/gi)) {
+    const channelId = attribute(match[1], "channel");
+    const start = parseXmltvDate(attribute(match[1], "start"));
+    const stop = parseXmltvDate(attribute(match[1], "stop"));
+    if (!channelId || start === undefined || stop === undefined || stop <= start) continue;
+    const body = match[2];
+    const title = body.match(/<title\b[^>]*>([\s\S]*?)<\/title>/i)?.[1];
+    if (!title) continue;
+    const description = body.match(/<desc\b[^>]*>([\s\S]*?)<\/desc>/i)?.[1];
+    let matches = byId.get(channelId) ?? [];
+    if (!matches.length) {
+      const name = channelName({ name: xmlNames.get(channelId) ?? "", id: "", group: "", sources: [], rawAttributes: {} });
+      matches = byName.get(name) ?? [];
+    }
+    if (matches.length !== 1) continue;
+    const programme: EpgProgramme = { channelId, title: textContent(title), description: description ? textContent(description) : undefined, start, stop };
+    const channel = matches[0];
+    for (const key of [channel.tvgId, channel.id].filter(Boolean) as string[]) (result[key] ??= []).push(programme);
+  }
+  for (const items of Object.values(result)) items.sort((a, b) => a.start - b.start);
   return result;
-}
-
-export function currentAndNext(programs: EpgProgram[] = [], now = Date.now()): { current?: EpgProgram; next?: EpgProgram } {
-  return {
-    current: programs.find(program => program.start <= now && program.stop > now),
-    next: programs.find(program => program.start > now)
-  };
-}
-
-
-type LiveTgProgramme = {
-  title?: unknown;
-  start?: unknown;
-  stop?: unknown;
-  startTime?: unknown;
-  stopTime?: unknown;
-  desc?: unknown;
-  description?: unknown;
-};
-
-function guideTimestamp(value: unknown): number {
-  if (typeof value === "number" && Number.isFinite(value)) return value < 1e12 ? value * 1000 : value;
-  if (typeof value === "string" && value.trim()) {
-    const numeric = Number(value);
-    if (Number.isFinite(numeric)) return numeric < 1e12 ? numeric * 1000 : numeric;
-    const parsed = Date.parse(value);
-    if (Number.isFinite(parsed)) return parsed;
-  }
-  return Number.NaN;
-}
-
-export function parseLiveTgGuide(payload: unknown, channelId: string): EpgProgram[] {
-  if (!payload || typeof payload !== "object" || !channelId) return [];
-  const data = payload as { nowPlaying?: LiveTgProgramme | null; upNext?: LiveTgProgramme | null; upcoming?: LiveTgProgramme[]; guide?: LiveTgProgramme[] };
-  const entries = [...(Array.isArray(data.guide) ? data.guide : []), ...(Array.isArray(data.upcoming) ? data.upcoming : []), data.nowPlaying, data.upNext].filter((item): item is LiveTgProgramme => !!item && typeof item === "object");
-  const unique = new Map<string, EpgProgram>();
-  for (const item of entries) {
-    const title = typeof item.title === "string" ? item.title.trim() : "";
-    const start = guideTimestamp(item.start ?? item.startTime);
-    const stop = guideTimestamp(item.stop ?? item.stopTime);
-    if (!title || !Number.isFinite(start) || !Number.isFinite(stop) || stop <= start) continue;
-    const program: EpgProgram = { channelId, title, description: typeof (item.desc ?? item.description) === "string" ? String(item.desc ?? item.description).trim() || undefined : undefined, start, stop };
-    unique.set(`${start}:${stop}:${title}`, program);
-  }
-  return [...unique.values()].sort((a, b) => a.start - b.start);
 }
