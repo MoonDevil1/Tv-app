@@ -75,14 +75,31 @@ function parseM3u(text: string): { channels: TvChannel[]; epgUrls: string[] } {
     const headers = entryHeaders(current.extras);
     const props = current.extras.filter(line => /^#KODIPROP:/i.test(line));
     const drmType = props.find(line => /license_type=/i.test(line))?.split("=").slice(1).join("=").trim().toLowerCase();
-    const license = props.find(line => /license_key=/i.test(line))?.split("=").slice(1).join("=").trim();
+    const licenseRaw = props.find(line => /license_key=/i.test(line))?.split("=").slice(1).join("=").trim() ?? "";
+    const licenseParts = licenseRaw.split("|").map(part => part.trim()).filter(Boolean);
+    const license = licenseParts[0] ?? "";
+    const licenseHeaders: StreamHeaders = {};
+    for (const part of licenseParts.slice(1)) parseHeaderPayload(part, licenseHeaders);
     let drm: ChannelSource["drm"];
-    if (drmType === "clearkey" && license) {
-      const pairs = license.split("|");
+    if (/^(?:clearkey|org\\.w3\\.clearkey)$/i.test(drmType) && license) {
       const clearKeys: Record<string,string> = {};
-      for (const pair of pairs) { const [kid,key] = pair.split(":"); if (/^[a-f0-9]{32}$/i.test(kid ?? "") && /^[a-f0-9]{32}$/i.test(key ?? "")) clearKeys[kid.toLowerCase()] = key.toLowerCase(); }
+      try {
+        const parsed = JSON.parse(license);
+        for (const entry of Array.isArray(parsed?.keys) ? parsed.keys : []) {
+          const kid = String(entry?.kid ?? "").replace(/-/g, "").toLowerCase();
+          const key = String(entry?.k ?? "").replace(/-/g, "").toLowerCase();
+          if (/^[a-f0-9]{32}$/.test(kid) && /^[a-f0-9]{32}$/.test(key)) clearKeys[kid] = key;
+        }
+      } catch {
+        for (const pair of license.split(/[|,;]/)) {
+          const [kid, key] = pair.split(":");
+          if (/^[a-f0-9]{32}$/i.test(kid ?? "") && /^[a-f0-9]{32}$/i.test(key ?? "")) clearKeys[kid.toLowerCase()] = key.toLowerCase();
+        }
+      }
       if (Object.keys(clearKeys).length) drm = { scheme: "clearkey", clearKeys };
-    } else if (drmType === "com.widevine.alpha" && license) drm = { scheme: "widevine", licenseUrl: safeUrl(license) || undefined };
+    } else if (drmType === "com.widevine.alpha" && license) {
+      drm = { scheme: "widevine", licenseUrl: safeUrl(license) || undefined, ...(Object.keys(licenseHeaders).length ? { licenseHeaders } : {}) };
+    }
     const source: ChannelSource = { url, type, headers, ...(drm ? { drm } : {}) };
     channels.push({
       id, name, logo: attr(current.info, "tvg-logo") || undefined,
