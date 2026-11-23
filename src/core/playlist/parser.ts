@@ -125,19 +125,59 @@ function fromJson(text: string): { channels: TvChannel[]; epgUrls: string[] } {
   const channels = root.flatMap((item: any, index: number) => {
     if (!item || typeof item !== "object") return [];
     const name = String(item.name ?? item.title ?? item.channel_name ?? "").trim();
-    const url = safeUrl(item.url ?? item.link ?? item.stream_url ?? item.streamUrl ?? item.sources?.[0]?.url);
-    if (!name || !url) return [];
-    const headers: StreamHeaders = {};
+    if (!name) return [];
+    const baseHeaders: StreamHeaders = {};
     const inputHeaders = item.headers ?? item.requestHeaders;
-    if (inputHeaders && typeof inputHeaders === "object" && !Array.isArray(inputHeaders)) for (const [k,v] of Object.entries(inputHeaders)) setHeader(headers,k,String(v));
-    const type = manifestType(url);
-    if (type === "unknown") return [];
+    if (inputHeaders && typeof inputHeaders === "object" && !Array.isArray(inputHeaders)) {
+      for (const [key, value] of Object.entries(inputHeaders)) setHeader(baseHeaders, key, String(value));
+    }
+    const candidates = Array.isArray(item.sources) && item.sources.length ? item.sources : [item];
+    const sources: ChannelSource[] = candidates.flatMap((candidate: any) => {
+      if (!candidate || typeof candidate !== "object") return [];
+      const url = safeUrl(candidate.url ?? candidate.link ?? candidate.stream_url ?? candidate.streamUrl ?? candidate.uri);
+      if (!url) return [];
+      const explicitType = String(candidate.type ?? candidate.format ?? item.type ?? "").toLowerCase();
+      const type = manifestType(url) !== "unknown" ? manifestType(url) :
+        /^(?:dash|mpd|application/dash\+xml)$/.test(explicitType) ? "dash" :
+        /^(?:hls|m3u8|application/vnd\.apple\.mpegurl)$/.test(explicitType) ? "hls" :
+        /^(?:progressive|mp4|video/mp4)$/.test(explicitType) ? "progressive" : "unknown";
+      if (type === "unknown") return [];
+      const headers = { ...baseHeaders };
+      const sourceHeaders = candidate.headers ?? candidate.requestHeaders;
+      if (sourceHeaders && typeof sourceHeaders === "object" && !Array.isArray(sourceHeaders)) {
+        for (const [key, value] of Object.entries(sourceHeaders)) setHeader(headers, key, String(value));
+      }
+      const drmInput = candidate.drm ?? item.drm;
+      let drm: ChannelSource["drm"];
+      if (drmInput && typeof drmInput === "object") {
+        const scheme = String(drmInput.scheme ?? drmInput.type ?? "").toLowerCase();
+        const licenseHeaders: StreamHeaders = {};
+        if (drmInput.licenseHeaders && typeof drmInput.licenseHeaders === "object") {
+          for (const [key, value] of Object.entries(drmInput.licenseHeaders)) setHeader(licenseHeaders, key, String(value));
+        }
+        if (scheme.includes("clearkey") && drmInput.clearKeys && typeof drmInput.clearKeys === "object") {
+          const clearKeys: Record<string,string> = {};
+          for (const [kid, key] of Object.entries(drmInput.clearKeys)) {
+            const cleanKid = kid.replace(/-/g, "").toLowerCase();
+            const cleanKey = String(key).replace(/-/g, "").toLowerCase();
+            if (/^[a-f0-9]{32}$/.test(cleanKid) && /^[a-f0-9]{32}$/.test(cleanKey)) clearKeys[cleanKid] = cleanKey;
+          }
+          if (Object.keys(clearKeys).length) drm = { scheme: "clearkey", clearKeys };
+        } else if (scheme.includes("widevine") && safeUrl(drmInput.licenseUrl ?? drmInput.license_url)) {
+          drm = { scheme: "widevine", licenseUrl: safeUrl(drmInput.licenseUrl ?? drmInput.license_url), ...(Object.keys(licenseHeaders).length ? { licenseHeaders } : {}) };
+        }
+      }
+      return [{ url, type, headers, ...(drm ? { drm } : {}), ...(candidate.label ? { label: String(candidate.label) } : {}) }];
+    });
+    if (!sources.length) return [];
     return [{
       id: String(item.id ?? item.tvg_id ?? item.tvgId ?? "json:" + index), name,
       logo: safeUrl(item.logo ?? item.tvg_logo) || undefined,
       group: String(item.group ?? item.category ?? item.group_title ?? "Other"),
       tvgId: String(item.tvg_id ?? item.tvgId ?? "") || undefined, number: index + 1,
-      sources: [{ url, type, headers }], rawAttributes: {}
+      sources, requiresDrm: sources.some(source => !!source.drm),
+      requiresAuthorization: sources.some(source => Object.keys(source.headers).some(key => /^(?:cookie|authorization)$/i.test(key))),
+      rawAttributes: {}
     } satisfies TvChannel];
   });
   const epgValue = data.epg ?? data.epgUrl ?? data.epg_url ?? data.url_tvg;
