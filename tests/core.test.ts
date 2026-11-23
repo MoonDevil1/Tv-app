@@ -53,7 +53,7 @@ test("accepts standard JWK data URIs, remote license URLs and Widevine metadata"
   assert.equal(Object.keys(parseClearKeys(`data:application/json,${encodeURIComponent(jwk)}`)).length, 1);
   assert.equal(createClearKeyDrm("clearkey", "https://license.example/key")?.licenseUrl, "https://license.example/key");
   assert.equal(createClearKeyDrm("widevine", "https://license.example/wv")?.scheme, "widevine");
-  assert.equal(createClearKeyDrm("playready", "https://license.example/pr"), undefined);
+  assert.deepEqual(createClearKeyDrm("playready", "https://license.example/pr"), { scheme: "playready", licenseUrl: "https://license.example/pr" });
 });
 
 test("parses JSON playlist envelopes, IPTV aliases, headers and relative stream URLs", () => {
@@ -101,6 +101,32 @@ https://cdn.example/channel\\_one/index.mpd`;
   assert.equal(channel.url, "https://cdn.example/channel_one/index.mpd");
   assert.equal(channel.headers.cookie, "__hdnea__=token");
   assert.equal(channel.manifestType, "dash");
+});
+
+test("parses LiveTGTV-style authenticated DASH and multi-key ClearKey entries", () => {
+  const source = `#EXTM3U
+#EXTINF:-1 tvg-id="1132" tvg-name="Star Plus HD" tvg-logo="https://img.example/star.png" group-title="Entertainment", Star Plus HD
+#KODIPROP:inputstream.adaptive.manifest\\_type=mpd
+#KODIPROP:inputstream.adaptive.license\\_type=clearkey
+#KODIPROP:inputstream.adaptive.license\\_key=${KID}:${KEY}
+#EXTVLCOPT:http-user-agent=PlayTV/7.1.5 (Linux;Android 8.1.0) ExoPlayerLib/2.11.7
+#EXTHTTP:{"cookie":"\\_\\_hdnea\\_\\_=signed-token"}
+https://jiotvmblive.cdn.jio.com/bpk-tv/Star\\_Plus\\_HD\\_MOB/WDVLive/index.mpd
+#EXTINF:-1 tvg-id="1116" tvg-name="Star Plus" group-title="Entertainment", Star Plus
+#KODIPROP:inputstream.adaptive.manifest\\_type=mpd
+#KODIPROP:inputstream.adaptive.license\\_type=clearkey
+#KODIPROP:inputstream.adaptive.license\\_key=${KID}:${KEY},11223344556677889900aabbccddeeff:00112233445566778899aabbccddeeff
+https://jiotvpllive.cdn.jio.com/bpk-tv/Star\\_Plus\\_BTS/WDVLive/index.mpd`;
+  const channels = parsePlaylist(source);
+  assert.equal(channels.length, 2);
+  assert.equal(channels[0].name, "Star Plus HD");
+  assert.equal(channels[0].manifestType, "dash");
+  assert.equal(channels[0].url, "https://jiotvmblive.cdn.jio.com/bpk-tv/Star_Plus_HD_MOB/WDVLive/index.mpd");
+  assert.equal(channels[0].headers["User-Agent"], "PlayTV/7.1.5 (Linux;Android 8.1.0) ExoPlayerLib/2.11.7");
+  assert.equal(channels[0].headers.cookie, "__hdnea__=signed-token");
+  assert.equal(Object.keys(channels[0].drm?.clearKeys ?? {}).length, 1);
+  assert.equal(Object.keys(channels[1].drm?.clearKeys ?? {}).length, 2);
+  assert.equal(channels[1].manifestType, "dash");
 });
 
 test("resolves relative M3U stream URLs against playlist URL", () => {
@@ -188,6 +214,23 @@ test("license headers are sent only to the configured license server", () => {
   assert.deepEqual(licenseHeadersForRequest(drm, "https://license.example.evil.test/wv"), {});
 });
 
+test("parses license request headers and configures PlayReady alongside Widevine", () => {
+  const source = `#EXTM3U
+#EXTINF:-1,Protected HLS
+#KODIPROP:inputstream.adaptive.manifest_type=hls
+#KODIPROP:inputstream.adaptive.license_type=com.widevine.alpha
+#KODIPROP:inputstream.adaptive.license_key=https://license.example/wv
+#KODIPROP:inputstream.adaptive.license_headers={"Authorization":"Bearer license","X-License":"test"}
+https://cdn.example/live/master.m3u8`;
+  const [channel] = parseM3U(source);
+  assert.equal(channel.manifestType, "hls");
+  assert.equal(channel.drm?.scheme, "widevine");
+  assert.deepEqual(channel.drm?.licenseHeaders, { Authorization: "Bearer license", "X-License": "test" });
+  assert.deepEqual(shakaDrmConfiguration({ scheme: "playready", licenseUrl: "https://license.example/pr" }), {
+    drm: { servers: { "com.microsoft.playready": "https://license.example/pr" } }
+  });
+});
+
 test("builds ClearKey and Widevine Shaka DRM configurations", () => {
   const keys = { "ABEiM0RVZneImaq7zN3u_w": "ABEiM0RVZneImaq7zN3u_w" };
   assert.deepEqual(shakaDrmConfiguration({ scheme: "clearkey", clearKeys: keys }), { drm: { clearKeys: keys } });
@@ -249,7 +292,8 @@ test("JSON DRM metadata preserves Widevine and ignores unsupported PlayReady", (
     name: "PlayReady", url: "https://stream.example/pr.mpd",
     drm: { scheme: "playready", licenseUrl: "https://license.example/pr" }
   }] })[0];
-  assert.equal(playready.drm, undefined);
+  assert.equal(playready.drm?.scheme, "playready");
+  assert.equal(playready.drm?.licenseUrl, "https://license.example/pr");
 });
 
 test("XMLTV date parser rejects impossible dates and offsets", () => {
