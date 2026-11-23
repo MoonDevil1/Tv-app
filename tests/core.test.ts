@@ -53,7 +53,7 @@ test("accepts standard JWK data URIs, remote license URLs and Widevine metadata"
   assert.equal(Object.keys(parseClearKeys(`data:application/json,${encodeURIComponent(jwk)}`)).length, 1);
   assert.equal(createClearKeyDrm("clearkey", "https://license.example/key")?.licenseUrl, "https://license.example/key");
   assert.equal(createClearKeyDrm("widevine", "https://license.example/wv")?.scheme, "widevine");
-  assert.equal(createClearKeyDrm("playready", "https://license.example/pr"), undefined);
+  assert.deepEqual(createClearKeyDrm("playready", "https://license.example/pr"), { scheme: "playready", licenseUrl: "https://license.example/pr" });
 });
 
 test("parses JSON playlist envelopes, IPTV aliases, headers and relative stream URLs", () => {
