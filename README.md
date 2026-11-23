@@ -1,36 +1,17 @@
 # TG IPTV — Cinema Edition
 
-A cross-platform desktop IPTV player built with Electron, React 19, TypeScript, Shaka Player and hls.js.
+A Windows desktop IPTV player built with Electron, React 19, TypeScript, Shaka Player and hls.js.
 
-## Downloads — v2.0.2
+## Download for Windows — v2.0.3
 
-Choose the download for your operating system. All installers below are attached to the [published v2.0.2 GitHub release](https://github.com/MoonDevil1/Tv-app/releases/tag/v2.0.2).
-
-### Windows
+<badge>Latest Windows release</badge>
 
 | Package | Download | Notes |
 |---|---|---|
-| Windows Installer (x64) | [Download `.exe`](https://github.com/MoonDevil1/Tv-app/releases/download/v2.0.2/TG.IPTV.Setup.2.0.2.exe) | Recommended; installs the app and supports the configured updater |
-| Portable (x64) | [Download `.exe`](https://github.com/MoonDevil1/Tv-app/releases/download/v2.0.2/TG.IPTV.2.0.2.exe) | Run without installation; update manually |
+| Windows Installer (x64) | [Download TG IPTV Setup (.exe)](https://github.com/MoonDevil1/Tv-app/releases/download/v2.0.3/TG.IPTV.Setup.2.0.3.exe) | Recommended; installs the app and supports the configured updater |
+| Portable (x64) | [Download portable app (.exe)](https://github.com/MoonDevil1/Tv-app/releases/download/v2.0.3/TG.IPTV.2.0.3.exe) | Run without installation; update manually |
 
-### macOS
-
-| Package | Download | Notes |
-|---|---|---|
-| Apple Silicon DMG (ARM64) | [Download `.dmg`](https://github.com/MoonDevil1/Tv-app/releases/download/v2.0.2/TG.IPTV-2.0.2-arm64.dmg) | For Apple Silicon Macs (M1, M2, M3, M4) |
-| Apple Silicon ZIP (ARM64) | [Download `.zip`](https://github.com/MoonDevil1/Tv-app/releases/download/v2.0.2/TG.IPTV-2.0.2-arm64-mac.zip) | ZIP distribution for Apple Silicon Macs |
-
-> Intel Mac (x64) builds are not included in v2.0.2. macOS automatic updates require a Developer ID-signed and notarized build.
-
-### Linux
-
-| Package | Download | Notes |
-|---|---|---|
-| AppImage (x64) | [Download `.AppImage`](https://github.com/MoonDevil1/Tv-app/releases/download/v2.0.2/TG.IPTV-2.0.2.AppImage) | Portable Linux application image; mark it executable before launching |
-
-For checksums, update metadata and any additional release files, see the [complete v2.0.2 release](https://github.com/MoonDevil1/Tv-app/releases/tag/v2.0.2).
-
----
+[View all release files and version history](https://github.com/MoonDevil1/Tv-app/releases).
 
 ## Features
 
@@ -63,21 +44,19 @@ npm test
 npm run build
 ```
 
-## Desktop packaging
+## Windows packaging
 
 ```bash
 npm run dist:win
-npm run dist:mac
-npm run dist:linux
 ```
 
-Installers are written to `release/`. Published GitHub releases provide update metadata and binaries; the updater intentionally ignores draft releases. Windows NSIS-installed, macOS ZIP and Linux AppImage builds are update targets; the portable Windows executable must be updated manually. macOS updates require a Developer ID-signed and notarized build.
+The Windows installer and portable executable are written to `release/`. Published GitHub releases provide update metadata and binaries; the updater intentionally ignores draft releases. The NSIS-installed build supports in-app update checks; the portable executable must be updated manually.
 
-GitHub Actions can build Windows, macOS and Linux installers from **Actions → Desktop Release → Run workflow**. To publish a release, create a version tag such as `v2.0.2` only after the feature branch has passed the full CI matrix. The release workflow stamps the tag version into the app, builds and smoke-tests each platform, then publishes the GitHub release with all generated installers attached.
+GitHub Actions builds and smoke-tests the Windows app through **Actions → Desktop Release**. A version tag such as `v2.0.3` publishes the Windows installer and portable executable after dependency audit, type-checking, unit tests, production build and packaged-app smoke test.
 
 ## Continuous integration
 
-Every feature-branch push runs type-checking, the unit suite and the Electron production build on Windows, macOS and Linux. The Electron header proxy also has regression tests for host scoping and header-injection filtering.
+Feature-branch pushes run type-checking, the unit suite and the Electron production build on Windows, macOS and Linux. The Electron header proxy also has regression tests for host scoping and header-injection filtering.
 
 ## Architecture
 
@@ -85,7 +64,7 @@ Every feature-branch push runs type-checking, the unit suite and the Electron pr
 - The isolated preload exposes a narrow, typed IPC surface.
 - React renderer owns navigation, channel library, EPG and player controls.
 - Playlist parsing, token refresh, DRM conversion, playback and EPG are isolated under `src/core`.
-- Shaka Player handles DASH; hls.js handles HLS; direct progressive streams use the native media element.
+- Shaka Player handles DASH and DRM-protected HLS; hls.js handles non-DRM HLS; direct progressive streams use the native media element.
 
 ## Security and playback
 
@@ -93,6 +72,6 @@ Chromium web security remains enabled. The app does not disable CORS globally or
 
 ## Playlist compatibility
 
-The playlist engine supports M3U/M3U8 and JSON channel collections, EXTINF metadata, EPG URLs, per-stream headers, tokenized URLs, catch-up metadata and authorized ClearKey/Widevine metadata. LiveTGTV is preconfigured as a convenient source URL, but its live endpoint contents and availability depend on that service and are not bundled or guaranteed.
+The playlist engine supports M3U/M3U8 and JSON channel collections, EXTINF metadata, EPG URLs, per-stream headers, tokenized URLs, catch-up metadata and authorized ClearKey/Widevine/PlayReady metadata. LiveTGTV is preconfigured as a convenient source URL, but its live endpoint contents and availability depend on that service and are not bundled or guaranteed.
 
 TG IPTV is a player only. Users must supply playlists and streams they are authorized to access.
