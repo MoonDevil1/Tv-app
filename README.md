@@ -2,6 +2,17 @@
 
 A Windows desktop IPTV player rebuild. The application is being recreated in phases around the AuthoIPTV feature set and the LiveTGTV/Vega stream-resolution workflow.
 
+## Download
+
+**Windows only** — TG IPTV v2.0.2.
+
+| Package | Download |
+|---|---|
+| Windows installer (recommended) | [TG.IPTV.Setup.2.0.2.exe](https://github.com/MoonDevil1/Tv-app/releases/download/v2.0.2/TG.IPTV.Setup.2.0.2.exe) |
+| Portable Windows app | [TG.IPTV.2.0.2.exe](https://github.com/MoonDevil1/Tv-app/releases/download/v2.0.2/TG.IPTV.2.0.2.exe) |
+
+[View all Windows release details](https://github.com/MoonDevil1/Tv-app/releases/tag/v2.0.2).
+
 ## Rebuild plan
 
 | Phase | Scope | Status |
