@@ -6,7 +6,7 @@ concurrency:
   cancel-in-progress: true
 on:
   push:
-    branches: [rebuild/windows-autho-vega]
+    branches: [rebuild/windows-autho-vega, rebuild/autho-style-vega-playback]
   pull_request:
     branches: [main]
 jobs:
