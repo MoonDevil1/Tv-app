@@ -1,6 +1,6 @@
 export type StreamHeaders = Record<string, string>;
 export type DrmConfig = {
-  scheme: "clearkey" | "widevine";
+  scheme: "clearkey" | "widevine" | "playready";
   licenseUrl?: string;
   clearKeys?: Record<string, string>;
   licenseHeaders?: StreamHeaders;
