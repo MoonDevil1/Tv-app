@@ -81,3 +81,23 @@ https://cdn.example/clearkey.mpd`;
   assert.equal(clearKey?.scheme, "clearkey");
   assert.equal(clearKey?.clearKeys?.["0123456789abcdef0123456789abcdef"], "abcdef0123456789abcdef0123456789");
 });
+
+
+test("keeps every JSON playlist source and its per-source headers and DRM metadata", () => {
+  const playlist = parsePlaylistText(JSON.stringify({ channels: [{
+    id: "zee", name: "Zee Cinema HD", group: "Movies",
+    headers: { "User-Agent": "Vega-Test" },
+    sources: [
+      { url: "https://cdn.example/zee.mpd", type: "dash", drm: { scheme: "widevine", licenseUrl: "https://license.example/wv", licenseHeaders: { Authorization: "Bearer test" } } },
+      { url: "https://backup.example/zee.m3u8", type: "hls", headers: { Referer: "https://provider.example/" }, label: "Backup" }
+    ]
+  }] }), "local.json");
+  const channel = playlist.channels[0];
+  assert.equal(channel.sources.length, 2);
+  assert.equal(channel.sources[0].drm?.licenseUrl, "https://license.example/wv");
+  assert.equal(channel.sources[0].drm?.licenseHeaders?.Authorization, "Bearer test");
+  assert.equal(channel.sources[0].headers["User-Agent"], "Vega-Test");
+  assert.equal(channel.sources[1].headers["User-Agent"], "Vega-Test");
+  assert.equal(channel.sources[1].headers.Referer, "https://provider.example/");
+  assert.equal(channel.sources[1].label, "Backup");
+});
