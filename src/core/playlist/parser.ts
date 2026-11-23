@@ -93,7 +93,7 @@ function parseM3u(text: string): { channels: TvChannel[]; epgUrls: string[] } {
     const licenseHeaders: StreamHeaders = {};
     for (const part of licenseParts.slice(1)) parseHeaderPayload(part, licenseHeaders);
     let drm: ChannelSource["drm"];
-    if (/^(?:clearkey|org\.w3\.clearkey)$/i.test(drmType) && license) {
+    if (/^(?:clearkey|org\.w3\.clearkey)$/i.test(drmType ?? "") && license) {
       const clearKeys: Record<string,string> = {};
       try {
         const parsed = JSON.parse(license);
