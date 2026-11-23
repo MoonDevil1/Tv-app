@@ -151,8 +151,8 @@ function fromJson(text: string): { channels: TvChannel[]; epgUrls: string[] } {
       const explicitType = String(candidate.type ?? candidate.format ?? item.type ?? "").toLowerCase();
       const type = manifestType(url) !== "unknown" ? manifestType(url) :
         (/^(?:dash|mpd)$/.test(explicitType) || explicitType === "application/dash+xml") ? "dash" :
-        /^(?:hls|m3u8|application/vnd\.apple\.mpegurl)$/.test(explicitType) ? "hls" :
-        /^(?:progressive|mp4|video/mp4)$/.test(explicitType) ? "progressive" : "unknown";
+        (/^(?:hls|m3u8)$/.test(explicitType) || explicitType === "application/vnd.apple.mpegurl") ? "hls" :
+        (/^(?:progressive|mp4)$/.test(explicitType) || explicitType === "video/mp4") ? "progressive" : "unknown";
       if (type === "unknown") return [];
       const headers = { ...baseHeaders };
       const sourceHeaders = candidate.headers ?? candidate.requestHeaders;
