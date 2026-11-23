@@ -245,3 +245,44 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
 @media(max-width:1050px){.page-container{padding:24px 24px 20px}.overview-cards{gap:10px}.overview-card{min-height:124px}}
 @media(max-width:820px){.page-container{padding:20px 16px}.overview-cards{grid-template-columns:1fr}.app-bar{padding:0 16px}.app-footer{padding:12px 16px}.home-content-grid{grid-template-columns:1fr}.guide-row{grid-template-columns:1fr;gap:12px}.guide-programme{grid-template-columns:84px minmax(0,1fr) auto}.live-player-layout{grid-template-columns:1fr}.player-channel-panel{max-height:360px}}
 @media(prefers-reduced-motion:reduce){button{transition:none}.spinner{animation:none}}
+
+
+/* Final alignment pass: 4px rhythm and a single Lucide icon scale. */
+.navigation-drawer{padding:24px 16px 16px}
+.brand-lockup{gap:12px;padding:0 8px 24px}
+.profile-switcher{gap:12px;padding:12px;margin-bottom:24px}
+.navigation-caption{margin:0 8px 8px}
+.navigation-item{gap:12px;padding:0 12px}
+.connection-status{gap:12px;padding:12px}
+.help-link{gap:8px;padding:12px 8px 4px}
+.app-bar{padding:0 28px}
+.page-container{padding:28px 32px 24px}
+.page-heading{margin-bottom:24px}
+.overview-cards{gap:12px}
+.overview-card{padding:16px}
+.home-content-grid{gap:16px;margin-top:16px}
+.welcome-panel{padding:24px}
+.quick-links{padding:20px}
+.quick-links button{gap:12px;padding:12px 0}
+.settings-layout{gap:16px}
+.settings-panel{padding:20px}
+.theme-options{gap:12px}
+.theme-option{gap:12px;padding:12px}
+.setting-row{min-height:64px;padding:12px 0}
+.import-panel{padding:20px}
+.import-grid{gap:16px}
+.import-actions{gap:8px}
+.playlist-list-section{margin-top:24px}
+.playlist-row{gap:12px;padding:16px;margin-bottom:8px}
+.channel-toolbar{gap:12px}
+.channel-grid{gap:12px}
+.channel-card{gap:12px;padding:12px}
+.guide-list{gap:12px}
+.guide-row{gap:16px;padding:16px}
+.guide-programmes{gap:8px}
+.guide-programme{gap:12px}
+.live-player-toolbar{gap:12px}
+.live-player-layout{gap:12px}
+.player-channel-list{padding:8px}
+.navigation-item>svg,.quick-links button>svg,.menu-button svg,.icon-button svg{width:18px;height:18px;stroke-width:1.6}
+.channel-play-button svg,.guide-play svg{width:16px;height:16px;stroke-width:1.6}
