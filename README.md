@@ -40,4 +40,4 @@ The application will use Shaka Player for DASH and DRM-capable streams, hls.js f
 
 ## Interface design credit
 
-The visual refinement in this project adapts design guidance from [unslop](https://github.com/heydamir/unslop) by Damir Sokolovsky, used under the [Creative Commons Attribution 4.0 International licence](https://creativecommons.org/licenses/by/4.0/). Changes include a restrained broadcast-console direction, neutral light/dark surfaces, clearer type hierarchy, consistent spacing and reduced decorative effects.
+The visual refinement in this project adapts design guidance from [unslop](https://github.com/heydamir/unslop) by Damir Sokolovsky, used under the [Creative Commons Attribution 4.0 International licence](https://creativecommons.org/licenses/by/4.0/). Changes include a restrained broadcast-console direction, neutral light/dark surfaces, clearer type hierarchy, consistent spacing and reduced decorative effects. This is a design-guidance adaptation; the skill itself is not bundled as a runtime dependency.
