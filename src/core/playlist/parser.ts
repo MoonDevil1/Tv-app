@@ -12,6 +12,17 @@ function safeUrl(value: unknown): string {
   if (typeof value !== "string") return "";
   try { const url = new URL(value.trim()); return ["http:", "https:"].includes(url.protocol) && !url.username && !url.password ? url.toString() : ""; } catch { return ""; }
 }
+function clearKeyHex(value: unknown): string {
+  const raw = String(value ?? "").trim().replace(/-/g, "");
+  if (/^[a-f0-9]{32}$/i.test(raw)) return raw.toLowerCase();
+  if (!/^[A-Za-z0-9_+/=-]+$/.test(raw)) return "";
+  try {
+    const base64 = raw.replace(/-/g, "+").replace(/_/g, "/").replace(/=+$/, "");
+    const decoded = atob(base64.padEnd(Math.ceil(base64.length / 4) * 4, "="));
+    const hex = Array.from(decoded, character => character.charCodeAt(0).toString(16).padStart(2, "0")).join("");
+    return /^[a-f0-9]{32}$/.test(hex) ? hex : "";
+  } catch { return ""; }
+}
 function manifestType(value: string): ManifestType {
   const lower = value.toLowerCase();
   if (/\.mpd(?:$|[?#&])/.test(lower) || /[?&](?:type|format)=mpd(?:&|$)/.test(lower)) return "dash";
@@ -86,9 +97,9 @@ function parseM3u(text: string): { channels: TvChannel[]; epgUrls: string[] } {
       try {
         const parsed = JSON.parse(license);
         for (const entry of Array.isArray(parsed?.keys) ? parsed.keys : []) {
-          const kid = String(entry?.kid ?? "").replace(/-/g, "").toLowerCase();
-          const key = String(entry?.k ?? "").replace(/-/g, "").toLowerCase();
-          if (/^[a-f0-9]{32}$/.test(kid) && /^[a-f0-9]{32}$/.test(key)) clearKeys[kid] = key;
+          const kid = clearKeyHex(entry?.kid);
+          const key = clearKeyHex(entry?.k);
+          if (kid && key) clearKeys[kid] = key;
         }
       } catch {
         for (const pair of license.split(/[|,;]/)) {
