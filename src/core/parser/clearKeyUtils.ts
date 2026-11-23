@@ -69,7 +69,6 @@ export function createClearKeyDrm(type: string | undefined, license: string | un
   if (!type && !license) return undefined;
   const scheme = (type ?? "clearkey").toLowerCase();
   if (scheme.includes("widevine")) return license ? { scheme: "widevine", licenseUrl: license.trim() } : { scheme: "widevine" };
-  if (scheme.includes("playready")) return license ? { scheme: "playready", licenseUrl: license.trim() } : { scheme: "playready" };
   if (!scheme.includes("clearkey")) return undefined;
   if (!license) return { scheme: "clearkey" };
   if (/^https?:\/\//i.test(license.trim())) return { scheme: "clearkey", licenseUrl: license.trim(), rawLicenseKey: license };

@@ -67,9 +67,8 @@ export function parseM3U(source: string, baseUrl?: string): Channel[] {
   let pending: Partial<Channel> | null = null;
   let pendingHeaders: StreamHeaders = {};
   let licenseType: string | undefined, licenseKey: string | undefined, manifestType: string | undefined;
-  let licenseHeaders: StreamHeaders = {};
   let currentGroup = "";
-  const reset = () => { pending = null; pendingHeaders = {}; licenseType = undefined; licenseKey = undefined; manifestType = undefined; licenseHeaders = {}; };
+  const reset = () => { pending = null; pendingHeaders = {}; licenseType = undefined; licenseKey = undefined; manifestType = undefined; };
   for (const rawLine of lines) {
     const line = rawLine.trim();
     if (!line) continue;
@@ -108,14 +107,13 @@ export function parseM3U(source: string, baseUrl?: string): Channel[] {
         if (key.endsWith("license_type")) licenseType = value;
         else if (key.endsWith("license_key")) licenseKey = value;
         else if (key.endsWith("manifest_type")) manifestType = value;
-        else if (key.endsWith("license_headers") || key.endsWith("license_header")) licenseHeaders = parseExtHttp(value);
+        else if (key.endsWith("license_key") && value.startsWith("{")) licenseKey = value;
       }
     } else if (!line.startsWith("#") && pending) {
       try {
         const stream = streamLine(line);
         const url = resolveUrl(stream.url, baseUrl);
         const drm = createClearKeyDrm(stream.drmType ?? licenseType, stream.drmLicense ?? licenseKey);
-        if (drm && Object.keys(licenseHeaders).length) drm.licenseHeaders = { ...licenseHeaders };
         const channel = {
           ...(pending as Channel), url, headers: { ...pendingHeaders, ...stream.headers },
           drm, manifestType: inferType(url, manifestType)
@@ -158,8 +156,7 @@ export function parseJsonPlaylist(input: unknown, baseUrl?: string): Channel[] {
       if (normalizedScheme.includes("widevine")) drm = { scheme: "widevine", licenseUrl };
       else if (normalizedScheme.includes("clearkey")) {
         drm = { scheme: "clearkey", licenseUrl, clearKeys: drm?.scheme === "clearkey" ? drm.clearKeys : undefined };
-      } else if (normalizedScheme.includes("playready")) drm = { scheme: "playready", licenseUrl };
-      else drm = undefined;
+      } else drm = undefined;
     }
     const type = String(row.manifestType ?? row.manifest_type ?? row.type ?? row.protocol ?? "");
     const rawAttrs = row.attributes && typeof row.attributes === "object" ? row.attributes as Record<string, string> : {};
@@ -171,7 +168,7 @@ export function parseJsonPlaylist(input: unknown, baseUrl?: string): Channel[] {
       tvgName: String(row.tvgName ?? row.tvg_name ?? row["tvg-name"] ?? "") || undefined,
       channelNumber: Number(row.channelNumber ?? row.tvg_chno ?? row["tvg-chno"]) || undefined,
       duration: Number(row.duration ?? -1), headers: safeHeaders(row.headers ?? row.requestHeaders ?? row.request_headers ?? row.http_headers),
-      drm: drm ? { ...drm, licenseHeaders: safeHeaders(row.licenseHeaders ?? row.license_headers ?? drmInput.licenseHeaders ?? drmInput.license_headers) } : undefined, manifestType: inferType(url, type), catchup: String(row.catchup ?? "") || undefined,
+      drm, manifestType: inferType(url, type), catchup: String(row.catchup ?? "") || undefined,
       catchupDays: Number(row.catchupDays ?? row.catchup_days) || undefined,
       catchupSource: String(row.catchupSource ?? row.catchup_source ?? "") || undefined, rawAttributes: rawAttrs
     } satisfies Channel];

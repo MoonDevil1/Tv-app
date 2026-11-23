@@ -53,8 +53,5 @@ export function shakaDrmConfiguration(drm: DrmConfig | undefined): { drm?: { cle
   if (drm.scheme === "widevine" && drm.licenseUrl) {
     return { drm: { servers: { "com.widevine.alpha": drm.licenseUrl } } };
   }
-  if (drm.scheme === "playready" && drm.licenseUrl) {
-    return { drm: { servers: { "com.microsoft.playready": drm.licenseUrl } } };
-  }
   return {};
 }

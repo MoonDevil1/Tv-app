@@ -32,7 +32,7 @@ export class StreamEngine {
     this.options.onState?.("loading");
     try {
       await window.tvApp?.setStreamRequestContext({ originUrl: channel.url, headers: channel.headers });
-      if (channel.manifestType === "dash" || /\.mpd(?:$|[?#])/i.test(channel.url) || (channel.drm && channel.manifestType !== "progressive")) await this.playShaka(video, channel, generation, abortController.signal);
+      if (channel.manifestType === "dash" || /\.mpd(?:$|[?#])/i.test(channel.url)) await this.playDash(video, channel, generation, abortController.signal);
       else if (channel.manifestType === "progressive" || /\.(?:mp4|m4v|webm|ogg)(?:$|[?#])/i.test(channel.url)) await this.playProgressive(video, channel, abortController.signal);
       else await this.playHls(video, channel, generation, abortController.signal);
       if (generation !== this.generation) return;
@@ -59,7 +59,7 @@ export class StreamEngine {
       return false;
     }
   }
-  private async loadManifest(player: shaka.Player, url: string, signal: AbortSignal): Promise<void> {
+  private async loadDash(player: shaka.Player, url: string, signal: AbortSignal): Promise<void> {
     await new Promise<void>((resolve, reject) => {
       let timeout: ReturnType<typeof setTimeout> | undefined;
       let settled = false;
@@ -74,11 +74,11 @@ export class StreamEngine {
         if (error) reject(error); else resolve();
       };
       const onAbort = () => {
-        const error = new Error("Manifest load was cancelled.");
+        const error = new Error("DASH manifest load was cancelled.");
         error.name = "AbortError";
         finish(error);
       };
-      timeout = setTimeout(() => finish(new Error("Manifest load timed out.")), 30_000);
+      timeout = setTimeout(() => finish(new Error("DASH manifest load timed out.")), 30_000);
       signal.addEventListener("abort", onAbort, { once: true });
       if (signal.aborted) { onAbort(); return; }
       void Promise.resolve().then(() => player.load(url)).then(() => finish(), error =>
@@ -87,7 +87,7 @@ export class StreamEngine {
     });
   }
 
-  private async playShaka(video: HTMLVideoElement, channel: Channel, generation: number, signal: AbortSignal): Promise<void> {
+  private async playDash(video: HTMLVideoElement, channel: Channel, generation: number, signal: AbortSignal): Promise<void> {
     shaka.polyfill.installAll();
     const player = new shaka.Player();
     this.shakaPlayer = player;
@@ -116,7 +116,7 @@ export class StreamEngine {
       } else if (detail) this.options.onState?.("error", describeShakaError(detail.code, detail.data));
     });
     try {
-      await this.loadManifest(player, channel.url, signal);
+      await this.loadDash(player, channel.url, signal);
     } catch (error) {
       if (generation === this.generation && !signal.aborted && this.shakaPlayer === player) {
         this.shakaPlayer = null;

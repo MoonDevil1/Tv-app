@@ -188,6 +188,23 @@ test("license headers are sent only to the configured license server", () => {
   assert.deepEqual(licenseHeadersForRequest(drm, "https://license.example.evil.test/wv"), {});
 });
 
+test("parses license request headers and configures PlayReady alongside Widevine", () => {
+  const source = `#EXTM3U
+#EXTINF:-1,Protected HLS
+#KODIPROP:inputstream.adaptive.manifest_type=hls
+#KODIPROP:inputstream.adaptive.license_type=com.widevine.alpha
+#KODIPROP:inputstream.adaptive.license_key=https://license.example/wv
+#KODIPROP:inputstream.adaptive.license_headers={"Authorization":"Bearer license","X-License":"test"}
+https://cdn.example/live/master.m3u8`;
+  const [channel] = parseM3U(source);
+  assert.equal(channel.manifestType, "hls");
+  assert.equal(channel.drm?.scheme, "widevine");
+  assert.deepEqual(channel.drm?.licenseHeaders, { Authorization: "Bearer license", "X-License": "test" });
+  assert.deepEqual(shakaDrmConfiguration({ scheme: "playready", licenseUrl: "https://license.example/pr" }), {
+    drm: { servers: { "com.microsoft.playready": "https://license.example/pr" } }
+  });
+});
+
 test("builds ClearKey and Widevine Shaka DRM configurations", () => {
   const keys = { "ABEiM0RVZneImaq7zN3u_w": "ABEiM0RVZneImaq7zN3u_w" };
   assert.deepEqual(shakaDrmConfiguration({ scheme: "clearkey", clearKeys: keys }), { drm: { clearKeys: keys } });
@@ -249,7 +266,8 @@ test("JSON DRM metadata preserves Widevine and ignores unsupported PlayReady", (
     name: "PlayReady", url: "https://stream.example/pr.mpd",
     drm: { scheme: "playready", licenseUrl: "https://license.example/pr" }
   }] })[0];
-  assert.equal(playready.drm, undefined);
+  assert.equal(playready.drm?.scheme, "playready");
+  assert.equal(playready.drm?.licenseUrl, "https://license.example/pr");
 });
 
 test("XMLTV date parser rejects impossible dates and offsets", () => {
