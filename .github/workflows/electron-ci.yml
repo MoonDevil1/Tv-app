@@ -8,7 +8,7 @@ on:
   push:
     branches: [rebuild/windows-autho-vega]
   pull_request:
-    branches: [main]
+    branches: [main, rebuild/windows-autho-vega]
 jobs:
   verify:
     name: Verify Windows application
