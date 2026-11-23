@@ -103,6 +103,32 @@ https://cdn.example/channel\\_one/index.mpd`;
   assert.equal(channel.manifestType, "dash");
 });
 
+test("parses LiveTGTV-style authenticated DASH and multi-key ClearKey entries", () => {
+  const source = `#EXTM3U
+#EXTINF:-1 tvg-id="1132" tvg-name="Star Plus HD" tvg-logo="https://img.example/star.png" group-title="Entertainment", Star Plus HD
+#KODIPROP:inputstream.adaptive.manifest\\_type=mpd
+#KODIPROP:inputstream.adaptive.license\\_type=clearkey
+#KODIPROP:inputstream.adaptive.license\\_key=${KID}:${KEY}
+#EXTVLCOPT:http-user-agent=PlayTV/7.1.5 (Linux;Android 8.1.0) ExoPlayerLib/2.11.7
+#EXTHTTP:{"cookie":"\\_\\_hdnea\\_\\_=signed-token"}
+https://jiotvmblive.cdn.jio.com/bpk-tv/Star\\_Plus\\_HD\\_MOB/WDVLive/index.mpd
+#EXTINF:-1 tvg-id="1116" tvg-name="Star Plus" group-title="Entertainment", Star Plus
+#KODIPROP:inputstream.adaptive.manifest\\_type=mpd
+#KODIPROP:inputstream.adaptive.license\\_type=clearkey
+#KODIPROP:inputstream.adaptive.license\\_key=${KID}:${KEY},11223344556677889900aabbccddeeff:00112233445566778899aabbccddeeff
+https://jiotvpllive.cdn.jio.com/bpk-tv/Star\\_Plus\\_BTS/WDVLive/index.mpd`;
+  const channels = parsePlaylist(source);
+  assert.equal(channels.length, 2);
+  assert.equal(channels[0].name, "Star Plus HD");
+  assert.equal(channels[0].manifestType, "dash");
+  assert.equal(channels[0].url, "https://jiotvmblive.cdn.jio.com/bpk-tv/Star_Plus_HD_MOB/WDVLive/index.mpd");
+  assert.equal(channels[0].headers["User-Agent"], "PlayTV/7.1.5 (Linux;Android 8.1.0) ExoPlayerLib/2.11.7");
+  assert.equal(channels[0].headers.cookie, "__hdnea__=signed-token");
+  assert.equal(Object.keys(channels[0].drm?.clearKeys ?? {}).length, 1);
+  assert.equal(Object.keys(channels[1].drm?.clearKeys ?? {}).length, 2);
+  assert.equal(channels[1].manifestType, "dash");
+});
+
 test("resolves relative M3U stream URLs against playlist URL", () => {
   const [channel] = parseM3U("#EXTM3U\n#EXTINF:-1,Relative\n../live/channel.mpd", "https://provider.example/lists/channels.m3u");
   assert.equal(channel.url, "https://provider.example/live/channel.mpd");
