@@ -59,3 +59,25 @@ https://live.example/zee.mpd`, "https://livetgtv.lovable.app/api/public/playlist
     else Reflect.deleteProperty(globalThis, "window");
   }
 });
+
+
+test("parses Vega-style Widevine license URL headers and JSON ClearKey keys", () => {
+  const input = `#EXTM3U
+#EXTINF:-1,Widevine channel
+#KODIPROP:inputstream.adaptive.license_type=com.widevine.alpha
+#KODIPROP:inputstream.adaptive.license_key=https://license.example/wv|Content-Type=application/octet-stream&Authorization=Bearer%20demo
+https://cdn.example/widevine.mpd
+#EXTINF:-1,ClearKey JSON channel
+#KODIPROP:inputstream.adaptive.license_type=org.w3.clearkey
+#KODIPROP:inputstream.adaptive.license_key={"keys":[{"kty":"oct","kid":"0123456789abcdef0123456789abcdef","k":"abcdef0123456789abcdef0123456789"}],"type":"temporary"}
+https://cdn.example/clearkey.mpd`;
+  const playlist = parsePlaylistText(input, "local.m3u");
+  const widevine = playlist.channels[0].sources[0].drm;
+  assert.equal(widevine?.scheme, "widevine");
+  assert.equal(widevine?.licenseUrl, "https://license.example/wv");
+  assert.equal(widevine?.licenseHeaders?.["Content-Type"], "application/octet-stream");
+  assert.equal(widevine?.licenseHeaders?.Authorization, "Bearer demo");
+  const clearKey = playlist.channels[1].sources[0].drm;
+  assert.equal(clearKey?.scheme, "clearkey");
+  assert.equal(clearKey?.clearKeys?.["0123456789abcdef0123456789abcdef"], "abcdef0123456789abcdef0123456789");
+});
