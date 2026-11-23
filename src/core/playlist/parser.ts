@@ -13,8 +13,9 @@ function safeUrl(value: unknown): string {
   try { const url = new URL(value.trim()); return ["http:", "https:"].includes(url.protocol) && !url.username && !url.password ? url.toString() : ""; } catch { return ""; }
 }
 function clearKeyHex(value: unknown): string {
-  const raw = String(value ?? "").trim().replace(/-/g, "");
-  if (/^[a-f0-9]{32}$/i.test(raw)) return raw.toLowerCase();
+  const raw = String(value ?? "").trim();
+  const hexCandidate = raw.replace(/-/g, "");
+  if (/^[a-f0-9]{32}$/i.test(hexCandidate)) return hexCandidate.toLowerCase();
   if (!/^[A-Za-z0-9_+/=-]+$/.test(raw)) return "";
   try {
     const base64 = raw.replace(/-/g, "+").replace(/_/g, "/").replace(/=+$/, "");
