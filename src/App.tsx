@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
-import { CalendarDays, ChevronRight, CircleHelp, Clock3, FileUp, Heart, History, ListVideo, Menu, Moon, Play, Radio, RefreshCw, Search, Settings, Sun, Trash2, Tv2, Upload } from "lucide-react";
+import { CalendarDays, ChevronRight, CircleHelp, Clock3, FileUp, Heart, History, ListVideo, Menu, Moon, Play, Radio, RefreshCw, Search, Settings, Sun, Trash2, Tv2, Upload, Plus } from "lucide-react";
 import { useAppStore, channelKey } from "./app/store";
 import type { AppSection, AppSettings, EpgProgramme, Playlist, ThemeMode, TvChannel } from "./app/models";
 import { addLiveTgTvFallbacks, fetchPlaylistText, LIVE_TGTV_SOURCE, parsePlaylistText } from "./core/playlist/parser";
@@ -36,7 +36,7 @@ function SettingsPage() {
 function PlaylistManager() {
   const playlists = useAppStore(state => state.playlists), settings = useAppStore(state => state.settings);
   const addPlaylist = useAppStore(state => state.addPlaylist), replacePlaylist = useAppStore(state => state.replacePlaylist), removePlaylist = useAppStore(state => state.removePlaylist);
-  const [url,setUrl] = useState(""), [name,setName] = useState(""), [headersText,setHeadersText] = useState("{}"), [paste,setPaste] = useState("");
+  const [url,setUrl] = useState(LIVE_TGTV_SOURCE), [name,setName] = useState("LiveTGTV"), [headersText,setHeadersText] = useState("{}"), [paste,setPaste] = useState("");
   const [error,setError] = useState(""), [busy,setBusy] = useState(false), [busyId,setBusyId] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
   const refreshing = useRef(new Set<string>());
@@ -46,7 +46,7 @@ function PlaylistManager() {
     parsed.refreshIntervalMs = settings.defaultRefreshIntervalMs;
     parsed.requestHeaders = headers;
     addPlaylist(parsed);
-    setUrl(""); setName(""); setPaste(""); setHeadersText("{}"); setError("");
+    setUrl(LIVE_TGTV_SOURCE); setName("LiveTGTV"); setPaste(""); setHeadersText("{}"); setError("");
   };
   const importUrl = async (target:string) => {
     setBusy(true); setError("");
@@ -102,10 +102,11 @@ function PlaylistManager() {
     </section>
   </>;
 }
-function ChannelLibrary({ mode, onPlay }: { mode: "all" | "favorites" | "recent"; onPlay: (playlist: Playlist, channel: import("./app/models").TvChannel) => void }) {
+function ChannelLibrary({ mode, onPlay, initialPlaylistId = "All playlists" }: { mode: "all" | "favorites" | "recent"; onPlay: (playlist: Playlist, channel: import("./app/models").TvChannel) => void; initialPlaylistId?: string }) {
   const playlists=useAppStore(state=>state.playlists), favorites=useAppStore(state=>state.favorites);
   const toggleFavorite=useAppStore(state=>state.toggleFavorite), recentChannels=useAppStore(state=>state.recentChannels);
-  const [query,setQuery]=useState(""),[group,setGroup]=useState("All groups"),[source,setSource]=useState("All playlists");
+  const [query,setQuery]=useState(""),[group,setGroup]=useState("All groups"),[source,setSource]=useState(initialPlaylistId);
+  useEffect(() => setSource(initialPlaylistId), [initialPlaylistId]);
   const entries=useMemo(()=>playlists.flatMap(playlist=>playlist.channels.map(channel=>({playlist,channel}))),[playlists]);
   const groups=useMemo(()=>["All groups",...new Set(entries.map(x=>x.channel.group).filter(Boolean))],[entries]);
   const recentOrder=new Map(recentChannels.map((item,index)=>[channelKey(item.playlistId,item.channelId),index]));
@@ -135,6 +136,7 @@ function App() {
   const [guideStatus,setGuideStatus]=useState(""),[guideRefreshedAt,setGuideRefreshedAt]=useState(0);
   const [navigationOpen,setNavigationOpen]=useState(false);
   const [activePlayback,setActivePlayback]=useState<{playlistId:string;channelId:string}|null>(null);
+  const [libraryPlaylistId,setLibraryPlaylistId]=useState("All playlists");
   const selectedPlaylist=activePlayback ? playlists.find(item=>item.id===activePlayback.playlistId) : undefined;
   const selectedChannel=selectedPlaylist?.channels.find(item=>item.id===activePlayback?.channelId);
   const openPlayer=(playlist:Playlist,channel:import("./app/models").TvChannel)=>setActivePlayback({playlistId:playlist.id,channelId:channel.id});
@@ -158,7 +160,8 @@ function App() {
   useEffect(()=>{document.documentElement.dataset.theme=settings.theme;},[settings.theme]);
   useEffect(()=>{const close=(e:KeyboardEvent)=>{if(e.key==="Escape")setNavigationOpen(false);};window.addEventListener("keydown",close);return()=>window.removeEventListener("keydown",close);},[]);
   const channelsCount=playlists.reduce((total,p)=>total+p.channels.length,0);
-  const openSection=(section:AppSection)=>{setActiveSection(section);setNavigationOpen(false);};
+  const openSection=(section:AppSection)=>{if(section==="Live TV")setLibraryPlaylistId("All playlists");setActiveSection(section);setNavigationOpen(false);};
+  const openPlaylist=(playlist:Playlist)=>{setLibraryPlaylistId(playlist.id);setActiveSection("Live TV");setNavigationOpen(false);};
   return <div className="application">
     {navigationOpen&&<button className="navigation-backdrop" aria-label="Close navigation" onClick={()=>setNavigationOpen(false)}/>}
     <aside className={navigationOpen?"navigation-drawer open":"navigation-drawer"}><div className="brand-lockup"><div className="brand-icon"><Tv2 size={23}/></div><div><b>TG IPTV</b><small>Windows player</small></div></div>
@@ -170,12 +173,12 @@ function App() {
     <div className="main-column"><header className="app-bar"><div className="app-bar-title"><button className="menu-button" onClick={()=>setNavigationOpen(v=>!v)} aria-label="Toggle navigation"><Menu size={21}/></button><span>IPTV <i>/</i> {activeSection}</span></div><div className="app-bar-actions"><span className="platform-label"><span/> Windows desktop</span></div></header>
       <main className="page-container">
         {selectedPlaylist && selectedChannel ? <LivePlayer playlist={selectedPlaylist} channel={selectedChannel} onClose={()=>setActivePlayback(null)} onSelect={channel=>setActivePlayback({playlistId:selectedPlaylist.id,channelId:channel.id})}/> : <>
-        {activeSection==="Home"&&<><PageHeading title="Your TV library" subtitle="Manage playlists, browse channels and check programme schedules."/><div className="overview-cards">
+        {activeSection==="Home"&&<><PageHeading title="Your TV library" subtitle="Manage playlists, browse channels and check programme schedules." action={<button className="primary-button" onClick={()=>openSection("Playlists")}><Plus size={16}/> Add playlist</button>}/><div className="overview-cards">
           <button className="overview-card" onClick={()=>openSection("Live TV")}><span className="overview-icon"><Radio size={21}/></span><b>{channelsCount.toLocaleString()}</b><small>Channels available</small><span className="card-link">Open Live TV <ChevronRight size={15}/></span></button>
           <button className="overview-card" onClick={()=>openSection("Playlists")}><span className="overview-icon"><ListVideo size={21}/></span><b>{playlists.length}</b><small>Connected playlists</small><span className="card-link">Manage playlists <ChevronRight size={15}/></span></button>
           <button className="overview-card" onClick={()=>openSection("Favorites")}><span className="overview-icon"><Heart size={21}/></span><b>{favorites.length}</b><small>Favorite channels</small><span className="card-link">View favorites <ChevronRight size={15}/></span></button>
-        </div><div className="home-content-grid"><section className="welcome-panel"><p className="eyebrow">Your channels</p><h2>{channelsCount ? <>Browse your channels.<br/><span>Choose what to watch.</span></> : <>Connect a playlist.<br/><span>Browse your channels.</span></>}</h2><p>{channelsCount ? "Choose a channel to start playback. Switch between available sources from the player." : "Add an M3U, M3U8 or JSON playlist to load your channels."}</p><button className="primary-button" onClick={()=>openSection("Playlists")}>Manage playlists <ChevronRight size={16}/></button></section><section className="quick-links"><h2>Quick access</h2><button onClick={()=>openSection("Guide")}><CalendarDays size={19}/><span><b>Programme guide</b><small>View current and upcoming programmes</small></span><ChevronRight size={17}/></button><button onClick={()=>openSection("History")}><Clock3 size={19}/><span><b>Recently watched</b><small>Open recently watched channels</small></span><ChevronRight size={17}/></button></section></div></>}
-        {activeSection==="Live TV"&&<><PageHeading title="Live TV" subtitle="Browse all channels across your connected playlists."/><ChannelLibrary mode="all" onPlay={openPlayer}/></>}
+        </div><div className="home-content-grid"><section className="welcome-panel"><p className="eyebrow">Your channels</p><h2>{channelsCount ? <>Browse your channels.<br/><span>Choose what to watch.</span></> : <>Connect a playlist.<br/><span>Browse your channels.</span></>}</h2><p>{channelsCount ? "Choose a channel to start playback. Switch between available sources from the player." : "Add an M3U, M3U8 or JSON playlist to load your channels."}</p><button className="primary-button" onClick={()=>openSection("Playlists")}><Plus size={16}/> Add playlist</button></section><section className="quick-links"><h2>Quick access</h2><button onClick={()=>openSection("Guide")}><CalendarDays size={19}/><span><b>Programme guide</b><small>View current and upcoming programmes</small></span><ChevronRight size={17}/></button><button onClick={()=>openSection("History")}><Clock3 size={19}/><span><b>Recently watched</b><small>Open recently watched channels</small></span><ChevronRight size={17}/></button></section></div>{playlists.length>0&&<section className="home-playlists"><div className="list-section-heading"><h2>Your playlists</h2><span>{playlists.length}</span></div><div className="home-playlist-grid">{playlists.map(playlist=><button className="home-playlist-card" key={playlist.id} onClick={()=>openPlaylist(playlist)}><span className="home-playlist-icon"><ListVideo size={19}/></span><span className="home-playlist-info"><b>{playlist.name}</b><small>{playlist.channels.length.toLocaleString()} channels · {playlist.groups.length} groups</small></span><ChevronRight size={17}/></button>)}</div></section>}</>}
+        {activeSection==="Live TV"&&<><PageHeading title="Live TV" subtitle="Browse all channels across your connected playlists."/><ChannelLibrary mode="all" onPlay={openPlayer} initialPlaylistId={libraryPlaylistId}/></>}
          {activeSection==="Guide"&&<GuidePage playlists={playlists} onPlay={openPlayer} status={guideStatus} refreshedAt={guideRefreshedAt}/>}
         {activeSection==="Favorites"&&<><PageHeading title="Favorites" subtitle="Channels you've saved."/><ChannelLibrary mode="favorites" onPlay={openPlayer}/></>}
         {activeSection==="History"&&<><PageHeading title="Recently watched" subtitle="Open channels from your viewing history."/><ChannelLibrary mode="recent" onPlay={openPlayer}/></>}
