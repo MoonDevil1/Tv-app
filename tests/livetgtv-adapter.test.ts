@@ -60,6 +60,20 @@ test("LiveTGTV detects API manifest types when the playlist source type is unkno
   assert.deepEqual(resolved.sources.map(source => source.type), ["dash", "hls", "progressive"]);
 });
 
+
+test("LiveTGTV retains unknown playlist stream URLs when the channel API is unavailable", async () => {
+  const channel: TvChannel = {
+    id: "liveid:165", name: "Zee Cinema HD", group: "Movies", tvgId: "165",
+    sources: [{ url: "https://edge.example/play?id=165&token=valid", type: "unknown", headers: { Referer: "https://livetgtv.lovable.app/" } }],
+    rawAttributes: { "live-id": "165" }
+  };
+  const resolved = await withLiveTgTvResponse(new Error("API temporarily unavailable"), () => resolveLiveTgTvChannel(channel));
+  assert.equal(resolved.sources.length, 1);
+  assert.equal(resolved.sources[0].type, "unknown");
+  assert.equal(resolved.sources[0].url, channel.sources[0].url);
+  assert.equal(resolved.sources[0].headers.Referer, "https://livetgtv.lovable.app/");
+});
+
 test("LiveTGTV keeps a parsed authorized multi-key playlist stream when channel API is unavailable", async () => {
   const clearKeys = Object.fromEntries(Array.from({ length: 5 }, (_, i) => [
     (i + 1).toString(16).padStart(32, "0"),
