@@ -78,7 +78,7 @@ function parseM3u(text: string): { channels: TvChannel[]; epgUrls: string[] } {
     const license = props.find(line => /license_key=/i.test(line))?.split("=").slice(1).join("=").trim();
     let drm: ChannelSource["drm"];
     if (drmType === "clearkey" && license) {
-      const pairs = license.split("|");
+      const pairs = license.split(/[|,]/);
       const clearKeys: Record<string,string> = {};
       for (const pair of pairs) { const [kid,key] = pair.split(":"); if (/^[a-f0-9]{32}$/i.test(kid ?? "") && /^[a-f0-9]{32}$/i.test(key ?? "")) clearKeys[kid.toLowerCase()] = key.toLowerCase(); }
       if (Object.keys(clearKeys).length) drm = { scheme: "clearkey", clearKeys };
