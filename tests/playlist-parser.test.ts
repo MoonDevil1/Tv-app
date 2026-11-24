@@ -10,7 +10,7 @@ test("parses LiveTGTV M3U entries, IDs, groups, logos, EPG and per-channel heade
 https://live.example/player?liveid=165&url=https%3A%2F%2Fcdn.example%2Fmovie.mpd
 #EXTINF:-1 tvg-id="1839" group-title="Movies",&Pictures HD
 #KODIPROP:inputstream.adaptive.license_type=clearkey
-#KODIPROP:inputstream.adaptive.license_key=0123456789abcdef0123456789abcdef:abcdef0123456789abcdef0123456789
+#KODIPROP:inputstream.adaptive.license_key=0123456789abcdef0123456789abcdef:abcdef0123456789abcdef0123456789,1123456789abcdef0123456789abcdef:bcdef0123456789abcdef0123456789a,2123456789abcdef0123456789abcdef:cdef0123456789abcdef0123456789ab,3123456789abcdef0123456789abcdef:def0123456789abcdef0123456789abc,4123456789abcdef0123456789abcdef:ef0123456789abcdef0123456789abcd
 https://cdn.example/pictures.mpd`;
   const playlist = parsePlaylistText(input, "https://livetgtv.lovable.app/api/public/playlist.m3u");
   assert.equal(playlist.channels.length, 2);
@@ -19,6 +19,7 @@ https://cdn.example/pictures.mpd`;
   assert.equal(playlist.channels[0].sources[0].headers["User-Agent"], "Vega-Test");
   assert.equal(playlist.channels[0].sources[0].headers.Cookie, "sid=abc");
   assert.equal(playlist.channels[1].sources[0].drm?.scheme, "clearkey");
+  assert.equal(Object.keys(playlist.channels[1].sources[0].drm?.clearKeys ?? {}).length, 5);
   assert.equal(playlist.channels[1].requiresDrm, true);
   assert.equal(playlist.epgUrls[0], "https://guide.example/epg.xml");
   assert.deepEqual(playlist.groups, ["Movies"]);
