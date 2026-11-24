@@ -29,12 +29,37 @@ function safeHeaders(value: unknown): StreamHeaders {
   }
   return headers;
 }
-function parseExtHttp(value: string): StreamHeaders {
-  try { return safeHeaders(JSON.parse(unescapeValue(value))); }
-  catch {
-    const separator = value.indexOf("=");
-    return separator > 0 ? { [value.slice(0, separator).trim()]: unescapeValue(value.slice(separator + 1).trim()) } : {};
+function normalizeHeaderName(rawName: string): string {
+  const name = rawName.trim();
+  const key = name.toLowerCase().replace(/^http-/, "");
+  if (key === "user-agent") return "User-Agent";
+  if (key === "referer" || key === "referrer") return "Referer";
+  if (key === "cookie") return "Cookie";
+  if (key === "origin") return "Origin";
+  if (key === "authorization") return "Authorization";
+  return name;
+}
+function parseHeadersString(value: string): StreamHeaders {
+  const source = unescapeValue(value.trim());
+  if (!source) return {};
+  try {
+    const parsed = JSON.parse(source);
+    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+      return Object.fromEntries(Object.entries(safeHeaders(parsed)).map(([name, header]) => [normalizeHeaderName(name), header]));
+    }
+  } catch { /* Kodi also accepts pipe- and ampersand-separated header pairs. */ }
+  const headers: StreamHeaders = {};
+  for (const item of source.replace(/^\\{|\\}$/g, "").split(/[&|]/)) {
+    const separator = item.indexOf("=");
+    if (separator < 1) continue;
+    const name = normalizeHeaderName(item.slice(0, separator));
+    const header = item.slice(separator + 1).trim();
+    if (name && !/[\\r\\n:]/.test(name) && !/[\\r\\n]/.test(header)) headers[name] = header;
   }
+  return headers;
+}
+function parseExtHttp(value: string): StreamHeaders {
+  return parseHeadersString(value);
 }
 function streamLine(raw: string): { url: string; headers: StreamHeaders; drmType?: string; drmLicense?: string } {
   const separator = raw.indexOf("|");
@@ -102,8 +127,7 @@ export function parseM3U(source: string, baseUrl?: string): Channel[] {
       if (index > 0) {
         const key = option.slice(0, index).trim().toLowerCase();
         const value = unescapeValue(option.slice(index + 1).trim());
-        const header = key === "http-user-agent" ? "User-Agent" : key === "http-referrer" ? "Referer" :
-          key === "http-cookie" ? "Cookie" : key === "http-origin" ? "Origin" : key.replace(/^http-/, "");
+        const header = normalizeHeaderName(key);
         pendingHeaders[header] = value;
       }
     } else if (line.startsWith("#EXTHTTP:") && pending) {
@@ -116,13 +140,16 @@ export function parseM3U(source: string, baseUrl?: string): Channel[] {
         if (key.endsWith("license_type")) licenseType = value;
         else if (key.endsWith("license_key")) licenseKey = value;
         else if (key.endsWith("manifest_type")) manifestType = value;
-        else if (key.endsWith("license_headers") || key.endsWith("license_header")) licenseHeaders = parseExtHttp(value);
+        else if (key.endsWith("stream_headers") || key.endsWith("manifest_headers")) Object.assign(pendingHeaders, parseHeadersString(value));
+        else if (key.endsWith("license_headers") || key.endsWith("license_header")) licenseHeaders = parseHeadersString(value);
       }
     } else if (!line.startsWith("#") && pending) {
       try {
         const stream = streamLine(line);
         const url = resolveUrl(stream.url, baseUrl);
-        const drm = createClearKeyDrm(stream.drmType ?? licenseType, stream.drmLicense ?? licenseKey);
+        let drm;
+        try { drm = createClearKeyDrm(stream.drmType ?? licenseType, stream.drmLicense ?? licenseKey); }
+        catch { drm = undefined; }
         if (drm && Object.keys(licenseHeaders).length) drm.licenseHeaders = { ...licenseHeaders };
         const channel = {
           ...(pending as Channel), url, headers: { ...pendingHeaders, ...stream.headers },
