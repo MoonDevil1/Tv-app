@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { parseM3U, parseJsonPlaylist, parsePlaylist } from "../src/core/parser/m3uParser";
+import { applyLiveTgTvDetails } from "../src/core/parser/liveTgTv";
 import { clearKeyJwk, hexToBase64Url, parseClearKeys, createClearKeyDrm } from "../src/core/parser/clearKeyUtils";
 import { PlaylistManager } from "../src/core/parser/playlistManager";
 import { parseXmltvDate, currentAndNext, parseLiveTgGuide } from "../src/core/epg/xmltv";
@@ -324,4 +325,43 @@ test("parses LiveTGTV current, next and upcoming guide data with Unix-second tim
   assert.equal(programs[0].description, "On now");
   assert.equal(programs[2].title, "Later");
   assert.equal(parseLiveTgGuide({ error: "Channel guide unavailable" }, "144").length, 0);
+});
+
+test("keeps duplicate channel entries instead of collapsing playlist rows", () => {
+  const channels = parseM3U(`#EXTM3U
+#EXTINF:-1 tvg-id="same",Channel One
+https://cdn.example/one.mpd
+#EXTINF:-1 tvg-id="same",Channel Two
+https://cdn.example/two.mpd`);
+  assert.equal(channels.length, 2);
+  assert.notEqual(channels[0].id, channels[1].id);
+  assert.equal(channels[0].tvgId, channels[1].tvgId);
+});
+
+test("normalizes all LiveTGTV API sources, media headers and multi-key ClearKey DRM", () => {
+  const channel = {
+    id: "liveid:1132", name: "Star Plus HD", url: "https://playlist.example/stream.mpd",
+    group: "Entertainment", tvgId: "1132", headers: { Referer: "https://livetgtv.lovable.app/" },
+    manifestType: "dash" as const, rawAttributes: {}
+  };
+  const resolved = applyLiveTgTvDetails(channel, {
+    sources: ["https://cdn.example/primary.mpd?token=one", "https://backup.example/second.mpd?token=two"],
+    headers: { Authorization: "Bearer media" },
+    drm: { type: "clearkey", clearKeys: { [KID]: KEY, "11223344556677889900aabbccddeeff": KEY } }
+  });
+  assert.ok(resolved);
+  assert.equal(resolved.url, "https://cdn.example/primary.mpd?token=one");
+  assert.equal(resolved.alternates?.length, 1);
+  assert.equal(resolved.headers.Authorization, "Bearer media");
+  assert.equal(resolved.headers.Referer, "https://livetgtv.lovable.app/");
+  assert.equal(resolved.drm?.scheme, "clearkey");
+  assert.equal(Object.keys(resolved.drm?.clearKeys ?? {}).length, 2);
+});
+
+test("rejects invalid LiveTGTV source URLs without discarding the original channel", () => {
+  const channel = {
+    id: "channel", name: "Channel", url: "https://playlist.example/live.mpd",
+    group: "Other", headers: {}, manifestType: "dash" as const, rawAttributes: {}
+  };
+  assert.equal(applyLiveTgTvDetails(channel, { sources: ["file:///etc/passwd"] }), null);
 });
