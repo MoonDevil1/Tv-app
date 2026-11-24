@@ -51,6 +51,37 @@ test("Electron stream headers are limited to the active stream host", () => {
   assert.deepEqual(cleared, { Accept: "*/*" });
 });
 
+test("Electron adds CORS response headers only for the active stream origin", () => {
+  let beforeSend: ((details: { url: string; requestHeaders: Record<string, string> }, callback: (result: { requestHeaders: Record<string, string> }) => void) => void) | undefined;
+  let headersReceived: ((details: { url: string; responseHeaders?: Record<string, string[]> }, callback: (result: { responseHeaders?: Record<string, string[]> }) => void) => void) | undefined;
+  const mockSession = {
+    webRequest: {
+      onBeforeSendHeaders: (_filter: unknown, callback: typeof beforeSend) => { beforeSend = callback; },
+      onHeadersReceived: (_filter: unknown, callback: typeof headersReceived) => { headersReceived = callback; }
+    }
+  };
+  registerHeaderProxy(mockSession as never);
+  assert.ok(headersReceived);
+  setActiveStreamContext({ originUrl: "https://stream.example/live.mpd", headers: { Cookie: "sid=secret" } });
+
+  let streamResponse: Record<string, string[]> = {};
+  headersReceived!({ url: "https://stream.example/live.mpd", responseHeaders: { "Content-Type": ["application/dash+xml"] } }, result => {
+    streamResponse = result.responseHeaders ?? {};
+  });
+  assert.deepEqual(streamResponse["Access-Control-Allow-Origin"], ["*"]);
+  assert.deepEqual(streamResponse["Access-Control-Allow-Methods"], ["GET, HEAD, OPTIONS"]);
+  assert.match(streamResponse["Access-Control-Allow-Headers"]?.[0] ?? "", /Authorization/);
+  assert.match(streamResponse["Access-Control-Expose-Headers"]?.[0] ?? "", /Content-Range/);
+  assert.deepEqual(streamResponse["Content-Type"], ["application/dash+xml"]);
+
+  let unrelatedResponse: Record<string, string[]> = {};
+  headersReceived!({ url: "https://unrelated.example/manifest.mpd", responseHeaders: { "Content-Type": ["application/dash+xml"] } }, result => {
+    unrelatedResponse = result.responseHeaders ?? {};
+  });
+  assert.deepEqual(unrelatedResponse, { "Content-Type": ["application/dash+xml"] });
+  setActiveStreamContext(null);
+});
+
 test("Electron stream context rejects non-HTTP origins and sanitizes header injection", () => {
   assert.throws(() => setActiveStreamContext({ originUrl: "file:///tmp/video.m3u8", headers: {} }), /HTTP or HTTPS/);
   setActiveStreamContext({
