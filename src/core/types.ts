@@ -6,10 +6,13 @@ export type DrmConfig = {
   licenseHeaders?: StreamHeaders;
   rawLicenseKey?: string;
 };
+export interface ChannelSource {
+  url: string; headers: StreamHeaders; drm?: DrmConfig; manifestType?: "hls" | "dash" | "unknown" | "progressive";
+}
 export interface Channel {
   id: string; name: string; url: string; logo?: string; group: string; tvgId?: string;
   tvgName?: string; channelNumber?: number; duration?: number; headers: StreamHeaders;
-  drm?: DrmConfig; manifestType?: "hls" | "dash" | "unknown" | "progressive";
+  drm?: DrmConfig; manifestType?: "hls" | "dash" | "unknown" | "progressive"; alternates?: ChannelSource[];
   catchup?: string; catchupDays?: number; catchupSource?: string; rawAttributes: Record<string, string>;
 }
 export interface Playlist {
