@@ -338,6 +338,44 @@ https://cdn.example/two.mpd`);
   assert.equal(channels[0].tvgId, channels[1].tvgId);
 });
 
+test("keeps channels with placeholder ClearKey values instead of dropping playlist entries", () => {
+  const channels = parseM3U(`#EXTM3U
+#EXTINF:-1 tvg-id="182" tvg-name="B4U Movies" group-title="Movies",B4U Movies
+#KODIPROP:inputstream.adaptive.manifest_type=mpd
+#KODIPROP:inputstream.adaptive.license_type=clearkey
+#KODIPROP:inputstream.adaptive.license_key=0000:0000
+#EXTVLCOPT:http-user-agent=PlayTV/7.1.5
+#EXTHTTP:{"cookie":"session=valid"}
+https://cdn.example/b4u/index.mpd`);
+  assert.equal(channels.length, 1);
+  assert.equal(channels[0].tvgId, "182");
+  assert.equal(channels[0].manifestType, "dash");
+  assert.equal(channels[0].drm, undefined);
+});
+
+test("parses Kodi stream, manifest and license header directives", () => {
+  const [channel] = parseM3U(`#EXTM3U
+#EXTINF:-1,Header test
+#KODIPROP:inputstream.adaptive.stream_headers=User-Agent=Kodi Player|Cookie=sid=abc
+#KODIPROP:inputstream.adaptive.manifest_headers={"Referer":"https://provider.example/","Origin":"https://provider.example"}
+#KODIPROP:inputstream.adaptive.license_type=clearkey
+#KODIPROP:inputstream.adaptive.license_key=${KID}:${KEY}
+#KODIPROP:inputstream.adaptive.license_headers={"Authorization":"Bearer license"}
+https://cdn.example/manifest.mpd`);
+  assert.equal(channel.headers["User-Agent"], "Kodi Player");
+  assert.equal(channel.headers.Cookie, "sid=abc");
+  assert.equal(channel.headers.Referer, "https://provider.example/");
+  assert.equal(channel.headers.Origin, "https://provider.example");
+  assert.equal(channel.drm?.licenseHeaders?.Authorization, "Bearer license");
+});
+
+test("parses large playlists without an artificial channel limit", () => {
+  const source = "#EXTM3U\\n" + Array.from({ length: 1209 }, (_, index) =>
+    `#EXTINF:-1 tvg-id="channel-${index}",Channel ${index + 1}\\nhttps://cdn.example/${index}.m3u8`
+  ).join("\\n");
+  assert.equal(parseM3U(source).length, 1209);
+});
+
 test("normalizes all LiveTGTV API sources, media headers and multi-key ClearKey DRM", () => {
   const channel = {
     id: "liveid:1132", name: "Star Plus HD", url: "https://playlist.example/stream.mpd",
