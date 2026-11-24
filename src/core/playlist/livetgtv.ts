@@ -52,11 +52,11 @@ export async function resolveLiveTgTvChannel(channel: TvChannel): Promise<TvChan
     const mediaHeaders = headersFrom(channel.sources[0]?.headers, details.headers);
     const sources = urls.map((url,index) => ({ url, type: manifest(url, channel.sources[0]?.type ?? "unknown"), headers: mediaHeaders, ...(drm ? { drm } : {}), label: urls.length > 1 ? "LiveTGTV " + (index + 1) : "LiveTGTV" })).filter(s => s.type !== "unknown");
     const fallbacks = channel.sources.filter(source => source.label === "LiveTGTV backup");
-    const playlistSources = channel.sources.filter(source => (!channel.requiresDrm || !!source.drm) && !urls.includes(source.url)).map(source => ({ ...source, label: source.label ?? "LiveTGTV playlist backup" }));
+    const playlistSources = channel.sources.filter(source => source.type !== "unknown" && (!channel.requiresDrm || !!source.drm) && !urls.includes(source.url)).map(source => ({ ...source, label: source.label ?? "LiveTGTV playlist backup" }));
     if (sources.length) return { ...channel, sources: [...sources, ...playlistSources, ...fallbacks] };
     return { ...channel, sources: [...playlistSources, ...fallbacks] };
   } catch {
-    const playableSources = channel.sources.filter(source => !channel.requiresDrm || !!source.drm);
+    const playableSources = channel.sources.filter(source => source.type !== "unknown" && (!channel.requiresDrm || !!source.drm));
     return { ...channel, sources: playableSources };
   }
 }
