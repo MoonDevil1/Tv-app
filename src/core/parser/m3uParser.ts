@@ -55,6 +55,14 @@ function inferType(url: string, manifest?: string): Channel["manifestType"] {
   if (/\.(mp4|mkv|webm|ts|m4v)(?:$|[?#])/i.test(url)) return "progressive";
   return "unknown";
 }
+function uniqueChannelIds(channels: Channel[]): Channel[] {
+  const seen = new Map<string, number>();
+  return channels.map(channel => {
+    const count = seen.get(channel.id) ?? 0;
+    seen.set(channel.id, count + 1);
+    return count ? { ...channel, id: `${channel.id}#${count + 1}` } : channel;
+  });
+}
 function resolveUrl(url: string, baseUrl?: string): string {
   const resolved = baseUrl ? new URL(url, baseUrl) : new URL(url);
   if (!["http:", "https:"].includes(resolved.protocol)) throw new TypeError("Only HTTP(S) stream URLs are supported.");
@@ -126,7 +134,7 @@ export function parseM3U(source: string, baseUrl?: string): Channel[] {
       reset();
     }
   }
-  return channels;
+  return uniqueChannelIds(channels);
 }
 
 export function parseJsonPlaylist(input: unknown, baseUrl?: string): Channel[] {
@@ -177,7 +185,7 @@ export function parseJsonPlaylist(input: unknown, baseUrl?: string): Channel[] {
     } satisfies Channel];
   });
   if (!channels.length) throw new TypeError("JSON playlist contains no valid HTTP(S) channel entries.");
-  return channels;
+  return uniqueChannelIds(channels);
 }
 
 export function parsePlaylist(source: string, baseUrl?: string): Channel[] {
