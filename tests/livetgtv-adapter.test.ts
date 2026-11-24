@@ -57,7 +57,8 @@ test("LiveTGTV detects API manifest types when the playlist source type is unkno
     rawAttributes: {}
   };
   const resolved = await withLiveTgTvResponse(response, () => resolveLiveTgTvChannel(channel));
-  assert.deepEqual(resolved.sources.map(source => source.type), ["dash", "hls", "progressive"]);
+  assert.deepEqual(resolved.sources.map(source => source.type), ["dash", "hls", "progressive", "unknown"]);
+  assert.equal(resolved.sources[3].url, channel.sources[0].url);
 });
 
 
