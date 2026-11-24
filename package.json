@@ -8,10 +8,8 @@
     "dev": "electron-vite dev",
     "build": "electron-vite build",
     "typecheck": "tsc --noEmit",
-    "dist": "npm run build && electron-builder --publish never",
+    "dist": "npm run build && electron-builder --win --publish never",
     "dist:win": "npm run build && electron-builder --win --publish never",
-    "dist:mac": "npm run build && electron-builder --mac --publish never",
-    "dist:linux": "npm run build && electron-builder --linux --publish never",
     "test": "tsx --test tests/core.test.ts tests/electron-security.test.ts"
   },
   "dependencies": {
@@ -49,19 +47,18 @@
     ],
     "win": {
       "target": [
-        "nsis",
-        "portable"
-      ]
-    },
-    "mac": {
-      "target": [
-        "dmg",
-        "zip"
-      ]
-    },
-    "linux": {
-      "target": [
-        "AppImage"
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
       ]
     },
     "publish": [
@@ -81,6 +78,6 @@
   "engines": {
     "node": ">=22.0.0"
   },
-  "description": "Cross-platform IPTV desktop player built with Electron.",
+  "description": "Windows live TV and DRM playlist player.",
   "author": "MoonDevil1"
 }
