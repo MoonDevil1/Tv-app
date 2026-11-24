@@ -28,7 +28,7 @@ test("parses channel metadata, DASH, multiple ClearKeys and per-channel headers"
   assert.equal(channels[0].group, "News");
   assert.equal(channels[0].manifestType, "dash");
   assert.equal(channels[0].headers["User-Agent"], "Test Player/1.0");
-  assert.equal(channels[0].headers.cookie, "session=abc");
+  assert.equal(channels[0].headers.Cookie, "session=abc");
   assert.equal(Object.keys(channels[0].drm?.clearKeys ?? {}).length, 2);
   assert.equal(channels[1].manifestType, "hls");
   assert.equal(channels[1].headers.Referer, "https://provider.example");
@@ -100,7 +100,7 @@ https://cdn.example/channel\\_one/index.mpd`;
   assert.equal(channel.name, "One, HD");
   assert.equal(channel.group, "Documentary");
   assert.equal(channel.url, "https://cdn.example/channel_one/index.mpd");
-  assert.equal(channel.headers.cookie, "__hdnea__=token");
+  assert.equal(channel.headers.Cookie, "__hdnea__=token");
   assert.equal(channel.manifestType, "dash");
 });
 
@@ -124,7 +124,7 @@ https://jiotvpllive.cdn.jio.com/bpk-tv/Star\\_Plus\\_BTS/WDVLive/index.mpd`;
   assert.equal(channels[0].manifestType, "dash");
   assert.equal(channels[0].url, "https://jiotvmblive.cdn.jio.com/bpk-tv/Star_Plus_HD_MOB/WDVLive/index.mpd");
   assert.equal(channels[0].headers["User-Agent"], "PlayTV/7.1.5 (Linux;Android 8.1.0) ExoPlayerLib/2.11.7");
-  assert.equal(channels[0].headers.cookie, "__hdnea__=signed-token");
+  assert.equal(channels[0].headers.Cookie, "__hdnea__=signed-token");
   assert.equal(Object.keys(channels[0].drm?.clearKeys ?? {}).length, 1);
   assert.equal(Object.keys(channels[1].drm?.clearKeys ?? {}).length, 2);
   assert.equal(channels[1].manifestType, "dash");
@@ -370,9 +370,9 @@ https://cdn.example/manifest.mpd`);
 });
 
 test("parses large playlists without an artificial channel limit", () => {
-  const source = "#EXTM3U\\n" + Array.from({ length: 1209 }, (_, index) =>
-    `#EXTINF:-1 tvg-id="channel-${index}",Channel ${index + 1}\\nhttps://cdn.example/${index}.m3u8`
-  ).join("\\n");
+  const source = "#EXTM3U\n" + Array.from({ length: 1209 }, (_, index) =>
+    `#EXTINF:-1 tvg-id="channel-${index}",Channel ${index + 1}\nhttps://cdn.example/${index}.m3u8`
+  ).join("\n");
   assert.equal(parseM3U(source).length, 1209);
 });
 
