@@ -25,6 +25,24 @@ https://cdn.example/pictures.mpd`;
   assert.deepEqual(playlist.groups, ["Movies"]);
 });
 
+test("uses Kodi manifest hints and preserves per-channel ClearKey and HTTP headers", () => {
+  const input = `#EXTM3U
+#EXTINF:-1 tvg-id="test-1",Manifest channel
+#KODIPROP:inputstream.adaptive.manifest_type=mpd
+#KODIPROP:inputstream.adaptive.license_type=clearkey
+#KODIPROP:inputstream.adaptive.license_key=0123456789abcdef0123456789abcdef:abcdef0123456789abcdef0123456789,1123456789abcdef0123456789abcdef:bcdef0123456789abcdef0123456789a
+#EXTVLCOPT:http-user-agent=Vega-Test-Agent
+#EXTHTTP:{"cookie":"session=playlist-token"}
+https://edge.example/live/channel?id=1`;
+  const playlist = parsePlaylistText(input, "https://example.test/playlist.m3u");
+  const source = playlist.channels[0].sources[0];
+  assert.equal(source.type, "dash");
+  assert.equal(source.drm?.scheme, "clearkey");
+  assert.equal(Object.keys(source.drm?.clearKeys ?? {}).length, 2);
+  assert.equal(source.headers["User-Agent"], "Vega-Test-Agent");
+  assert.equal(source.headers.Cookie, "session=playlist-token");
+});
+
 test("parses JSON playlists and skips invalid or unsupported entries", () => {
   const playlist = parsePlaylistText(JSON.stringify({ epgUrl: "https://guide.example/epg.xml", channels: [
     { id: "a", name: "News", url: "https://cdn.example/news.m3u8", group: "News", headers: { Referer: "https://site.example/" } },
