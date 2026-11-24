@@ -37,7 +37,7 @@ export class StreamEngine {
       if (generation !== this.generation) return;
       try {
         await window.tvApp?.setStreamRequestContext({ originUrl: candidate.url, headers: candidate.headers });
-        if (candidate.manifestType === "dash" || /\\.mpd(?:$|[?#])/i.test(candidate.url) || candidate.drm) {
+        if (candidate.manifestType === "dash" || /\.mpd(?:$|[?#])/i.test(candidate.url) || candidate.drm) {
           await this.playShaka(video, candidate, generation, abortController.signal);
         } else if (candidate.manifestType === "unknown") {
           try {
@@ -54,7 +54,7 @@ export class StreamEngine {
               await waitForMediaEvent(video, "loadedmetadata", "error", 20_000, "Stream format could not be detected.", abortController.signal);
             }
           }
-        } else if (candidate.manifestType === "progressive" || /\\.(?:mp4|m4v|webm|ogg)(?:$|[?#])/i.test(candidate.url)) {
+        } else if (candidate.manifestType === "progressive" || /\.(?:mp4|m4v|webm|ogg)(?:$|[?#])/i.test(candidate.url)) {
           await this.playProgressive(video, candidate, abortController.signal);
         } else {
           await this.playHls(video, candidate, generation, abortController.signal);
