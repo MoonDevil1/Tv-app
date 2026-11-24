@@ -1,73 +1,70 @@
-# TG IPTV — Cinema Edition
+# TG IPTV
 
-A Windows desktop IPTV player built with Electron, React 19, TypeScript, Shaka Player and hls.js.
+A Windows 11 live-TV playlist player built with Electron, React, Shaka Player and hls.js.
 
-## Download for Windows — v2.0.3
+## Getting started
 
-| Package | Download | Notes |
-|---|---|---|
-| Windows Installer (x64) | [Download TG IPTV Setup (.exe)](https://github.com/MoonDevil1/Tv-app/releases/download/v2.0.3/TG.IPTV.Setup.2.0.3.exe) | Recommended; installs the app and supports the configured updater |
-| Portable (x64) | [Download portable app (.exe)](https://github.com/MoonDevil1/Tv-app/releases/download/v2.0.3/TG.IPTV.2.0.3.exe) | Run without installation; update manually |
+1. Open **Playlists** from the home screen.
+2. Select **+ Add playlist**.
+3. The LiveTGTV test playlist is prefilled:
+   `https://livetgtv.lovable.app/api/public/playlist.m3u`
+4. Import it, then click the playlist card to load its complete channel list.
+5. Select a channel to open the built-in player.
 
-[View all releases](https://github.com/MoonDevil1/Tv-app/releases).
+You can also add another HTTP(S) M3U/M3U8 or JSON playlist, or import a local playlist file. Playlists are stored locally on this device.
 
-## Features
+## Playback
 
-- Import remote M3U/M3U8 and JSON playlists or open local playlist files.
-- LiveTGTV playlist URL is prefilled in the Add Playlist dialog.
-- Channel search, category filters, favorites and recently watched.
-- Responsive virtualized channel grid for large playlists.
-- XMLTV EPG now/next guide when the playlist declares an accessible EPG feed.
-- Per-playlist automatic refresh (manual, 1m, 5m, 15m or 1h).
-- GitHub release updates: installed builds check for updates, download on request and restart to install. Draft releases are not offered until published.
-- HLS and DASH playback, including authorized ClearKey/Widevine configurations supported by the runtime.
-- Player controls: play/pause, seek, mouse-wheel volume, quality, audio/subtitle selection, aspect fit, fullscreen and picture-in-picture.
-- Channel zapping, mini-player mode and keyboard shortcuts (Space/K play, arrows seek or zap, M mute, F fullscreen, I PiP, Ctrl/⌘+K or / search).
-- Lightweight static interface without animated transitions, ambient video sampling or blur-heavy overlays.
-- Automatic local diagnostics for playback failures, renderer errors and buffering stalls; reports omit stream URLs and credentials. The Feedback action opens a prefilled GitHub issue for user review and submission.
+- M3U/M3U8 parsing keeps valid HTTP(S) channel entries, including URLs without file extensions and duplicate channel IDs.
+- Per-channel `#EXTHTTP`, `#EXTVLCOPT`, `#KODIPROP`, manifest type, EPG, and tokenized stream metadata are retained.
+- LiveTGTV channel details are resolved from its public channel API. All returned stream URLs are kept as ordered candidates; a failed candidate does not remove the channel.
+- Shaka Player handles DASH and authorized ClearKey, Widevine and PlayReady configurations. hls.js handles HLS; progressive media uses Chromium's media element.
+- Stream and license headers are scoped to their relevant origins. The app does not disable Chromium web security or bypass DRM.
+- Player controls include channel switching, volume, quality, audio and subtitles, fullscreen, picture-in-picture and keyboard shortcuts.
 
-## Diagnostics and feedback
+Playback depends on the playlist provider's current stream URLs, authorization, DRM configuration and service availability. Only use streams you are authorized to access.
 
-Playback errors and renderer failures are written locally to the Electron user-data `logs/diagnostics.log` file (rotated after approximately 2 MB). Buffering reports include media readiness, buffered seconds and dropped-frame counters, not stream URLs, cookies, license keys or credentials. Use **Settings → Feedback and diagnostics** or **Report problem** in the player to open a prefilled GitHub issue. The issue is not submitted until the user reviews and clicks Submit; the app cannot send background reports directly to a ChatGPT conversation.
+## Library and settings
+
+- Search and filter channels by group.
+- Open a playlist from the Playlists home screen.
+- Manage multiple playlists, refresh them and remove them from this device.
+- Save favorites and recently watched channels.
+- Choose dark or light appearance in **Settings**.
+- Configure automatic playlist refresh.
+- Load XMLTV EPG data when the playlist provides an accessible feed.
+
+## Windows downloads
+
+The project builds Windows x64 NSIS installers and portable executables:
+
+```powershell
+npm run dist:win
+```
+
+The output is written to `release/`. Only Windows desktop packaging is configured.
 
 ## Development
 
 Requirements: Node.js 22+ and npm 10+.
 
-```bash
-npm install
+```powershell
+npm ci
 npm run dev
 npm run typecheck
 npm test
 npm run build
 ```
 
-## Windows packaging
-
-```bash
-npm run dist:win
-```
-
-The Windows installer and portable executable are written to `release/`. Published GitHub releases provide update metadata and binaries; the updater intentionally ignores draft releases. The NSIS-installed build supports in-app update checks; the portable executable must be updated manually.
-
-## Continuous integration
-
-Feature-branch pushes run type-checking, the unit suite and the Electron production build on Windows, macOS and Linux. The Electron header proxy also has regression tests for host scoping and header-injection filtering.
-
 ## Architecture
 
-- Electron main process owns the desktop window and scoped stream request-header policy.
-- The isolated preload exposes a narrow, typed IPC surface.
-- React renderer owns navigation, channel library, EPG and player controls.
-- Playlist parsing, token refresh, DRM conversion, playback and EPG are isolated under `src/core`.
-- Shaka Player handles DASH and DRM-protected HLS; hls.js handles non-DRM HLS; direct progressive streams use the native media element.
+- `electron/main.ts`: Windows desktop window, safe navigation, remote playlist fetch and scoped stream headers.
+- `electron/preload.ts`: isolated, typed IPC bridge.
+- `src/core/parser`: M3U/JSON parsing, ClearKey conversion, LiveTGTV API normalization and playlist refresh.
+- `src/core/player`: Shaka/hls.js playback, DRM request configuration and ordered source fallback.
+- `src/components/Player.tsx`: built-in live player and controls.
+- `src/App.tsx`: playlist library, channel browsing, settings and EPG.
 
-## Security and playback
+## Credits
 
-Chromium web security remains enabled. The app does not disable CORS globally or bypass DRM. Custom request headers are scoped to the selected stream host. DRM playback requires a compatible runtime, valid license/key material and authorization from the content provider. Some providers restrict cross-origin EPG or stream requests; those restrictions are surfaced as errors rather than bypassed.
-
-## Playlist compatibility
-
-The playlist engine supports M3U/M3U8 and JSON channel collections, EXTINF metadata, EPG URLs, per-stream headers, tokenized URLs, catch-up metadata and authorized ClearKey/Widevine/PlayReady metadata. LiveTGTV is preconfigured as a convenient source URL, but its live endpoint contents and availability depend on that service and are not bundled or guaranteed.
-
-TG IPTV is a player only. Users must supply playlists and streams they are authorized to access.
+The interface direction follows the principles in [unslop](https://github.com/MoonDevil1/unslop) by Damir Sokolovsky (CC BY 4.0). Implementation follows the minimal-diff and test-first guidance in [Ponytail](https://github.com/DietrichGebert/ponytail) (MIT).
