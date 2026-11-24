@@ -39,7 +39,7 @@ function manifest(url: string, fallback: ChannelSource["type"] = "unknown"): Cha
   return fallback;
 }
 export async function resolveLiveTgTvChannel(channel: TvChannel): Promise<TvChannel> {
-  const id = (channel.id.match(/^(?:liveid|tvg):(.+)$/)?.[1] ?? channel.tvgId ?? "").trim();
+  const id = (channel.rawAttributes["live-id"] || channel.tvgId || channel.id.match(/^(?:liveid|tvg):(.+)$/)?.[1] || "").trim();
   if (!id || channel.id.startsWith("name:")) return channel;
   const hasAuth = Object.keys(channel.sources[0]?.headers ?? {}).some(key => /^(?:cookie|authorization)$/i.test(key));
   if (channel.requiresAuthorization && !hasAuth) return { ...channel, sources: [] };
@@ -48,15 +48,13 @@ export async function resolveLiveTgTvChannel(channel: TvChannel): Promise<TvChan
     const details = JSON.parse(text) as ApiDetails;
     const urls = Array.isArray(details.sources) ? details.sources.map(v => typeof v === "string" ? v.trim() : "").filter(v => /^https?:\/\//i.test(v)) : [];
     const drm = drmFrom(details.drm) ?? channel.sources.find(source => source.drm)?.drm;
-    if (channel.requiresDrm && !drm) return { ...channel, sources: [] };
     const mediaHeaders = headersFrom(channel.sources[0]?.headers, details.headers);
-    const sources = urls.map((url,index) => ({ url, type: manifest(url, channel.sources[0]?.type ?? "unknown"), headers: mediaHeaders, ...(drm ? { drm } : {}), label: urls.length > 1 ? "LiveTGTV " + (index + 1) : "LiveTGTV" })).filter(s => s.type !== "unknown");
+    const sources = urls.map((url,index) => ({ url, type: manifest(url, channel.sources[0]?.type ?? "unknown"), headers: mediaHeaders, ...(drm ? { drm } : {}), label: urls.length > 1 ? "LiveTGTV " + (index + 1) : "LiveTGTV" }));
     const fallbacks = channel.sources.filter(source => source.label === "LiveTGTV backup");
-    const playlistSources = channel.sources.filter(source => source.type !== "unknown" && (!channel.requiresDrm || !!source.drm) && !urls.includes(source.url)).map(source => ({ ...source, label: source.label ?? "LiveTGTV playlist backup" }));
+    const playlistSources = channel.sources.filter(source => !urls.includes(source.url)).map(source => ({ ...source, label: source.label ?? "LiveTGTV playlist backup" }));
     if (sources.length) return { ...channel, sources: [...sources, ...playlistSources, ...fallbacks] };
     return { ...channel, sources: [...playlistSources, ...fallbacks] };
   } catch {
-    const playableSources = channel.sources.filter(source => source.type !== "unknown" && (!channel.requiresDrm || !!source.drm));
-    return { ...channel, sources: playableSources };
+    return { ...channel, sources: channel.sources };
   }
 }
