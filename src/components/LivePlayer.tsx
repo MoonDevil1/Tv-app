@@ -99,7 +99,12 @@ export default function LivePlayer({ playlist, channel: initialChannel, onClose,
       if (source.type === "dash" || source.type === "unknown" || source.drm) {
         const shakaModule = await import("shaka-player");
         const shaka = shakaModule.default;
-        if (!shaka.Player.isBrowserSupported()) throw new Error("This Windows system does not support the required DASH playback features.");
+        if (!shaka.Player.isBrowserSupported()) {
+          if (source.type !== "unknown") throw new Error("This Windows system does not support the required DASH playback features.");
+          mediaVideo.src = source.url;
+          engineRef.current = "native";
+          await mediaVideo.play().catch(() => undefined);
+        }
         const player = new shaka.Player();
         shakaRef.current = player;
         await player.attach(mediaVideo);
@@ -133,7 +138,7 @@ export default function LivePlayer({ playlist, channel: initialChannel, onClose,
           engineRef.current = "native";
           await mediaVideo.play().catch(() => undefined);
         }
-        if (preferredQuality !== "auto") {
+        if (engineRef.current === "shaka" && preferredQuality !== "auto") {
           const tracks = player.getVariantTracks().filter((track: any) => track.height <= Number.parseInt(preferredQuality, 10));
           if (tracks.length) player.selectVariantTrack(tracks.sort((a: any, b: any) => b.height - a.height)[0], true);
         }
