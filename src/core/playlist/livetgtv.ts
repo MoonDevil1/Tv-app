@@ -32,27 +32,27 @@ function drmFrom(value: ApiDetails["drm"]): DrmConfiguration | undefined {
 }
 function manifest(url: string, fallback: ChannelSource["type"] = "unknown"): ChannelSource["type"] {
   const value = url.toLowerCase();
-  if (/\\.mpd(?:$|[?#])/.test(value)) return "dash";
-  if (/\\.m3u8(?:$|[?#])/.test(value)) return "hls";
-  if (/\\.(?:mp4|m4v)(?:$|[?#])/.test(value)) return "progressive";
+  if (/\.mpd(?:$|[?#])/.test(value)) return "dash";
+  if (/\.m3u8(?:$|[?#])/.test(value)) return "hls";
+  if (/\.(?:mp4|m4v)(?:$|[?#])/.test(value)) return "progressive";
   try { const nested = new URL(url).searchParams.get("url"); if (nested) return manifest(nested, fallback); } catch {}
   return fallback;
 }
 export async function resolveLiveTgTvChannel(channel: TvChannel): Promise<TvChannel> {
-  const id = (channel.id.match(/^(?:liveid|tvg):(.+)$/)?.[1] ?? channel.tvgId ?? "").trim();
+  const id = (channel.rawAttributes["live-id"] || channel.tvgId || channel.id.match(/^(?:liveid|tvg):(.+)$/)?.[1] || "").trim();
   if (!id || channel.id.startsWith("name:")) return channel;
-  const hasAuth = Object.keys(channel.sources[0]?.headers ?? {}).some(key => /^(?:cookie|authorization)$/i.test(key));
-  if (channel.requiresAuthorization && !hasAuth) return { ...channel, sources: [] };
   try {
     const { text } = await fetchPlaylistText(API + "/" + encodeURIComponent(id), { Accept: "application/json", "Cache-Control": "no-cache", "User-Agent": "Vega-LiveTGTV/1.0" });
     const details = JSON.parse(text) as ApiDetails;
     const urls = Array.isArray(details.sources) ? details.sources.map(v => typeof v === "string" ? v.trim() : "").filter(v => /^https?:\/\//i.test(v)) : [];
-    const drm = drmFrom(details.drm);
-    if (channel.requiresDrm && !drm) return { ...channel, sources: [] };
+    const drm = drmFrom(details.drm) ?? channel.sources.find(source => source.drm)?.drm;
     const mediaHeaders = headersFrom(channel.sources[0]?.headers, details.headers);
-    const sources = urls.map((url,index) => ({ url, type: manifest(url, channel.sources[0]?.type ?? "unknown"), headers: mediaHeaders, ...(drm ? { drm } : {}), label: urls.length > 1 ? "LiveTGTV " + (index + 1) : "LiveTGTV" })).filter(s => s.type !== "unknown");
+    const sources = urls.map((url,index) => ({ url, type: manifest(url, channel.sources[0]?.type ?? "unknown"), headers: mediaHeaders, ...(drm ? { drm } : {}), label: urls.length > 1 ? "LiveTGTV " + (index + 1) : "LiveTGTV" }));
     const fallbacks = channel.sources.filter(source => source.label === "LiveTGTV backup");
-    if (sources.length) return { ...channel, sources: [...sources, ...fallbacks] };
-    return channel.requiresDrm ? { ...channel, sources: fallbacks } : channel;
-  } catch { return channel.requiresDrm ? { ...channel, sources: channel.sources.filter(source => source.label === "LiveTGTV backup") } : channel; }
+    const playlistSources = channel.sources.filter(source => !urls.includes(source.url)).map(source => ({ ...source, label: source.label ?? "LiveTGTV playlist backup" }));
+    if (sources.length) return { ...channel, sources: [...sources, ...playlistSources, ...fallbacks] };
+    return { ...channel, sources: [...playlistSources, ...fallbacks] };
+  } catch {
+    return { ...channel, sources: channel.sources };
+  }
 }

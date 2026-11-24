@@ -2,6 +2,17 @@
 
 A Windows desktop IPTV player rebuild. The application is being recreated in phases around the AuthoIPTV feature set and the LiveTGTV/Vega stream-resolution workflow.
 
+## Download
+
+**Windows only** — TG IPTV v2.0.2.
+
+| Package | Download |
+|---|---|
+| Windows installer (recommended) | [TG.IPTV.Setup.2.0.2.exe](https://github.com/MoonDevil1/Tv-app/releases/download/v2.0.2/TG.IPTV.Setup.2.0.2.exe) |
+| Portable Windows app | [TG.IPTV.2.0.2.exe](https://github.com/MoonDevil1/Tv-app/releases/download/v2.0.2/TG.IPTV.2.0.2.exe) |
+
+[View all Windows release details](https://github.com/MoonDevil1/Tv-app/releases/tag/v2.0.2).
+
 ## Rebuild plan
 
 | Phase | Scope | Status |
@@ -36,3 +47,8 @@ Windows installers are generated in `release/`. The project uses Electron, React
 ## Playback and DRM
 
 The application will use Shaka Player for DASH and DRM-capable streams, hls.js for HLS, and the native media element for progressive files. It will not bypass DRM or disable Chromium web security. Playback requires a supported Windows runtime/CDM, valid provider authorization and valid stream/license data.
+
+
+## Interface design credit
+
+The visual refinement in this project adapts design guidance from [unslop](https://github.com/heydamir/unslop) by Damir Sokolovsky, used under the [Creative Commons Attribution 4.0 International licence](https://creativecommons.org/licenses/by/4.0/). Changes include a restrained broadcast-console direction, neutral light/dark surfaces, clearer type hierarchy, consistent spacing and reduced decorative effects. This is a design-guidance adaptation; the skill itself is not bundled as a runtime dependency.

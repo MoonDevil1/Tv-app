@@ -64,31 +64,37 @@ function parseM3u(text: string): { channels: TvChannel[]; epgUrls: string[] } {
   let current: { info: string; extras: string[] } | null = null;
   const finish = (rawUrl?: string) => {
     if (!current || !rawUrl) { current = null; return; }
-    const url = safeUrl(rawUrl), type = manifestType(rawUrl);
+    const url = safeUrl(rawUrl);
+    const props = current.extras.filter(line => /^#KODIPROP:/i.test(line));
+    const manifestHint = props.find(line => /manifest_type=/i.test(line))?.split("=").slice(1).join("=").trim().toLowerCase();
+    const detectedType = manifestType(rawUrl);
+    const type: ManifestType = detectedType !== "unknown" ? detectedType : manifestHint === "mpd" ? "dash" : manifestHint === "hls" ? "hls" : detectedType;
     const comma = current.info.indexOf(",");
     const title = comma >= 0 ? current.info.slice(comma + 1).trim() : "";
     const name = attr(current.info, "tvg-name") || title;
-    if (!url || !name || type === "unknown") { current = null; return; }
+    if (!url || !name) { current = null; return; }
     const tvgId = attr(current.info, "tvg-id");
     let liveId = ""; try { liveId = new URL(url).searchParams.get("liveid") ?? ""; } catch {}
-    const id = liveId ? "liveid:" + liveId : tvgId ? "tvg:" + tvgId : "name:" + name.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+    const baseId = liveId ? "liveid:" + liveId : tvgId ? "tvg:" + tvgId : "name:" + name.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+    const duplicate = channels.filter(channel => channel.id === baseId || channel.id.startsWith(baseId + "#")).length;
+    const id = duplicate ? baseId + "#" + (duplicate + 1) : baseId;
     const headers = entryHeaders(current.extras);
-    const props = current.extras.filter(line => /^#KODIPROP:/i.test(line));
     const drmType = props.find(line => /license_type=/i.test(line))?.split("=").slice(1).join("=").trim().toLowerCase();
     const license = props.find(line => /license_key=/i.test(line))?.split("=").slice(1).join("=").trim();
     let drm: ChannelSource["drm"];
-    if (drmType === "clearkey" && license) {
-      const pairs = license.split("|");
+    if ((drmType === "clearkey" || drmType === "org.w3.clearkey") && license) {
+      const pairs = license.split(/[|,]/);
       const clearKeys: Record<string,string> = {};
       for (const pair of pairs) { const [kid,key] = pair.split(":"); if (/^[a-f0-9]{32}$/i.test(kid ?? "") && /^[a-f0-9]{32}$/i.test(key ?? "")) clearKeys[kid.toLowerCase()] = key.toLowerCase(); }
       if (Object.keys(clearKeys).length) drm = { scheme: "clearkey", clearKeys };
     } else if (drmType === "com.widevine.alpha" && license) drm = { scheme: "widevine", licenseUrl: safeUrl(license) || undefined };
+    else if (drmType === "com.microsoft.playready" && license) drm = { scheme: "playready", licenseUrl: safeUrl(license) || undefined };
     const source: ChannelSource = { url, type, headers, ...(drm ? { drm } : {}) };
     channels.push({
       id, name, logo: attr(current.info, "tvg-logo") || undefined,
       group: attr(current.info, "group-title") || "Other",
       tvgId: tvgId || undefined, number: channels.length + 1,
-      sources: [source], requiresDrm: props.some(line => /license_(?:type|key)|drm/i.test(line)), requiresAuthorization: Object.keys(headers).some(key => /^(?:cookie|authorization)$/i.test(key)), rawAttributes: { "tvg-id": tvgId, "tvg-name": attr(current.info, "tvg-name"), "group-title": attr(current.info, "group-title") }
+      sources: [source], requiresDrm: props.some(line => /license_(?:type|key)|drm/i.test(line)), requiresAuthorization: Object.keys(headers).some(key => /^(?:cookie|authorization)$/i.test(key)), rawAttributes: { "tvg-id": tvgId, "tvg-name": attr(current.info, "tvg-name"), "group-title": attr(current.info, "group-title"), "live-id": liveId }
     });
     current = null;
   };
@@ -114,13 +120,23 @@ function fromJson(text: string): { channels: TvChannel[]; epgUrls: string[] } {
     const inputHeaders = item.headers ?? item.requestHeaders;
     if (inputHeaders && typeof inputHeaders === "object" && !Array.isArray(inputHeaders)) for (const [k,v] of Object.entries(inputHeaders)) setHeader(headers,k,String(v));
     const type = manifestType(url);
-    if (type === "unknown") return [];
+    const rawSources = Array.isArray(item.sources) ? item.sources : [];
+    const sources = [
+      { url, type, headers },
+      ...rawSources.slice(1).flatMap((entry: any) => {
+        const sourceUrl = safeUrl(entry?.url ?? entry?.link);
+        if (!sourceUrl) return [];
+        const sourceHeaders: StreamHeaders = { ...headers };
+        if (entry.headers && typeof entry.headers === "object" && !Array.isArray(entry.headers)) for (const [key, value] of Object.entries(entry.headers)) setHeader(sourceHeaders, key, String(value));
+        return [{ url: sourceUrl, type: manifestType(sourceUrl), headers: sourceHeaders }];
+      })
+    ];
     return [{
       id: String(item.id ?? item.tvg_id ?? item.tvgId ?? "json:" + index), name,
       logo: safeUrl(item.logo ?? item.tvg_logo) || undefined,
       group: String(item.group ?? item.category ?? item.group_title ?? "Other"),
       tvgId: String(item.tvg_id ?? item.tvgId ?? "") || undefined, number: index + 1,
-      sources: [{ url, type, headers }], rawAttributes: {}
+      sources, rawAttributes: {}
     } satisfies TvChannel];
   });
   const epgValue = data.epg ?? data.epgUrl ?? data.epg_url ?? data.url_tvg;
@@ -132,9 +148,12 @@ export function parsePlaylistText(text: string, source: string, name?: string): 
   if (!normalized) throw new Error("The playlist is empty.");
   const parsed = normalized.startsWith("#EXTM3U") ? parseM3u(normalized) : fromJson(normalized);
   if (!parsed.channels.length) throw new Error("No supported HTTP(S) channels were found in this playlist.");
-  const unique = new Map<string, TvChannel>();
-  for (const channel of parsed.channels) unique.set(channel.id, channel);
-  const channels = [...unique.values()].map((channel, index) => ({ ...channel, number: index + 1 }));
+  const seen = new Map<string, number>();
+  const channels = parsed.channels.map((channel, index) => {
+    const count = seen.get(channel.id) ?? 0;
+    seen.set(channel.id, count + 1);
+    return { ...channel, id: count ? channel.id + "#" + (count + 1) : channel.id, number: index + 1 };
+  });
   const fallbackName = (() => { try { return new URL(source).hostname; } catch { return "Imported playlist"; } })();
   return {
     id: globalThis.crypto?.randomUUID?.() ?? "playlist-" + Date.now(),

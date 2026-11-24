@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
-import { CalendarDays, ChevronRight, CircleHelp, Clock3, FileUp, Heart, History, ListVideo, Menu, Moon, Play, Radio, RefreshCw, Search, Settings, Sun, Trash2, Tv2, Upload } from "lucide-react";
+import { CalendarDays, ChevronRight, CircleHelp, Clock3, FileUp, Heart, History, ListVideo, Menu, Moon, Play, Radio, RefreshCw, Search, Settings, Sun, Trash2, Tv2, Upload, Plus } from "lucide-react";
 import { useAppStore, channelKey } from "./app/store";
 import type { AppSection, AppSettings, EpgProgramme, Playlist, ThemeMode, TvChannel } from "./app/models";
 import { addLiveTgTvFallbacks, fetchPlaylistText, LIVE_TGTV_SOURCE, parsePlaylistText } from "./core/playlist/parser";
@@ -15,7 +15,7 @@ const navigation: Array<{ section: AppSection; icon: typeof Tv2; group: "watch" 
 ];
 const refreshOptions = [{ label: "Manual", value: 0 }, { label: "Every 1 minute", value: 60000 }, { label: "Every 5 minutes", value: 300000 }, { label: "Every 15 minutes", value: 900000 }, { label: "Every hour", value: 3600000 }];
 function PageHeading({ title, subtitle, action }: { title: string; subtitle: string; action?: ReactNode }) {
-  return <div className="page-heading"><div><p className="eyebrow">TG IPTV DESKTOP</p><h1>{title}</h1><p className="page-subtitle">{subtitle}</p></div>{action}</div>;
+  return <div className="page-heading"><div><p className="eyebrow">TG IPTV desktop</p><h1>{title}</h1><p className="page-subtitle">{subtitle}</p></div>{action}</div>;
 }
 function EmptyState({ icon: Icon, title, detail, action, onAction }: { icon: typeof Tv2; title: string; detail: string; action?: string; onAction?: () => void }) {
   return <div className="empty-state"><div className="empty-state-icon"><Icon size={27} strokeWidth={1.7} /></div><h2>{title}</h2><p>{detail}</p>{action && onAction && <button className="primary-button" onClick={onAction}>{action}<ChevronRight size={16} /></button>}</div>;
@@ -24,7 +24,7 @@ function SettingsPage() {
   const settings = useAppStore(state => state.settings), updateSettings = useAppStore(state => state.updateSettings);
   return <><PageHeading title="Settings" subtitle="Configure the app, playlists and playback preferences." /><div className="settings-layout">
     <section className="settings-panel"><div className="panel-heading"><h2>Appearance</h2><p>Choose the look of the desktop application.</p></div><div className="theme-options">
-      {(["light", "dark"] as ThemeMode[]).map(theme => <button key={theme} className={settings.theme === theme ? "theme-option selected" : "theme-option"} onClick={() => updateSettings({ theme })}><span className={`theme-preview ${theme}`}>{theme === "light" ? <Sun size={19} /> : <Moon size={19} />}</span><span><b>{theme === "light" ? "Light" : "Dark"}</b><small>{theme === "light" ? "Bright Material surfaces" : "Low-glare dark surfaces"}</small></span><span className="selection-dot" /></button>)}
+      {(["light", "dark"] as ThemeMode[]).map(theme => <button key={theme} className={settings.theme === theme ? "theme-option selected" : "theme-option"} onClick={() => updateSettings({ theme })}><span className={`theme-preview ${theme}`}>{theme === "light" ? <Sun size={19} /> : <Moon size={19} />}</span><span><b>{theme === "light" ? "Light" : "Dark"}</b><small>{theme === "light" ? "Light surfaces" : "Low-glare dark surfaces"}</small></span><span className="selection-dot" /></button>)}
     </div></section>
     <section className="settings-panel"><div className="panel-heading"><h2>Playlist defaults</h2><p>Defaults applied when a playlist is added.</p></div><label className="setting-row"><span><b>Automatic playlist refresh</b><small>Refresh remote playlist data in the background.</small></span><select value={settings.defaultRefreshIntervalMs} onChange={e => updateSettings({ defaultRefreshIntervalMs: Number(e.target.value) })}>{refreshOptions.map(o => <option value={o.value} key={o.value}>{o.label}</option>)}</select></label></section>
     <section className="settings-panel"><div className="panel-heading"><h2>Playback defaults</h2><p>Initial behaviour for the built-in TV player.</p></div>
@@ -36,7 +36,7 @@ function SettingsPage() {
 function PlaylistManager() {
   const playlists = useAppStore(state => state.playlists), settings = useAppStore(state => state.settings);
   const addPlaylist = useAppStore(state => state.addPlaylist), replacePlaylist = useAppStore(state => state.replacePlaylist), removePlaylist = useAppStore(state => state.removePlaylist);
-  const [url,setUrl] = useState(""), [name,setName] = useState(""), [headersText,setHeadersText] = useState("{}"), [paste,setPaste] = useState("");
+  const [url,setUrl] = useState(LIVE_TGTV_SOURCE), [name,setName] = useState("LiveTGTV"), [headersText,setHeadersText] = useState("{}"), [paste,setPaste] = useState("");
   const [error,setError] = useState(""), [busy,setBusy] = useState(false), [busyId,setBusyId] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
   const refreshing = useRef(new Set<string>());
@@ -46,7 +46,7 @@ function PlaylistManager() {
     parsed.refreshIntervalMs = settings.defaultRefreshIntervalMs;
     parsed.requestHeaders = headers;
     addPlaylist(parsed);
-    setUrl(""); setName(""); setPaste(""); setHeadersText("{}"); setError("");
+    setUrl(LIVE_TGTV_SOURCE); setName("LiveTGTV"); setPaste(""); setHeadersText("{}"); setError("");
   };
   const importUrl = async (target:string) => {
     setBusy(true); setError("");
@@ -89,7 +89,7 @@ function PlaylistManager() {
     }, 15000);
     return () => window.clearInterval(timer);
   }, []);
-  return <><PageHeading title="Playlist manager" subtitle="Connect remote or local M3U, M3U8 and JSON playlists." action={<button className="secondary-button" onClick={() => void importUrl(LIVE_TGTV_SOURCE)} disabled={busy}><Radio size={15}/> Add LiveTGTV</button>} />
+  return <><PageHeading title="Playlists" subtitle="Add remote or local M3U, M3U8 and JSON playlists." action={<button className="secondary-button" onClick={() => void importUrl(LIVE_TGTV_SOURCE)} disabled={busy}><Radio size={15}/> Add LiveTGTV</button>} />
     <section className="import-panel"><div className="panel-heading"><h2>Add a playlist</h2><p>Use a playlist URL, paste its contents or select a local file.</p></div>
       <div className="import-grid"><label><span>Playlist URL</span><input value={url} onChange={e=>setUrl(e.target.value)} placeholder="https://example.com/playlist.m3u" /></label><label><span>Display name (optional)</span><input value={name} onChange={e=>setName(e.target.value)} placeholder="My IPTV playlist" /></label></div>
       <label className="import-label"><span>Request headers (JSON, optional)</span><textarea rows={2} value={headersText} onChange={e=>setHeadersText(e.target.value)} spellCheck={false}/></label>
@@ -102,10 +102,11 @@ function PlaylistManager() {
     </section>
   </>;
 }
-function ChannelLibrary({ mode, onPlay }: { mode: "all" | "favorites" | "recent"; onPlay: (playlist: Playlist, channel: import("./app/models").TvChannel) => void }) {
+function ChannelLibrary({ mode, onPlay, initialPlaylistId = "All playlists" }: { mode: "all" | "favorites" | "recent"; onPlay: (playlist: Playlist, channel: import("./app/models").TvChannel) => void; initialPlaylistId?: string }) {
   const playlists=useAppStore(state=>state.playlists), favorites=useAppStore(state=>state.favorites);
   const toggleFavorite=useAppStore(state=>state.toggleFavorite), recentChannels=useAppStore(state=>state.recentChannels);
-  const [query,setQuery]=useState(""),[group,setGroup]=useState("All groups"),[source,setSource]=useState("All playlists");
+  const [query,setQuery]=useState(""),[group,setGroup]=useState("All groups"),[source,setSource]=useState(initialPlaylistId);
+  useEffect(() => setSource(initialPlaylistId), [initialPlaylistId]);
   const entries=useMemo(()=>playlists.flatMap(playlist=>playlist.channels.map(channel=>({playlist,channel}))),[playlists]);
   const groups=useMemo(()=>["All groups",...new Set(entries.map(x=>x.channel.group).filter(Boolean))],[entries]);
   const recentOrder=new Map(recentChannels.map((item,index)=>[channelKey(item.playlistId,item.channelId),index]));
@@ -120,7 +121,7 @@ function GuidePage({ playlists, onPlay, status, refreshedAt }: { playlists: Play
   useEffect(() => { const timer = window.setInterval(() => setClock(Date.now()), 30000); return () => window.clearInterval(timer); }, []);
   const entries = playlists.flatMap(playlist => playlist.channels.map(channel => { const programmes = guide[channel.tvgId ?? ""] ?? guide[channel.id] ?? []; return { playlist, channel, current: programmes.find(item => item.start <= now && item.stop > now), next: programmes.find(item => item.start > now) }; })).filter(item => item.current || item.next).filter(item => !query || item.channel.name.toLowerCase().includes(query.toLowerCase()) || item.current?.title.toLowerCase().includes(query.toLowerCase()) || item.next?.title.toLowerCase().includes(query.toLowerCase()));
   const feedCount = new Set(playlists.flatMap(item => item.epgUrls)).size;
-  return <><PageHeading title="TV Guide" subtitle="Live programmes and what is coming up next." action={<span className="guide-updated">{refreshedAt ? "Updated " + new Date(refreshedAt).toLocaleTimeString([], {hour:"2-digit",minute:"2-digit"}) : status}</span>} />
+  return <><PageHeading title="TV Guide" subtitle="Current programmes and upcoming broadcasts." action={<span className="guide-updated">{refreshedAt ? "Updated " + new Date(refreshedAt).toLocaleTimeString([], {hour:"2-digit",minute:"2-digit"}) : status}</span>} />
     <label className="channel-search guide-search"><Search size={16}/><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Search channels or programmes…"/></label>{status && <p className="guide-status" role="status">{status}</p>}
     {entries.length ? <div className="guide-list">{entries.map(({playlist,channel,current,next})=><article className="guide-row" key={playlist.id+":"+channel.id}>
       <button className="guide-channel" onClick={()=>onPlay(playlist,channel)}><span className="guide-logo">{channel.logo ? <img src={channel.logo} alt="" loading="lazy"/> : <Tv2 size={20}/>}</span><span><b>{channel.name}</b><small>{channel.group}</small></span></button>
@@ -135,6 +136,7 @@ function App() {
   const [guideStatus,setGuideStatus]=useState(""),[guideRefreshedAt,setGuideRefreshedAt]=useState(0);
   const [navigationOpen,setNavigationOpen]=useState(false);
   const [activePlayback,setActivePlayback]=useState<{playlistId:string;channelId:string}|null>(null);
+  const [libraryPlaylistId,setLibraryPlaylistId]=useState("All playlists");
   const selectedPlaylist=activePlayback ? playlists.find(item=>item.id===activePlayback.playlistId) : undefined;
   const selectedChannel=selectedPlaylist?.channels.find(item=>item.id===activePlayback?.channelId);
   const openPlayer=(playlist:Playlist,channel:import("./app/models").TvChannel)=>setActivePlayback({playlistId:playlist.id,channelId:channel.id});
@@ -158,31 +160,32 @@ function App() {
   useEffect(()=>{document.documentElement.dataset.theme=settings.theme;},[settings.theme]);
   useEffect(()=>{const close=(e:KeyboardEvent)=>{if(e.key==="Escape")setNavigationOpen(false);};window.addEventListener("keydown",close);return()=>window.removeEventListener("keydown",close);},[]);
   const channelsCount=playlists.reduce((total,p)=>total+p.channels.length,0);
-  const openSection=(section:AppSection)=>{setActiveSection(section);setNavigationOpen(false);};
+  const openSection=(section:AppSection)=>{if(section==="Live TV")setLibraryPlaylistId("All playlists");setActiveSection(section);setNavigationOpen(false);};
+  const openPlaylist=(playlist:Playlist)=>{setLibraryPlaylistId(playlist.id);setActiveSection("Live TV");setNavigationOpen(false);};
   return <div className="application">
     {navigationOpen&&<button className="navigation-backdrop" aria-label="Close navigation" onClick={()=>setNavigationOpen(false)}/>}
-    <aside className={navigationOpen?"navigation-drawer open":"navigation-drawer"}><div className="brand-lockup"><div className="brand-icon"><Tv2 size={23}/></div><div><b>TG IPTV</b><small>WINDOWS PLAYER</small></div></div>
-      <div className="profile-switcher"><div className="profile-avatar">T</div><span><b>My library</b><small>{playlists.length} playlist{playlists.length===1?"":"s"} connected</small></span></div>
-      <p className="navigation-caption">WATCH</p><nav>{navigation.filter(n=>n.group==="watch").map(({section,icon:Icon})=><button key={section} className={activeSection===section?"navigation-item active":"navigation-item"} onClick={()=>openSection(section)}><Icon size={19}/><span>{section}</span>{section==="Favorites"&&favorites.length>0&&<small>{favorites.length}</small>}</button>)}</nav>
-      <p className="navigation-caption manage-caption">MANAGE</p><nav>{navigation.filter(n=>n.group==="manage").map(({section,icon:Icon})=><button key={section} className={activeSection===section?"navigation-item active":"navigation-item"} onClick={()=>openSection(section)}><Icon size={19}/><span>{section}</span></button>)}</nav>
+    <aside className={navigationOpen?"navigation-drawer open":"navigation-drawer"}><div className="brand-lockup"><div className="brand-icon"><Tv2 size={23}/></div><div><b>TG IPTV</b><small>Windows player</small></div></div>
+      <div className="profile-switcher"><div className="profile-avatar">T</div><span><b>Playlist library</b><small>{playlists.length} playlist{playlists.length===1?"":"s"} connected</small></span></div>
+      <p className="navigation-caption">Watch</p><nav>{navigation.filter(n=>n.group==="watch").map(({section,icon:Icon})=><button key={section} className={activeSection===section?"navigation-item active":"navigation-item"} onClick={()=>openSection(section)}><Icon size={19}/><span>{section}</span>{section==="Favorites"&&favorites.length>0&&<small>{favorites.length}</small>}</button>)}</nav>
+      <p className="navigation-caption manage-caption">Manage</p><nav>{navigation.filter(n=>n.group==="manage").map(({section,icon:Icon})=><button key={section} className={activeSection===section?"navigation-item active":"navigation-item"} onClick={()=>openSection(section)}><Icon size={19}/><span>{section}</span></button>)}</nav>
       <div className="navigation-bottom"><div className="connection-status"><span className="connection-indicator"/><span><b>Application ready</b><small>Windows desktop</small></span></div><button className="help-link" onClick={()=>openSection("Settings")}><CircleHelp size={17}/> App preferences</button></div>
     </aside>
-    <div className="main-column"><header className="app-bar"><div className="app-bar-title"><button className="menu-button" onClick={()=>setNavigationOpen(v=>!v)} aria-label="Toggle navigation"><Menu size={21}/></button><span>IPTV <i>/</i> {activeSection}</span></div><div className="app-bar-actions"><span className="platform-label"><span/> Windows Desktop</span></div></header>
+    <div className="main-column"><header className="app-bar"><div className="app-bar-title"><button className="menu-button" onClick={()=>setNavigationOpen(v=>!v)} aria-label="Toggle navigation"><Menu size={21}/></button><span>IPTV <i>/</i> {activeSection}</span></div><div className="app-bar-actions"><span className="platform-label"><span/> Windows desktop</span></div></header>
       <main className="page-container">
         {selectedPlaylist && selectedChannel ? <LivePlayer playlist={selectedPlaylist} channel={selectedChannel} onClose={()=>setActivePlayback(null)} onSelect={channel=>setActivePlayback({playlistId:selectedPlaylist.id,channelId:channel.id})}/> : <>
-        {activeSection==="Home"&&<><PageHeading title="Welcome to TG IPTV" subtitle="Your television library, playlists and programme guide in one place."/><div className="overview-cards">
+        {activeSection==="Home"&&<><PageHeading title="Your TV library" subtitle="Manage playlists, browse channels and check programme schedules." action={<button className="primary-button" onClick={()=>openSection("Playlists")}><Plus size={16}/> Add playlist</button>}/><div className="overview-cards">
           <button className="overview-card" onClick={()=>openSection("Live TV")}><span className="overview-icon"><Radio size={21}/></span><b>{channelsCount.toLocaleString()}</b><small>Channels available</small><span className="card-link">Open Live TV <ChevronRight size={15}/></span></button>
           <button className="overview-card" onClick={()=>openSection("Playlists")}><span className="overview-icon"><ListVideo size={21}/></span><b>{playlists.length}</b><small>Connected playlists</small><span className="card-link">Manage playlists <ChevronRight size={15}/></span></button>
           <button className="overview-card" onClick={()=>openSection("Favorites")}><span className="overview-icon"><Heart size={21}/></span><b>{favorites.length}</b><small>Favorite channels</small><span className="card-link">View favorites <ChevronRight size={15}/></span></button>
-        </div><div className="home-content-grid"><section className="welcome-panel"><p className="eyebrow">YOUR ENTERTAINMENT HUB</p><h2>All your channels.<br/><span>One simple player.</span></h2><p>Connect a playlist to browse channels and build your TV library. Open any channel to start watching with automatic stream fallback.</p><button className="primary-button" onClick={()=>openSection("Playlists")}>Open playlist manager <ChevronRight size={16}/></button></section><section className="quick-links"><h2>Quick access</h2><button onClick={()=>openSection("Guide")}><CalendarDays size={19}/><span><b>Programme guide</b><small>See what's on now and next</small></span><ChevronRight size={17}/></button><button onClick={()=>openSection("History")}><Clock3 size={19}/><span><b>Recently watched</b><small>Return to your last channels</small></span><ChevronRight size={17}/></button></section></div></>}
-        {activeSection==="Live TV"&&<><PageHeading title="Live TV" subtitle="Browse all channels across your connected playlists."/><ChannelLibrary mode="all" onPlay={openPlayer}/></>}
+        </div><div className="home-content-grid"><section className="welcome-panel"><p className="eyebrow">Your channels</p><h2>{channelsCount ? <>Browse your channels.<br/><span>Choose what to watch.</span></> : <>Connect a playlist.<br/><span>Browse your channels.</span></>}</h2><p>{channelsCount ? "Choose a channel to start playback. Switch between available sources from the player." : "Add an M3U, M3U8 or JSON playlist to load your channels."}</p><button className="primary-button" onClick={()=>openSection("Playlists")}><Plus size={16}/> Add playlist</button></section><section className="quick-links"><h2>Quick access</h2><button onClick={()=>openSection("Guide")}><CalendarDays size={19}/><span><b>Programme guide</b><small>View current and upcoming programmes</small></span><ChevronRight size={17}/></button><button onClick={()=>openSection("History")}><Clock3 size={19}/><span><b>Recently watched</b><small>Open recently watched channels</small></span><ChevronRight size={17}/></button></section></div>{playlists.length>0&&<section className="home-playlists"><div className="list-section-heading"><h2>Your playlists</h2><span>{playlists.length}</span></div><div className="home-playlist-grid">{playlists.map(playlist=><button className="home-playlist-card" key={playlist.id} onClick={()=>openPlaylist(playlist)}><span className="home-playlist-icon"><ListVideo size={19}/></span><span className="home-playlist-info"><b>{playlist.name}</b><small>{playlist.channels.length.toLocaleString()} channels · {playlist.groups.length} groups</small></span><ChevronRight size={17}/></button>)}</div></section>}</>}
+        {activeSection==="Live TV"&&<><PageHeading title="Live TV" subtitle="Browse all channels across your connected playlists."/><ChannelLibrary mode="all" onPlay={openPlayer} initialPlaylistId={libraryPlaylistId}/></>}
          {activeSection==="Guide"&&<GuidePage playlists={playlists} onPlay={openPlayer} status={guideStatus} refreshedAt={guideRefreshedAt}/>}
-        {activeSection==="Favorites"&&<><PageHeading title="Favorites" subtitle="Your saved channels in one place."/><ChannelLibrary mode="favorites" onPlay={openPlayer}/></>}
-        {activeSection==="History"&&<><PageHeading title="Recently watched" subtitle="Quickly return to the channels you watched recently."/><ChannelLibrary mode="recent" onPlay={openPlayer}/></>}
+        {activeSection==="Favorites"&&<><PageHeading title="Favorites" subtitle="Channels you've saved."/><ChannelLibrary mode="favorites" onPlay={openPlayer}/></>}
+        {activeSection==="History"&&<><PageHeading title="Recently watched" subtitle="Open channels from your viewing history."/><ChannelLibrary mode="recent" onPlay={openPlayer}/></>}
         {activeSection==="Playlists"&&<PlaylistManager/>}
         {activeSection==="Settings"&&<SettingsPage/>}
         </>}
-      </main><footer className="app-footer"><span>TG IPTV Desktop</span><span>Windows edition <i>•</i> Live player</span></footer>
+      </main><footer className="app-footer"><span>TG IPTV Desktop</span><span>Windows desktop <i>·</i> IPTV player</span></footer>
     </div>
   </div>;
 }

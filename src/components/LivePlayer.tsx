@@ -94,19 +94,25 @@ export default function LivePlayer({ playlist, channel: initialChannel, onClose,
     const currentGeneration = generationRef.current;
     if (generation !== currentGeneration || !videoRef.current) return;
     const mediaVideo = videoRef.current;
-    await window.tvApp?.setStreamRequestContext({ originUrl: source.url, headers: source.headers, licenseUrl: source.drm?.licenseUrl, licenseHeaders: source.drm?.licenseHeaders });
     try {
-      if (source.type === "dash" || source.drm) {
+      await window.tvApp?.setStreamRequestContext({ originUrl: source.url, headers: source.headers, licenseUrl: source.drm?.licenseUrl, licenseHeaders: source.drm?.licenseHeaders });
+      if (source.type === "dash" || source.type === "unknown" || source.drm) {
         const shakaModule = await import("shaka-player");
         const shaka = shakaModule.default;
-        if (!shaka.Player.isBrowserSupported()) throw new Error("This Windows system does not support the required DASH playback features.");
+        if (!shaka.Player.isBrowserSupported()) {
+          if (source.type !== "unknown") throw new Error("This Windows system does not support the required DASH playback features.");
+          mediaVideo.src = source.url;
+          engineRef.current = "native";
+        } else {
         const player = new shaka.Player();
         shakaRef.current = player;
         await player.attach(mediaVideo);
+        if (source.drm?.scheme === "fairplay") throw new Error("FairPlay DRM is not supported by the Windows Chromium player.");
+        const licenseKeySystem = source.drm?.scheme === "widevine" ? "com.widevine.alpha" : source.drm?.scheme === "playready" ? "com.microsoft.playready" : "";
         player.configure({
           streaming: { bufferingGoal: 18, rebufferingGoal: 3, bufferBehind: 20, retryParameters: { maxAttempts: 3, baseDelay: 500, backoffFactor: 1.5 } },
           abr: { enabled: preferredQuality === "auto" },
-          drm: source.drm?.scheme === "clearkey" ? { clearKeys: source.drm.clearKeys ?? {} } : source.drm?.licenseUrl ? { servers: { [source.drm.scheme === "widevine" ? "com.widevine.alpha" : source.drm.scheme]: source.drm.licenseUrl } } : {}
+          drm: source.drm?.scheme === "clearkey" ? { clearKeys: source.drm.clearKeys ?? {} } : source.drm?.licenseUrl && licenseKeySystem ? { servers: { [licenseKeySystem]: source.drm.licenseUrl } } : {}
         });
         const mediaOrigin = new URL(source.url).origin;
         const licenseOrigin = source.drm?.licenseUrl ? new URL(source.drm.licenseUrl).origin : "";
@@ -117,15 +123,26 @@ export default function LivePlayer({ playlist, channel: initialChannel, onClose,
           const requestHeaders = isLicense ? source.drm?.licenseHeaders ?? {} : source.headers;
           for (const [key, value] of Object.entries(requestHeaders)) request.headers[key] = value;
         });
-        player.addEventListener("error", (event: any) => { if (generation === generationRef.current) void advanceRef.current(event.detail?.message ?? "DASH playback failed."); });
+        player.addEventListener("error", (event: any) => { if (generation === generationRef.current && source.type !== "unknown") void advanceRef.current(event.detail?.message ?? "DASH playback failed."); });
         player.addEventListener("trackschanged", updateTracks);
         player.addEventListener("adaptation", updateTracks);
-        await player.load(source.url);
-        if (generation !== generationRef.current) return;
-        engineRef.current = "shaka";
-        if (preferredQuality !== "auto") {
+        try {
+          await player.load(source.url);
+          if (generation !== generationRef.current) return;
+          engineRef.current = "shaka";
+        } catch (loadError) {
+          if (source.type !== "unknown") throw loadError;
+          await player.destroy().catch(() => undefined);
+          if (shakaRef.current === player) shakaRef.current = null;
+          if (generation !== generationRef.current) return;
+          mediaVideo.src = source.url;
+          engineRef.current = "native";
+          await mediaVideo.play().catch(() => undefined);
+        }
+        if (engineRef.current === "shaka" && preferredQuality !== "auto") {
           const tracks = player.getVariantTracks().filter((track: any) => track.height <= Number.parseInt(preferredQuality, 10));
           if (tracks.length) player.selectVariantTrack(tracks.sort((a: any, b: any) => b.height - a.height)[0], true);
+        }
         }
       } else if (source.type === "hls") {
         const module = await import("hls.js");

@@ -10,7 +10,7 @@ test("parses LiveTGTV M3U entries, IDs, groups, logos, EPG and per-channel heade
 https://live.example/player?liveid=165&url=https%3A%2F%2Fcdn.example%2Fmovie.mpd
 #EXTINF:-1 tvg-id="1839" group-title="Movies",&Pictures HD
 #KODIPROP:inputstream.adaptive.license_type=clearkey
-#KODIPROP:inputstream.adaptive.license_key=0123456789abcdef0123456789abcdef:abcdef0123456789abcdef0123456789
+#KODIPROP:inputstream.adaptive.license_key=0123456789abcdef0123456789abcdef:abcdef0123456789abcdef0123456789,1123456789abcdef0123456789abcdef:bcdef0123456789abcdef0123456789a,2123456789abcdef0123456789abcdef:cdef0123456789abcdef0123456789ab,3123456789abcdef0123456789abcdef:def0123456789abcdef0123456789abc,4123456789abcdef0123456789abcdef:ef0123456789abcdef0123456789abcd
 https://cdn.example/pictures.mpd`;
   const playlist = parsePlaylistText(input, "https://livetgtv.lovable.app/api/public/playlist.m3u");
   assert.equal(playlist.channels.length, 2);
@@ -19,9 +19,28 @@ https://cdn.example/pictures.mpd`;
   assert.equal(playlist.channels[0].sources[0].headers["User-Agent"], "Vega-Test");
   assert.equal(playlist.channels[0].sources[0].headers.Cookie, "sid=abc");
   assert.equal(playlist.channels[1].sources[0].drm?.scheme, "clearkey");
+  assert.equal(Object.keys(playlist.channels[1].sources[0].drm?.clearKeys ?? {}).length, 5);
   assert.equal(playlist.channels[1].requiresDrm, true);
   assert.equal(playlist.epgUrls[0], "https://guide.example/epg.xml");
   assert.deepEqual(playlist.groups, ["Movies"]);
+});
+
+test("uses Kodi manifest hints and preserves per-channel ClearKey and HTTP headers", () => {
+  const input = `#EXTM3U
+#EXTINF:-1 tvg-id="test-1",Manifest channel
+#KODIPROP:inputstream.adaptive.manifest_type=mpd
+#KODIPROP:inputstream.adaptive.license_type=clearkey
+#KODIPROP:inputstream.adaptive.license_key=0123456789abcdef0123456789abcdef:abcdef0123456789abcdef0123456789,1123456789abcdef0123456789abcdef:bcdef0123456789abcdef0123456789a
+#EXTVLCOPT:http-user-agent=Vega-Test-Agent
+#EXTHTTP:{"cookie":"session=playlist-token"}
+https://edge.example/live/channel?id=1`;
+  const playlist = parsePlaylistText(input, "https://example.test/playlist.m3u");
+  const source = playlist.channels[0].sources[0];
+  assert.equal(source.type, "dash");
+  assert.equal(source.drm?.scheme, "clearkey");
+  assert.equal(Object.keys(source.drm?.clearKeys ?? {}).length, 2);
+  assert.equal(source.headers["User-Agent"], "Vega-Test-Agent");
+  assert.equal(source.headers.Cookie, "session=playlist-token");
 });
 
 test("parses JSON playlists and skips invalid or unsupported entries", () => {
@@ -34,9 +53,18 @@ test("parses JSON playlists and skips invalid or unsupported entries", () => {
   assert.equal(playlist.channels[0].sources[0].headers.Referer, "https://site.example/");
 });
 
-test("rejects empty and unsupported playlists", () => {
+test("keeps valid HTTP channels even when stream URLs have no recognizable extension", () => {
+  const playlist = parsePlaylistText("#EXTM3U\n#EXTINF:-1 tvg-id=\"same\",Channel One\nhttps://example.com/live?id=1\n#EXTINF:-1 tvg-id=\"same\",Channel Two\nhttps://example.com/live?id=2", "unknown.m3u");
+  assert.equal(playlist.channels.length, 2);
+  assert.equal(playlist.channels[0].sources[0].type, "unknown");
+  assert.equal(playlist.channels[1].sources[0].type, "unknown");
+  assert.notEqual(playlist.channels[0].id, playlist.channels[1].id);
+  assert.equal(playlist.channels[1].number, 2);
+});
+
+test("rejects empty playlists and playlists without valid HTTP channels", () => {
   assert.throws(() => parsePlaylistText("", "empty.m3u"), /empty/i);
-  assert.throws(() => parsePlaylistText("#EXTM3U\n#EXTINF:-1,Unsupported\nhttps://example.com/no-extension", "bad.m3u"), /No supported/);
+  assert.throws(() => parsePlaylistText("#EXTM3U\n#EXTINF:-1,Invalid\nfile:///tmp/stream", "bad.m3u"), /No supported/);
 });
 
 test("adds the optional LiveTGTV backup stream only when a channel match is unique", async () => {
