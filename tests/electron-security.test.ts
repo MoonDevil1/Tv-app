@@ -26,13 +26,14 @@ test("Electron stream headers are limited to the active stream host", () => {
   });
 
   let sameHost: Record<string, string> = {};
-  listener!({ url: "https://stream.example/segment.ts", requestHeaders: { Accept: "*/*" } }, result => { sameHost = result.requestHeaders; });
+  listener!({ url: "https://stream.example/segment.ts", requestHeaders: { Accept: "*/*", Origin: "null" } }, result => { sameHost = result.requestHeaders; });
   assert.equal(sameHost.Authorization, "Bearer test");
   assert.equal(sameHost.Referer, "https://provider.example/");
   assert.equal(sameHost["X-Test"], "safe");
   assert.equal(sameHost.Cookie, "session=abc");
   assert.equal(sameHost["User-Agent"], "IPTV Player");
   assert.equal(sameHost.Host, undefined);
+  assert.equal(sameHost.Origin, undefined);
 
   let otherHost: Record<string, string> = {};
   listener!({ url: "https://unrelated.example/track.m3u8", requestHeaders: { Accept: "video/*" } }, result => { otherHost = result.requestHeaders; });
@@ -50,6 +51,20 @@ test("Electron stream headers are limited to the active stream host", () => {
   let cleared: Record<string, string> = {};
   listener!({ url: "https://stream.example/segment.ts", requestHeaders: { Accept: "*/*" } }, result => { cleared = result.requestHeaders; });
   assert.deepEqual(cleared, { Accept: "*/*" });
+});
+
+test("Electron honors explicit Kodi Origin headers but strips the synthetic file Origin", () => {
+  let listener: ((details: { url: string; requestHeaders: Record<string, string> }, callback: (result: { requestHeaders: Record<string, string> }) => void) => void) | undefined;
+  const mockSession = { webRequest: {
+    onBeforeSendHeaders: (_filter: unknown, callback: typeof listener) => { listener = callback; },
+    onHeadersReceived: () => undefined
+  } };
+  registerHeaderProxy(mockSession as never);
+  setActiveStreamContext({ originUrl: "https://stream.example/live.mpd", headers: { Origin: "https://provider.example" } });
+  let result: Record<string, string> = {};
+  listener!({ url: "https://stream.example/live.mpd", requestHeaders: { Origin: "null" } }, value => { result = value.requestHeaders; });
+  assert.equal(result.Origin, "https://provider.example");
+  setActiveStreamContext(null);
 });
 
 test("Electron adds CORS response headers only for the active stream origin", () => {
