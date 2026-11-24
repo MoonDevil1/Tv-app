@@ -47,12 +47,16 @@ export async function resolveLiveTgTvChannel(channel: TvChannel): Promise<TvChan
     const { text } = await fetchPlaylistText(API + "/" + encodeURIComponent(id), { Accept: "application/json", "Cache-Control": "no-cache", "User-Agent": "Vega-LiveTGTV/1.0" });
     const details = JSON.parse(text) as ApiDetails;
     const urls = Array.isArray(details.sources) ? details.sources.map(v => typeof v === "string" ? v.trim() : "").filter(v => /^https?:\/\//i.test(v)) : [];
-    const drm = drmFrom(details.drm);
+    const drm = drmFrom(details.drm) ?? channel.sources.find(source => source.drm)?.drm;
     if (channel.requiresDrm && !drm) return { ...channel, sources: [] };
     const mediaHeaders = headersFrom(channel.sources[0]?.headers, details.headers);
     const sources = urls.map((url,index) => ({ url, type: manifest(url, channel.sources[0]?.type ?? "unknown"), headers: mediaHeaders, ...(drm ? { drm } : {}), label: urls.length > 1 ? "LiveTGTV " + (index + 1) : "LiveTGTV" })).filter(s => s.type !== "unknown");
     const fallbacks = channel.sources.filter(source => source.label === "LiveTGTV backup");
-    if (sources.length) return { ...channel, sources: [...sources, ...fallbacks] };
-    return channel.requiresDrm ? { ...channel, sources: fallbacks } : channel;
-  } catch { return channel.requiresDrm ? { ...channel, sources: channel.sources.filter(source => source.label === "LiveTGTV backup") } : channel; }
+    const playlistSources = channel.sources.filter(source => (!channel.requiresDrm || !!source.drm) && !urls.includes(source.url)).map(source => ({ ...source, label: source.label ?? "LiveTGTV playlist backup" }));
+    if (sources.length) return { ...channel, sources: [...sources, ...playlistSources, ...fallbacks] };
+    return { ...channel, sources: [...playlistSources, ...fallbacks] };
+  } catch {
+    const playableSources = channel.sources.filter(source => !channel.requiresDrm || !!source.drm);
+    return { ...channel, sources: playableSources };
+  }
 }
