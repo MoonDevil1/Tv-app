@@ -23,7 +23,7 @@ function safeHeaders(value: unknown): StreamHeaders {
   if (!value || typeof value !== "object" || Array.isArray(value)) return {};
   return Object.fromEntries(Object.entries(value).flatMap(([name, raw]) => {
     const text = String(raw);
-    return name && !/[\\r\\n:]/.test(name) && !/[\\r\\n]/.test(text) ? [[name, text]] : [];
+    return name && !/[\r\n:]/.test(name) && !/[\r\n]/.test(text) ? [[name, text]] : [];
   }));
 }
 
@@ -43,13 +43,16 @@ function normalizeDrm(value: LiveTgTvDetails["drm"]): DrmConfig | undefined {
     return licenseUrl ? { scheme: "clearkey", licenseUrl, licenseHeaders } : undefined;
   }
   if ((type === "widevine" || type === "playready") && licenseUrl) {
-    return {
-      scheme: type,
-      licenseUrl,
-      licenseHeaders,
-    };
+    return { scheme: type, licenseUrl, licenseHeaders };
   }
   return undefined;
+}
+
+function manifestTypeFor(url: string, fallback: Channel["manifestType"]): Channel["manifestType"] {
+  if (/\.mpd(?:$|[?#])/i.test(url)) return "dash";
+  if (/\.m3u8?(?:$|[?#])/i.test(url)) return "hls";
+  if (/\.(?:mp4|m4v|webm|ogg|ts)(?:$|[?#])/i.test(url)) return "progressive";
+  return fallback ?? "unknown";
 }
 
 export function applyLiveTgTvDetails(channel: Channel, input: unknown): Channel | null {
@@ -63,11 +66,7 @@ export function applyLiveTgTvDetails(channel: Channel, input: unknown): Channel 
       const url = new URL(raw);
       if (url.protocol !== "http:" && url.protocol !== "https:") return [];
       const value = url.toString();
-      const manifestType = /\\.mpd(?:$|[?#])/i.test(value) ? "dash"
-        : /\\.m3u8?(?:$|[?#])/i.test(value) ? "hls"
-        : /\\.(?:mp4|m4v|webm|ogg)(?:$|[?#])/i.test(value) ? "progressive"
-        : channel.manifestType ?? "unknown";
-      return [{ url: value, headers, drm, manifestType }];
+      return [{ url: value, headers, drm, manifestType: manifestTypeFor(value, channel.manifestType) }];
     } catch { return []; }
   });
   if (!sources.length) return null;
