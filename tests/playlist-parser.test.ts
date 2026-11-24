@@ -35,9 +35,18 @@ test("parses JSON playlists and skips invalid or unsupported entries", () => {
   assert.equal(playlist.channels[0].sources[0].headers.Referer, "https://site.example/");
 });
 
-test("rejects empty and unsupported playlists", () => {
+test("keeps valid HTTP channels even when stream URLs have no recognizable extension", () => {
+  const playlist = parsePlaylistText("#EXTM3U\n#EXTINF:-1 tvg-id=\"same\",Channel One\nhttps://example.com/live?id=1\n#EXTINF:-1 tvg-id=\"same\",Channel Two\nhttps://example.com/live?id=2", "unknown.m3u");
+  assert.equal(playlist.channels.length, 2);
+  assert.equal(playlist.channels[0].sources[0].type, "unknown");
+  assert.equal(playlist.channels[1].sources[0].type, "unknown");
+  assert.notEqual(playlist.channels[0].id, playlist.channels[1].id);
+  assert.equal(playlist.channels[1].number, 2);
+});
+
+test("rejects empty playlists and playlists without valid HTTP channels", () => {
   assert.throws(() => parsePlaylistText("", "empty.m3u"), /empty/i);
-  assert.throws(() => parsePlaylistText("#EXTM3U\n#EXTINF:-1,Unsupported\nhttps://example.com/no-extension", "bad.m3u"), /No supported/);
+  assert.throws(() => parsePlaylistText("#EXTM3U\n#EXTINF:-1,Invalid\nfile:///tmp/stream", "bad.m3u"), /No supported/);
 });
 
 test("adds the optional LiveTGTV backup stream only when a channel match is unique", async () => {
