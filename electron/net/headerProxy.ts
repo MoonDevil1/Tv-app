@@ -8,7 +8,7 @@ export interface StreamRequestContext {
 let activeContext: { origins: Set<string>; headers: Record<string, string> } | null = null;
 
 const BLOCKED_HEADERS = new Set([
-  "host", "content-length", "connection", "transfer-encoding", "origin",
+  "host", "content-length", "connection", "transfer-encoding",
   "upgrade", "proxy-authorization", "proxy-connection", "accept-encoding"
 ]);
 
@@ -57,6 +57,11 @@ export function registerHeaderProxy(targetSession: Session): void {
     if (!isActiveStreamOrigin(details.url)) return callback({ requestHeaders: details.requestHeaders });
 
     const requestHeaders = { ...details.requestHeaders };
+    const configuredOrigin = Object.keys(activeContext?.headers ?? {}).some(name => name.toLowerCase() === "origin");
+    if (!configuredOrigin) {
+      const browserOrigin = Object.keys(requestHeaders).find(name => name.toLowerCase() === "origin");
+      if (browserOrigin) delete requestHeaders[browserOrigin];
+    }
     for (const [name, value] of Object.entries(activeContext?.headers ?? {})) {
       const existing = Object.keys(requestHeaders).find(key => key.toLowerCase() === name.toLowerCase());
       if (existing) delete requestHeaders[existing];
