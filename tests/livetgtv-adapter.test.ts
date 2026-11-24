@@ -33,7 +33,7 @@ test("LiveTGTV adapter loads all API sources, every ClearKey pair and playlist h
   const resolved = await withLiveTgTvResponse(response, () => resolveLiveTgTvChannel(channel));
   assert.equal(resolved.sources.length, 3);
   assert.equal(resolved.sources[0].type, "dash");
-  assert.equal(resolved.sources[1].type, "unknown");
+  assert.equal(resolved.sources[1].type, "dash");
   assert.equal(resolved.sources[2].type, "dash");
   assert.equal(resolved.sources[0].headers.Cookie, "sid=playlist");
   assert.equal(resolved.sources[0].headers["User-Agent"], "Vega-UA");
