@@ -286,3 +286,15 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
 .player-channel-list{padding:8px}
 .navigation-item>svg,.quick-links button>svg,.menu-button svg,.icon-button svg{width:18px;height:18px;stroke-width:1.6}
 .channel-play-button svg,.guide-play svg{width:16px;height:16px;stroke-width:1.6}
+
+
+.home-playlists{margin-top:24px}
+.home-playlist-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px}
+.home-playlist-card{min-width:0;display:flex;align-items:center;gap:12px;padding:14px 16px;color:var(--text);background:var(--surface);border:1px solid var(--border);border-radius:12px;text-align:left}
+.home-playlist-card:hover{border-color:var(--primary);background:var(--surface-soft)}
+.home-playlist-icon{width:38px;height:38px;display:grid;place-items:center;flex:none;color:var(--primary);background:var(--primary-soft);border-radius:9px}
+.home-playlist-info{min-width:0;flex:1}
+.home-playlist-info b,.home-playlist-info small{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.home-playlist-info b{font-size:13px;font-weight:500}
+.home-playlist-info small{margin-top:4px;color:var(--muted);font-size:11px}
+@media(max-width:820px){.home-playlist-grid{grid-template-columns:1fr}}
