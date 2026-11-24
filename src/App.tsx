@@ -40,7 +40,7 @@ export default function App() {
   const manager = useMemo(() => new PlaylistManager(), []);
   const playlists = useAppStore(s => s.playlists), favorites = useAppStore(s => s.favorites), recentlyWatched = useAppStore(s => s.recentlyWatched), epgPrograms = useAppStore(s => s.epgPrograms);
   const addPlaylist = useAppStore(s => s.addPlaylist), replacePlaylist = useAppStore(s => s.replacePlaylist), removeStoredPlaylist = useAppStore(s => s.removePlaylist), toggleFavorite = useAppStore(s => s.toggleFavorite), recordWatch = useAppStore(s => s.recordWatch), setEpgPrograms = useAppStore(s => s.setEpgPrograms);
-  const [active, setActive] = useState("Discover"), [query, setQuery] = useState(""), [selectedPlaylistId, setSelectedPlaylistId] = useState(""), [selectedGroup, setSelectedGroup] = useState("All");
+  const [active, setActive] = useState("Playlists"), [query, setQuery] = useState(""), [selectedPlaylistId, setSelectedPlaylistId] = useState(""), [selectedGroup, setSelectedGroup] = useState("All");
   const [selectedChannel, setSelectedChannel] = useState<{ playlistId: string; channel: Channel } | null>(null);
   const [showAdd, setShowAdd] = useState(false), [sourceUrl, setSourceUrl] = useState(LIVE_TGTV_URL), [playlistName, setPlaylistName] = useState("LiveTGTV"), [refreshInterval, setRefreshInterval] = useState(300000);
   const [busy, setBusy] = useState(false), [epgBusy, setEpgBusy] = useState(false), [error, setError] = useState(""), [notice, setNotice] = useState(""), [scrollTop, setScrollTop] = useState(0), [columns, setColumns] = useState(4);
@@ -132,7 +132,7 @@ export default function App() {
       const playlist = file ? await manager.loadFile(file, options) : await manager.load(playlistInput, options);
       addPlaylist(playlist); setSelectedPlaylistId(playlist.id); setSelectedGroup("All");
       if (playlist.refreshIntervalMs) manager.startAutoRefresh(playlist, replacePlaylist, e => setError(e.message));
-      setShowAdd(false); setActive("Live TV"); setNotice(`Imported ${playlist.channels.length.toLocaleString()} channels from ${playlist.name}.`);
+      setShowAdd(false); setActive("Playlists"); setNotice(`Imported ${playlist.channels.length.toLocaleString()} channels from ${playlist.name}. Select the playlist to open it.`);
       setSourceUrl(LIVE_TGTV_URL);
     } catch (e) { setError(e instanceof Error ? e.message : String(e)); }
     finally { setBusy(false); }
