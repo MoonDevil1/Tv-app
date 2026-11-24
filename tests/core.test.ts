@@ -417,7 +417,7 @@ test("resolves the exact Zee Cinema HD API shape with five ClearKey pairs", () =
   });
   assert.ok(resolved);
   assert.equal(resolved.name, "Zee Cinema HD");
-  assert.match(resolved.url, /\\?__hdnea__=signed-token$/);
+  assert.match(resolved.url, /\?__hdnea__=signed-token$/);
   assert.equal(resolved.headers.Cookie, "__hdnea__=signed-cookie");
   assert.equal(Object.keys(resolved.drm?.clearKeys ?? {}).length, 5);
 });
