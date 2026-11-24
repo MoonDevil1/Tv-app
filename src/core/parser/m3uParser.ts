@@ -49,12 +49,12 @@ function parseHeadersString(value: string): StreamHeaders {
     }
   } catch { /* Kodi also accepts pipe- and ampersand-separated header pairs. */ }
   const headers: StreamHeaders = {};
-  for (const item of source.replace(/^\\{|\\}$/g, "").split(/[&|]/)) {
+  for (const item of source.replace(/^\{|\}$/g, "").split(/[&|]/)) {
     const separator = item.indexOf("=");
     if (separator < 1) continue;
     const name = normalizeHeaderName(item.slice(0, separator));
     const header = item.slice(separator + 1).trim();
-    if (name && !/[\\r\\n:]/.test(name) && !/[\\r\\n]/.test(header)) headers[name] = header;
+    if (name && !/[\r\n:]/.test(name) && !/[\r\n]/.test(header)) headers[name] = header;
   }
   return headers;
 }
