@@ -31,12 +31,15 @@ test("LiveTGTV adapter loads all API sources, every ClearKey pair and playlist h
     rawAttributes: {}
   };
   const resolved = await withLiveTgTvResponse(response, () => resolveLiveTgTvChannel(channel));
-  assert.equal(resolved.sources.length, 2);
+  assert.equal(resolved.sources.length, 3);
   assert.equal(resolved.sources[0].type, "dash");
-  assert.equal(resolved.sources[1].type, "dash");
+  assert.equal(resolved.sources[1].type, "unknown");
+  assert.equal(resolved.sources[2].type, "dash");
   assert.equal(resolved.sources[0].headers.Cookie, "sid=playlist");
   assert.equal(resolved.sources[0].headers["User-Agent"], "Vega-UA");
   assert.equal(resolved.sources[0].headers["X-Channel"], "api-header");
+  assert.equal(resolved.sources[2].url, channel.sources[0].url);
+  assert.equal(resolved.sources[2].label, "LiveTGTV playlist backup");
   assert.equal(Object.keys(resolved.sources[0].drm?.clearKeys ?? {}).length, 5);
 });
 
@@ -56,7 +59,6 @@ test("LiveTGTV detects API manifest types when the playlist source type is unkno
   const resolved = await withLiveTgTvResponse(response, () => resolveLiveTgTvChannel(channel));
   assert.deepEqual(resolved.sources.map(source => source.type), ["dash", "hls", "progressive"]);
 });
-
 
 test("LiveTGTV keeps a parsed authorized multi-key playlist stream when channel API is unavailable", async () => {
   const clearKeys = Object.fromEntries(Array.from({ length: 5 }, (_, i) => [
