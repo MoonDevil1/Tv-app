@@ -6,7 +6,8 @@ test("Electron stream headers are limited to the active stream host", () => {
   let listener: ((details: { url: string; requestHeaders: Record<string, string> }, callback: (result: { requestHeaders: Record<string, string> }) => void) => void) | undefined;
   const mockSession = {
     webRequest: {
-      onBeforeSendHeaders: (_filter: unknown, callback: typeof listener) => { listener = callback; }
+      onBeforeSendHeaders: (_filter: unknown, callback: typeof listener) => { listener = callback; },
+      onHeadersReceived: () => undefined
     }
   };
   registerHeaderProxy(mockSession as never);
@@ -52,11 +53,10 @@ test("Electron stream headers are limited to the active stream host", () => {
 });
 
 test("Electron adds CORS response headers only for the active stream origin", () => {
-  let beforeSend: ((details: { url: string; requestHeaders: Record<string, string> }, callback: (result: { requestHeaders: Record<string, string> }) => void) => void) | undefined;
   let headersReceived: ((details: { url: string; responseHeaders?: Record<string, string[]> }, callback: (result: { responseHeaders?: Record<string, string[]> }) => void) => void) | undefined;
   const mockSession = {
     webRequest: {
-      onBeforeSendHeaders: (_filter: unknown, callback: typeof beforeSend) => { beforeSend = callback; },
+      onBeforeSendHeaders: () => undefined,
       onHeadersReceived: (_filter: unknown, callback: typeof headersReceived) => { headersReceived = callback; }
     }
   };
@@ -93,7 +93,8 @@ test("Electron stream context rejects non-HTTP origins and sanitizes header inje
     webRequest: {
       onBeforeSendHeaders: (_filter: unknown, callback: (details: { url: string; requestHeaders: Record<string, string> }, done: (result: { requestHeaders: Record<string, string> }) => void) => void) => {
         callback({ url: "https://stream.example/segment.ts", requestHeaders: {} }, result => { sanitized = result.requestHeaders; });
-      }
+      },
+      onHeadersReceived: () => undefined
     }
   };
   registerHeaderProxy(mockSession as never);
