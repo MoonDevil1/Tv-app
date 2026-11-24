@@ -39,28 +39,43 @@ export function setActiveStreamContext(context: StreamRequestContext | null): vo
   activeContext = { origins: new Set([origin.origin.toLowerCase()]), headers };
 }
 
+function isActiveStreamOrigin(url: string): boolean {
+  if (!activeContext) return false;
+  try { return activeContext.origins.has(new URL(url).origin.toLowerCase()); }
+  catch { return false; }
+}
+
+function setResponseHeader(headers: Record<string, string[]>, name: string, value: string): void {
+  const existing = Object.keys(headers).find(key => key.toLowerCase() === name.toLowerCase());
+  if (existing) delete headers[existing];
+  headers[name] = [value];
+}
+
 export function registerHeaderProxy(targetSession: Session): void {
-  targetSession.webRequest.onBeforeSendHeaders(
-    { urls: ["http://*/*", "https://*/*"] },
-    (details, callback) => {
-      const context = activeContext;
-      if (!context) return callback({ requestHeaders: details.requestHeaders });
+  const filter = { urls: ["http://*/*", "https://*/*"] };
+  targetSession.webRequest.onBeforeSendHeaders(filter, (details, callback) => {
+    if (!isActiveStreamOrigin(details.url)) return callback({ requestHeaders: details.requestHeaders });
 
-      let requestOrigin = "";
-      try { requestOrigin = new URL(details.url).origin.toLowerCase(); } catch {
-        return callback({ requestHeaders: details.requestHeaders });
-      }
-      if (!context.origins.has(requestOrigin)) {
-        return callback({ requestHeaders: details.requestHeaders });
-      }
-
-      const requestHeaders = { ...details.requestHeaders };
-      for (const [name, value] of Object.entries(context.headers)) {
-        const existing = Object.keys(requestHeaders).find(key => key.toLowerCase() === name.toLowerCase());
-        if (existing) delete requestHeaders[existing];
-        requestHeaders[name] = value;
-      }
-      callback({ requestHeaders });
+    const requestHeaders = { ...details.requestHeaders };
+    for (const [name, value] of Object.entries(activeContext?.headers ?? {})) {
+      const existing = Object.keys(requestHeaders).find(key => key.toLowerCase() === name.toLowerCase());
+      if (existing) delete requestHeaders[existing];
+      requestHeaders[name] = value;
     }
-  );
+    callback({ requestHeaders });
+  });
+
+  // Native players are not subject to browser CORS. Scope the equivalent response
+  // permission to the one active stream origin so Shaka/HLS can read its manifests
+  // and media segments without disabling Electron webSecurity globally.
+  targetSession.webRequest.onHeadersReceived(filter, (details, callback) => {
+    if (!isActiveStreamOrigin(details.url)) return callback({ responseHeaders: details.responseHeaders });
+    const responseHeaders = { ...(details.responseHeaders ?? {}) };
+    setResponseHeader(responseHeaders, "Access-Control-Allow-Origin", "*");
+    setResponseHeader(responseHeaders, "Access-Control-Allow-Methods", "GET, HEAD, OPTIONS");
+    setResponseHeader(responseHeaders, "Access-Control-Allow-Headers", "Accept, Authorization, Content-Type, Range, X-Requested-With");
+    setResponseHeader(responseHeaders, "Access-Control-Expose-Headers", "Accept-Ranges, Content-Length, Content-Range, Date, ETag");
+    setResponseHeader(responseHeaders, "Access-Control-Max-Age", "600");
+    callback({ responseHeaders });
+  });
 }
