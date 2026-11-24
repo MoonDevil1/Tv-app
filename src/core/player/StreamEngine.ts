@@ -30,21 +30,61 @@ export class StreamEngine {
     this.mediaAbort = abortController;
     this.video = video;
     this.options.onState?.("loading");
-    try {
-      await window.tvApp?.setStreamRequestContext({ originUrl: channel.url, headers: channel.headers });
-      if (channel.manifestType === "dash" || /\.mpd(?:$|[?#])/i.test(channel.url) || (channel.drm && channel.manifestType !== "progressive")) await this.playShaka(video, channel, generation, abortController.signal);
-      else if (channel.manifestType === "progressive" || /\.(?:mp4|m4v|webm|ogg)(?:$|[?#])/i.test(channel.url)) await this.playProgressive(video, channel, abortController.signal);
-      else await this.playHls(video, channel, generation, abortController.signal);
+    const candidates = [channel, ...(channel.alternates ?? []).map(source => ({ ...channel, ...source, alternates: [] }))];
+    let lastError = new Error("No playable stream source was available.");
+    for (const candidate of candidates) {
       if (generation !== this.generation) return;
-      await video.play();
-      this.options.onState?.("playing");
-    } catch (error) {
-      if (generation !== this.generation) return;
-      const err = error instanceof Error ? error : new Error(String(error));
-      if (await this.tryRecover(channel, generation, err)) return;
-      this.options.onState?.("error", err);
-      throw err;
+      try {
+        await window.tvApp?.setStreamRequestContext({ originUrl: candidate.url, headers: candidate.headers });
+        if (candidate.manifestType === "dash" || /\\.mpd(?:$|[?#])/i.test(candidate.url) || candidate.drm) {
+          await this.playShaka(video, candidate, generation, abortController.signal);
+        } else if (candidate.manifestType === "unknown") {
+          try {
+            await this.playShaka(video, candidate, generation, abortController.signal);
+          } catch (error) {
+            if (abortController.signal.aborted) throw error;
+            await this.clearCandidate(video);
+            try {
+              await this.playHls(video, candidate, generation, abortController.signal);
+            } catch (hlsError) {
+              if (abortController.signal.aborted) throw hlsError;
+              await this.clearCandidate(video);
+              video.src = candidate.url;
+              await waitForMediaEvent(video, "loadedmetadata", "error", 20_000, "Stream format could not be detected.", abortController.signal);
+            }
+          }
+        } else if (candidate.manifestType === "progressive" || /\\.(?:mp4|m4v|webm|ogg)(?:$|[?#])/i.test(candidate.url)) {
+          await this.playProgressive(video, candidate, abortController.signal);
+        } else {
+          await this.playHls(video, candidate, generation, abortController.signal);
+        }
+        if (generation !== this.generation) return;
+        await video.play();
+        this.options.onState?.("playing");
+        return;
+      } catch (error) {
+        if (generation !== this.generation) return;
+        lastError = error instanceof Error ? error : new Error(String(error));
+        await this.clearCandidate(video);
+        if (abortController.signal.aborted) return;
+      }
     }
+    if (generation !== this.generation) return;
+    if (await this.tryRecover(channel, generation, lastError)) return;
+    this.options.onState?.("error", lastError);
+    throw lastError;
+  }
+
+  private async clearCandidate(video: HTMLVideoElement): Promise<void> {
+    this.hls?.destroy();
+    this.hls = null;
+    if (this.shakaPlayer) {
+      await this.shakaPlayer.destroy().catch(() => undefined);
+      this.shakaPlayer = null;
+    }
+    video.pause();
+    video.removeAttribute("src");
+    video.load();
   }
 
   private async tryRecover(channel: Channel, generation: number, error: Error): Promise<boolean> {
