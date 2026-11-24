@@ -147,7 +147,7 @@ export function parseM3U(source: string, baseUrl?: string): Channel[] {
       try {
         const stream = streamLine(line);
         const url = resolveUrl(stream.url, baseUrl);
-        let drm;
+        let drm: ReturnType<typeof createClearKeyDrm>;
         try { drm = createClearKeyDrm(stream.drmType ?? licenseType, stream.drmLicense ?? licenseKey); }
         catch { drm = undefined; }
         if (drm && Object.keys(licenseHeaders).length) drm.licenseHeaders = { ...licenseHeaders };
