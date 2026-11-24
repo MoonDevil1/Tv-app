@@ -18,6 +18,7 @@ export class StreamEngine {
   private shakaPlayer: shaka.Player | null = null;
   private video: HTMLVideoElement | null = null;
   private generation = 0;
+  private activeGeneration = 0;
   private recovered = new Set<string>();
   private mediaAbort: AbortController | null = null;
   constructor(private readonly options: StreamEngineOptions = {}) {}
@@ -60,6 +61,7 @@ export class StreamEngine {
         }
         if (generation !== this.generation) return;
         await video.play();
+        this.activeGeneration = generation;
         this.options.onState?.("playing");
         return;
       } catch (error) {
@@ -145,7 +147,7 @@ export class StreamEngine {
       }
     });
     player.addEventListener("error", event => {
-      if (generation !== this.generation) return;
+      if (generation !== this.generation || this.activeGeneration !== generation) return;
       const detail = (event as Event & { detail?: { code?: number; data?: unknown[] } }).detail;
       const response = detail?.data?.[1] as { status?: number } | undefined;
       if ([401, 403, 410].includes(Number(response?.status))) {
@@ -187,7 +189,7 @@ export class StreamEngine {
       } });
       this.hls = hls;
       hls.on(Hls.Events.ERROR, (_event, data) => {
-        if (!data.fatal || generation !== this.generation) return;
+        if (!data.fatal || generation !== this.generation || this.activeGeneration !== generation) return;
         if ([401, 403, 410].includes(Number(data.response?.code))) {
           const error = new Error(`HTTP ${data.response?.code}`);
           void this.tryRecover(channel, generation, error).then(recovered => {
@@ -297,6 +299,7 @@ export class StreamEngine {
 
   async stop(): Promise<void> {
     this.generation++;
+    this.activeGeneration = 0;
     this.mediaAbort?.abort();
     this.mediaAbort = null;
     try { await window.tvApp?.setStreamRequestContext(null); } catch { /* Continue local cleanup if IPC is unavailable. */ }
