@@ -96,7 +96,7 @@ export default function LivePlayer({ playlist, channel: initialChannel, onClose,
     const mediaVideo = videoRef.current;
     await window.tvApp?.setStreamRequestContext({ originUrl: source.url, headers: source.headers, licenseUrl: source.drm?.licenseUrl, licenseHeaders: source.drm?.licenseHeaders });
     try {
-      if (source.type === "dash" || source.drm) {
+      if (source.type === "dash" || source.type === "unknown" || source.drm) {
         const shakaModule = await import("shaka-player");
         const shaka = shakaModule.default;
         if (!shaka.Player.isBrowserSupported()) throw new Error("This Windows system does not support the required DASH playback features.");
@@ -117,12 +117,22 @@ export default function LivePlayer({ playlist, channel: initialChannel, onClose,
           const requestHeaders = isLicense ? source.drm?.licenseHeaders ?? {} : source.headers;
           for (const [key, value] of Object.entries(requestHeaders)) request.headers[key] = value;
         });
-        player.addEventListener("error", (event: any) => { if (generation === generationRef.current) void advanceRef.current(event.detail?.message ?? "DASH playback failed."); });
+        player.addEventListener("error", (event: any) => { if (generation === generationRef.current && source.type !== "unknown") void advanceRef.current(event.detail?.message ?? "DASH playback failed."); });
         player.addEventListener("trackschanged", updateTracks);
         player.addEventListener("adaptation", updateTracks);
-        await player.load(source.url);
-        if (generation !== generationRef.current) return;
-        engineRef.current = "shaka";
+        try {
+          await player.load(source.url);
+          if (generation !== generationRef.current) return;
+          engineRef.current = "shaka";
+        } catch (loadError) {
+          if (source.type !== "unknown") throw loadError;
+          await player.destroy().catch(() => undefined);
+          if (shakaRef.current === player) shakaRef.current = null;
+          if (generation !== generationRef.current) return;
+          mediaVideo.src = source.url;
+          engineRef.current = "native";
+          await mediaVideo.play().catch(() => undefined);
+        }
         if (preferredQuality !== "auto") {
           const tracks = player.getVariantTracks().filter((track: any) => track.height <= Number.parseInt(preferredQuality, 10));
           if (tracks.length) player.selectVariantTrack(tracks.sort((a: any, b: any) => b.height - a.height)[0], true);
