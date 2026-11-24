@@ -396,6 +396,32 @@ test("normalizes all LiveTGTV API sources, media headers and multi-key ClearKey 
   assert.equal(Object.keys(resolved.drm?.clearKeys ?? {}).length, 2);
 });
 
+test("resolves the exact Zee Cinema HD API shape with five ClearKey pairs", () => {
+  const zee = {
+    id: "165", name: "Zee Cinema HD", url: "https://jiotvpllive.cdn.jio.com/bpk-tv/ZeeCinemaHD_BTS/WDVLive/index.mpd",
+    group: "Movies", tvgId: "165", headers: {
+      "User-Agent": "PlayTV/7.1.5", Cookie: "__hdnea__=signed-cookie"
+    }, manifestType: "dash" as const, rawAttributes: {}
+  };
+  const resolved = applyLiveTgTvDetails(zee, {
+    id: "165",
+    name: "Zee Cinema HD",
+    sources: ["https://jiotvpllive.cdn.jio.com/bpk-tv/ZeeCinemaHD_BTS/WDVLive/index.mpd?__hdnea__=signed-token"],
+    drm: { type: "clearkey", clearKeys: {
+      [KID]: KEY,
+      "102132435465768798a9bacbdcedfe0f": KEY,
+      "2031425364758697a8b9cadbecfd0e1f": KEY,
+      "30415263748596a7b8c9daebfc0d1e2f": KEY,
+      "405162738495a6b7c8d9eafb0c1d2e3f": KEY
+    } }
+  });
+  assert.ok(resolved);
+  assert.equal(resolved.name, "Zee Cinema HD");
+  assert.match(resolved.url, /\\?__hdnea__=signed-token$/);
+  assert.equal(resolved.headers.Cookie, "__hdnea__=signed-cookie");
+  assert.equal(Object.keys(resolved.drm?.clearKeys ?? {}).length, 5);
+});
+
 test("rejects invalid LiveTGTV source URLs without discarding the original channel", () => {
   const channel = {
     id: "channel", name: "Channel", url: "https://playlist.example/live.mpd",
