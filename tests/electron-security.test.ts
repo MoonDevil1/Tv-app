@@ -6,7 +6,8 @@ test("Electron stream headers are limited to the active stream host", () => {
   let listener: ((details: { url: string; requestHeaders: Record<string, string> }, callback: (result: { requestHeaders: Record<string, string> }) => void) => void) | undefined;
   const mockSession = {
     webRequest: {
-      onBeforeSendHeaders: (_filter: unknown, callback: typeof listener) => { listener = callback; }
+      onBeforeSendHeaders: (_filter: unknown, callback: typeof listener) => { listener = callback; },
+      onHeadersReceived: () => undefined
     }
   };
   registerHeaderProxy(mockSession as never);
@@ -25,13 +26,14 @@ test("Electron stream headers are limited to the active stream host", () => {
   });
 
   let sameHost: Record<string, string> = {};
-  listener!({ url: "https://stream.example/segment.ts", requestHeaders: { Accept: "*/*" } }, result => { sameHost = result.requestHeaders; });
+  listener!({ url: "https://stream.example/segment.ts", requestHeaders: { Accept: "*/*", Origin: "null" } }, result => { sameHost = result.requestHeaders; });
   assert.equal(sameHost.Authorization, "Bearer test");
   assert.equal(sameHost.Referer, "https://provider.example/");
   assert.equal(sameHost["X-Test"], "safe");
   assert.equal(sameHost.Cookie, "session=abc");
   assert.equal(sameHost["User-Agent"], "IPTV Player");
   assert.equal(sameHost.Host, undefined);
+  assert.equal(sameHost.Origin, undefined);
 
   let otherHost: Record<string, string> = {};
   listener!({ url: "https://unrelated.example/track.m3u8", requestHeaders: { Accept: "video/*" } }, result => { otherHost = result.requestHeaders; });
@@ -51,6 +53,50 @@ test("Electron stream headers are limited to the active stream host", () => {
   assert.deepEqual(cleared, { Accept: "*/*" });
 });
 
+test("Electron honors explicit Kodi Origin headers but strips the synthetic file Origin", () => {
+  let listener: ((details: { url: string; requestHeaders: Record<string, string> }, callback: (result: { requestHeaders: Record<string, string> }) => void) => void) | undefined;
+  const mockSession = { webRequest: {
+    onBeforeSendHeaders: (_filter: unknown, callback: typeof listener) => { listener = callback; },
+    onHeadersReceived: () => undefined
+  } };
+  registerHeaderProxy(mockSession as never);
+  setActiveStreamContext({ originUrl: "https://stream.example/live.mpd", headers: { Origin: "https://provider.example" } });
+  let result: Record<string, string> = {};
+  listener!({ url: "https://stream.example/live.mpd", requestHeaders: { Origin: "null" } }, value => { result = value.requestHeaders; });
+  assert.equal(result.Origin, "https://provider.example");
+  setActiveStreamContext(null);
+});
+
+test("Electron adds CORS response headers only for the active stream origin", () => {
+  let headersReceived: ((details: { url: string; responseHeaders?: Record<string, string[]> }, callback: (result: { responseHeaders?: Record<string, string[]> }) => void) => void) | undefined;
+  const mockSession = {
+    webRequest: {
+      onBeforeSendHeaders: () => undefined,
+      onHeadersReceived: (_filter: unknown, callback: typeof headersReceived) => { headersReceived = callback; }
+    }
+  };
+  registerHeaderProxy(mockSession as never);
+  assert.ok(headersReceived);
+  setActiveStreamContext({ originUrl: "https://stream.example/live.mpd", headers: { Cookie: "sid=secret" } });
+
+  let streamResponse: Record<string, string[]> = {};
+  headersReceived!({ url: "https://stream.example/live.mpd", responseHeaders: { "Content-Type": ["application/dash+xml"] } }, result => {
+    streamResponse = result.responseHeaders ?? {};
+  });
+  assert.deepEqual(streamResponse["Access-Control-Allow-Origin"], ["*"]);
+  assert.deepEqual(streamResponse["Access-Control-Allow-Methods"], ["GET, HEAD, OPTIONS"]);
+  assert.match(streamResponse["Access-Control-Allow-Headers"]?.[0] ?? "", /Authorization/);
+  assert.match(streamResponse["Access-Control-Expose-Headers"]?.[0] ?? "", /Content-Range/);
+  assert.deepEqual(streamResponse["Content-Type"], ["application/dash+xml"]);
+
+  let unrelatedResponse: Record<string, string[]> = {};
+  headersReceived!({ url: "https://unrelated.example/manifest.mpd", responseHeaders: { "Content-Type": ["application/dash+xml"] } }, result => {
+    unrelatedResponse = result.responseHeaders ?? {};
+  });
+  assert.deepEqual(unrelatedResponse, { "Content-Type": ["application/dash+xml"] });
+  setActiveStreamContext(null);
+});
+
 test("Electron stream context rejects non-HTTP origins and sanitizes header injection", () => {
   assert.throws(() => setActiveStreamContext({ originUrl: "file:///tmp/video.m3u8", headers: {} }), /HTTP or HTTPS/);
   setActiveStreamContext({
@@ -62,7 +108,8 @@ test("Electron stream context rejects non-HTTP origins and sanitizes header inje
     webRequest: {
       onBeforeSendHeaders: (_filter: unknown, callback: (details: { url: string; requestHeaders: Record<string, string> }, done: (result: { requestHeaders: Record<string, string> }) => void) => void) => {
         callback({ url: "https://stream.example/segment.ts", requestHeaders: {} }, result => { sanitized = result.requestHeaders; });
-      }
+      },
+      onHeadersReceived: () => undefined
     }
   };
   registerHeaderProxy(mockSession as never);

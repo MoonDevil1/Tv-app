@@ -21,12 +21,6 @@ jobs:
           - platform: windows
             os: windows-latest
             command: npm run dist:win
-          - platform: macos
-            os: macos-latest
-            command: npm run dist:mac
-          - platform: linux
-            os: ubuntu-latest
-            command: npm run dist:linux
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -45,9 +39,6 @@ jobs:
             VERSION="${GITHUB_REF_NAME#release/v}"
           fi
           npm version "$VERSION" --no-git-tag-version --allow-same-version
-      - name: Install Linux packaging dependencies
-        if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y libnss3 libatk-bridge2.0-0 libgtk-3-0 libgbm1 libasound2t64 libfuse2t64 xvfb
       - name: Install dependencies
         run: npm ci --no-fund
       - name: Dependency security audit
@@ -68,30 +59,12 @@ jobs:
       - name: Build Windows installers
         if: runner.os == 'Windows'
         run: npx electron-builder --win --publish never
-      - name: Build unpacked macOS app
-        if: matrix.platform == 'macos'
-        run: npx electron-builder --mac --dir --publish never
-      - name: Smoke test packaged macOS app
-        if: matrix.platform == 'macos'
-        run: ./scripts/smoke-test-unix.sh mac
-      - name: Build unpacked Linux app
-        if: matrix.platform == 'linux'
-        run: npx electron-builder --linux --dir --publish never
-      - name: Smoke test packaged Linux app
-        if: matrix.platform == 'linux'
-        run: xvfb-run -a ./scripts/smoke-test-unix.sh linux
-      - name: Build macOS/Linux installer
-        if: runner.os != 'Windows'
-        run: ${{ matrix.command }}
       - name: Upload installer artifact
         uses: actions/upload-artifact@v4
         with:
           name: TG-IPTV-${{ matrix.platform }}
           path: |
             release/*.exe
-            release/*.dmg
-            release/*.zip
-            release/*.AppImage
             release/*.yml
             release/*.blockmap
           if-no-files-found: error

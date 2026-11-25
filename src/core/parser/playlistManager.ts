@@ -58,6 +58,7 @@ export class PlaylistManager {
       baseUrl = response.url || source;
     }
     const channels = parsePlaylist(text, baseUrl);
+    if (!channels.length) throw new TypeError("Playlist contains no valid HTTP(S) channel entries.");
     const epg = extractEpgUrls(text, baseUrl);
     const id = options.id ?? (globalThis.crypto?.randomUUID?.() ?? `playlist-${Date.now()}`);
     const playlist: Playlist = {

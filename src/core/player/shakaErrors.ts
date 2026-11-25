@@ -9,6 +9,14 @@ export function describeShakaError(code?: number, data?: unknown[], original?: u
   if (code === 6000) {
     return new Error("The manifest marks this channel as encrypted, but does not identify a DRM system Shaka can use (Shaka 6000). Check the provider's manifest and DRM metadata.");
   }
+  // Shaka HTTP/network errors include the response object at data[1].
+  // Preserve the status so StreamEngine can refresh expired LiveTGTV URLs.
+  const response = data?.[1] && typeof data[1] === "object"
+    ? data[1] as { status?: unknown }
+    : undefined;
+  const status = Number(response?.status);
+  const httpStatus = [401, 403, 410].includes(status) ? status : undefined;
   const detail = original instanceof Error ? original.message : data?.length ? data.map(String).join(", ") : "";
-  return new Error(code ? `Shaka playback error ${code}${detail ? `: ${detail}` : ""}` : detail || "Unknown Shaka playback error.");
+  const message = code ? `Shaka playback error ${code}${detail ? `: ${detail}` : ""}` : detail || "Unknown Shaka playback error.";
+  return new Error(httpStatus ? `HTTP ${httpStatus}: ${message}` : message);
 }
