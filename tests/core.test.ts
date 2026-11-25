@@ -429,3 +429,14 @@ test("rejects invalid LiveTGTV source URLs without discarding the original chann
   };
   assert.equal(applyLiveTgTvDetails(channel, { sources: ["file:///etc/passwd"] }), null);
 });
+
+test("preserves expired/unauthorized HTTP statuses from Shaka manifest failures for source refresh", () => {
+  for (const status of [401, 403, 410]) {
+    const error = describeShakaError(1001, ["https://cdn.example/live.mpd", { status }]);
+    assert.match(error.message, new RegExp(`HTTP ${status}`));
+  }
+  assert.doesNotMatch(
+    describeShakaError(1001, ["https://cdn.example/live.mpd", { status: 404 }]).message,
+    /HTTP 404/
+  );
+});
