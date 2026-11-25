@@ -445,7 +445,7 @@ test("preserves expired/unauthorized HTTP statuses from Shaka manifest failures 
 test("parses Zee Cinema HD and &Pictures HD five-key DASH records", () => {
   const keys = [
     "00112233445566778899aabbccddeeff:ffeeddccbbaa99887766554433221100",
-    "102132435465768798a9bacbdcedfe0f:0fdecdb a8978675645342312010".replace(" ", ""),
+    "102132435465768798a9bacbdcedfe0f:0fdecdba8978675645342312010abcd1",
     "2031425364758697a8b9cadbecfd0e1f:1f0efdecba9876547384958673413220",
     "30415263748596a7b8c9daebfc0d1e2f:2f1e0dfcebda9876a7b8c9daebfc0d1e",
     "405162738495a6b7c8d9eafb0c1d2e3f:3f2e1d0cfbead9c8b7a6958473625140"
