@@ -440,3 +440,62 @@ test("preserves expired/unauthorized HTTP statuses from Shaka manifest failures 
     /HTTP 404/
   );
 });
+
+
+test("parses Zee Cinema HD and &Pictures HD five-key DASH records", () => {
+  const keys = [
+    "00112233445566778899aabbccddeeff:ffeeddccbbaa99887766554433221100",
+    "102132435465768798a9bacbdcedfe0f:0fdecdb a8978675645342312010".replace(" ", ""),
+    "2031425364758697a8b9cadbecfd0e1f:1f0efdecba9876547384958673413220",
+    "30415263748596a7b8c9daebfc0d1e2f:2f1e0dfcebda9876a7b8c9daebfc0d1e",
+    "405162738495a6b7c8d9eafb0c1d2e3f:3f2e1d0cfbead9c8b7a6958473625140"
+  ];
+  const source = `#EXTM3U
+#EXTINF:-1 tvg-id="165" tvg-name="Zee Cinema HD" group-title="Movies", Zee Cinema HD
+#KODIPROP:inputstream.adaptive.manifest\\_type=mpd
+#KODIPROP:inputstream.adaptive.license\\_type=clearkey
+#KODIPROP:inputstream.adaptive.license\\_key=${keys.join(",")}
+#EXTVLCOPT:http-user-agent=PlayTV/7.1.5 (Linux;Android 8.1.0) ExoPlayerLib/2.11.7
+#EXTHTTP:{"cookie":"\\_\\_hdnea\\_\\_=signed-token"}
+https://jiotvpllive.cdn.jio.com/bpk-tv/ZeeCinemaHD\\_BTS/WDVLive/index.mpd
+#EXTINF:-1 tvg-id="1839" tvg-name="&Pictures HD" group-title="Movies", &Pictures HD
+#KODIPROP:inputstream.adaptive.manifest\\_type=mpd
+#KODIPROP:inputstream.adaptive.license\\_type=clearkey
+#KODIPROP:inputstream.adaptive.license\\_key=${keys.join(",")}
+#EXTVLCOPT:http-user-agent=PlayTV/7.1.5 (Linux;Android 8.1.0) ExoPlayerLib/2.11.7
+#EXTHTTP:{"cookie":"\\_\\_hdnea\\_\\_=signed-token"}
+https://jiotvpllive.cdn.jio.com/bpk-tv/AndPicturesHD\\_BTS/WDVLive/index.mpd`;
+  const channels = parsePlaylist(source);
+  assert.equal(channels.length, 2);
+  for (const channel of channels) {
+    assert.equal(channel.manifestType, "dash");
+    assert.equal(channel.drm?.scheme, "clearkey");
+    assert.equal(Object.keys(channel.drm?.clearKeys ?? {}).length, 5);
+    assert.equal(channel.headers["User-Agent"], "PlayTV/7.1.5 (Linux;Android 8.1.0) ExoPlayerLib/2.11.7");
+    assert.equal(channel.headers.Cookie, "__hdnea__=signed-token");
+  }
+  assert.equal(channels[0].tvgId, "165");
+  assert.equal(channels[1].tvgId, "1839");
+});
+
+test("invalid LiveTGTV API ClearKey values do not discard valid stream sources", () => {
+  const existingDrm = { scheme: "clearkey" as const, clearKeys: { [hexToBase64Url(KID)]: hexToBase64Url(KEY) } };
+  const channel = {
+    id: "165", name: "Zee Cinema HD", url: "https://playlist.example/original.mpd",
+    group: "Movies", tvgId: "165", headers: {}, drm: existingDrm,
+    manifestType: "dash" as const, rawAttributes: {}
+  };
+  const resolved = applyLiveTgTvDetails(channel, {
+    sources: ["https://cdn.example/zee.mpd"],
+    drm: { type: "clearkey", clearKeys: { invalid: "placeholder" } }
+  });
+  assert.ok(resolved);
+  assert.equal(resolved.url, "https://cdn.example/zee.mpd");
+  assert.deepEqual(resolved.drm, existingDrm);
+
+  const licenseFallback = applyLiveTgTvDetails(channel, {
+    sources: ["https://cdn.example/zee.mpd"],
+    drm: { type: "clearkey", clearKeys: { invalid: "placeholder" }, licenseUrl: "https://license.example/clearkey" }
+  });
+  assert.equal(licenseFallback?.drm?.licenseUrl, "https://license.example/clearkey");
+});
