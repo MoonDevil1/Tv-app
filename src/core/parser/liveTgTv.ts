@@ -37,8 +37,12 @@ function normalizeDrm(value: LiveTgTvDetails["drm"]): DrmConfig | undefined {
       ? value.clearKeys
       : value.keyId && value.key ? { [value.keyId]: value.key } : undefined;
     if (rawKeys) {
-      const clearKeys = parseClearKeys(rawKeys);
-      if (Object.keys(clearKeys).length) return { scheme: "clearkey", clearKeys };
+      try {
+        const clearKeys = parseClearKeys(rawKeys);
+        if (Object.keys(clearKeys).length) return { scheme: "clearkey", clearKeys };
+      } catch {
+        // Invalid or placeholder API keys must not discard otherwise valid stream sources.
+      }
     }
     return licenseUrl ? { scheme: "clearkey", licenseUrl, licenseHeaders } : undefined;
   }
